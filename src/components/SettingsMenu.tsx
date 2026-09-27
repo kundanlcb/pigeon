@@ -7,11 +7,19 @@ import { relaunch } from '@tauri-apps/plugin-process';
 export function SettingsMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [hasUpdate, setHasUpdate] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const theme = useStore(state => state.theme);
   const toggleTheme = useStore(state => state.toggleTheme);
   const toast = useStore((state: any) => state.toast); // typing as any just to be safe if types differ
+
+  useEffect(() => {
+    // Silently check for updates on mount
+    check().then(update => {
+      if (update) setHasUpdate(true);
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,7 +52,7 @@ export function SettingsMenu() {
   };
 
   const handleAbout = () => {
-    toast("Pigeon API Client - v1.0.4");
+    toast("Pigeon API Client - v1.0.8");
     setIsOpen(false);
   };
 
@@ -52,9 +60,12 @@ export function SettingsMenu() {
     <div className="relative mt-auto" ref={containerRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-bg cursor-pointer transition-colors outline-none"
+        className="relative p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-bg cursor-pointer transition-colors outline-none"
       >
         <Settings size={20} strokeWidth={2.5} className={isOpen ? 'text-accent' : ''} />
+        {hasUpdate && (
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-app-bg" />
+        )}
       </button>
 
       {isOpen && (
@@ -72,8 +83,8 @@ export function SettingsMenu() {
             disabled={isUpdating}
             className="w-full px-3 py-2 text-[13px] text-left flex items-center hover:bg-surface-hover text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <Download size={14} className={`mr-2 ${isUpdating ? 'animate-bounce' : ''}`} />
-            {isUpdating ? 'Checking...' : 'Check for Updates'}
+            <Download size={14} className={`mr-2 ${isUpdating ? 'animate-bounce' : ''} ${hasUpdate && !isUpdating ? 'text-blue-500' : ''}`} />
+            {isUpdating ? 'Checking...' : (hasUpdate ? 'Update Available' : 'Check for Updates')}
           </button>
 
           <div className="my-1 border-t border-border-subtle" />

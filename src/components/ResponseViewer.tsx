@@ -105,7 +105,7 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
                 {response.data}
               </pre>
             )
-          ) : (
+          ) : activeResponseTab === 'headers' ? (
             <div className="w-full text-[13px] font-mono">
               {Object.entries(response.headers || {}).map(([k, v]) => (
                 <div key={k} className="flex border-b border-border-subtle last:border-0 hover:bg-surface-bg transition-colors">

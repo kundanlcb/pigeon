@@ -13,7 +13,7 @@ import { setQueryParams } from "./utils/url";
 import { resolveEnvVariables } from "./utils/env";
 import { downloadAsFile, openFileAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
-import { runPreRequestScript, runTestScript, PigeonContext } from "./utils/sandbox";
+import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';

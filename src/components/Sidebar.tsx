@@ -1,5 +1,5 @@
 
-import { Folder, Search, Activity } from 'lucide-react';
+import { Folder, Search, Activity, Workflow } from 'lucide-react';
 import { SettingsMenu } from './SettingsMenu';
 
 export function Sidebar() {
@@ -13,6 +13,9 @@ export function Sidebar() {
       </div>
       <div className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-bg cursor-pointer transition-colors">
         <Activity size={20} strokeWidth={2.5} />
+      </div>
+      <div className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-bg cursor-pointer transition-colors" title="Automation (Coming Soon)">
+        <Workflow size={20} strokeWidth={2.5} />
       </div>
       <SettingsMenu />
     </nav>

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { useStore, RequestItem } from '../store';
+import { useStore, type RequestItem } from '../store';
 import { Play, Loader2, Check, X, ArrowLeft } from 'lucide-react';
 import { resolveEnvVariables } from '../utils/env';
-import { runPreRequestScript, runTestScript, PigeonContext } from '../utils/sandbox';
+import { runPreRequestScript, runTestScript, type PigeonContext } from '../utils/sandbox';
 import { getMethodColor } from '../utils/styles';
 import { setQueryParams } from '../utils/url';
 import { fetch } from '@tauri-apps/plugin-http';
@@ -11,8 +10,6 @@ export function RunnerView() {
   const runnerState = useStore(state => state.runnerState);
   const setRunnerState = useStore(state => state.setRunnerState);
   const collections = useStore(state => state.collections);
-  const environments = useStore(state => state.environments);
-  const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const setActiveView = useStore(state => state.setActiveView);
 
   const collection = collections.find(c => c.id === runnerState.collectionId);

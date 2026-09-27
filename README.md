@@ -1,8 +1,11 @@
+<div align="center">
+  <img src="./app-icon.png" alt="Pigeon Logo" width="160" />
+</div>
+
 # Pigeon 🐦
 
 Pigeon is a blazingly fast, lightweight, and modern API testing client built as an open-source alternative to Postman. Designed with a focus on speed, beautiful aesthetics, and developer experience, Pigeon uses the power of Tauri to deliver native desktop performance with a web technology stack.
 
-![Pigeon Screenshot](https://via.placeholder.com/800x400.png?text=Pigeon+API+Client)
 
 ## Features
 

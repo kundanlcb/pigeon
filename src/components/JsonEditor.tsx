@@ -7,7 +7,7 @@ interface JsonEditorProps {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   bgType?: 'app' | 'panel';
-  language?: 'json' | 'javascript';
+  language?: string;
 }
 
 export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', language = 'json' }: JsonEditorProps) {

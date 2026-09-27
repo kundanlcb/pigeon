@@ -9,7 +9,8 @@ import {
   addEdge,
   type Connection,
   Position,
-  Handle
+  Handle,
+  useReactFlow
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Play, Plus, Trash2, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
@@ -17,10 +18,7 @@ import { topologicalSort, executeRequestNode, type FlowRunResult } from '../util
 
 function RequestNodeComponent({ data, id }: { data: any, id: string }) {
   const collections = useStore(state => state.collections);
-  const updateFlow = useStore(state => state.updateFlow);
-  const activeFlowId = useStore(state => state.activeFlowId);
-  const flows = useStore(state => state.flows);
-  const activeFlow = flows.find(f => f.id === activeFlowId);
+  const { updateNodeData } = useReactFlow();
   
   let request: RequestItem | undefined;
   for (const c of collections) {
@@ -31,9 +29,7 @@ function RequestNodeComponent({ data, id }: { data: any, id: string }) {
   const allRequests = collections.flatMap(c => c.requests);
 
   const handleRequestSelect = (reqId: string) => {
-    if (!activeFlow) return;
-    const newNodes = activeFlow.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, requestId: reqId } } : n);
-    updateFlow(activeFlow.id, { nodes: newNodes });
+    updateNodeData(id, { requestId: reqId });
   };
 
   return (
@@ -50,7 +46,7 @@ function RequestNodeComponent({ data, id }: { data: any, id: string }) {
       </div>
       
       <select 
-        className="w-full bg-surface-bg text-text-primary border border-border-strong rounded px-2 py-1.5 mb-2 outline-none focus:border-accent"
+        className="nodrag w-full bg-surface-bg text-text-primary border border-border-strong rounded px-2 py-1.5 mb-2 outline-none focus:border-accent"
         value={data.requestId || ''}
         onChange={(e) => handleRequestSelect(e.target.value)}
       >
@@ -99,12 +95,15 @@ export function AutomationView() {
     }
   }, [activeFlowId]);
 
-  // Sync back to store on changes
+  // Sync back to store on changes with a debounce to prevent re-render loops while dragging
   useEffect(() => {
     if (activeFlowId && nodes.length > 0) {
-      updateFlow(activeFlowId, { nodes: nodes as any, edges: edges as any });
+      const timeout = setTimeout(() => {
+        updateFlow(activeFlowId, { nodes: nodes as any, edges: edges as any });
+      }, 500);
+      return () => clearTimeout(timeout);
     }
-  }, [nodes, edges]);
+  }, [nodes, edges, activeFlowId]);
 
   const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 

@@ -57,7 +57,8 @@ export function topologicalSort(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[
 
 export async function executeRequestNode(
   node: FlowNode, 
-  onLog: (msg: string) => void
+  onLog: (msg: string) => void,
+  flowVariables: Record<string, string> = {}
 ): Promise<FlowRunResult> {
   const state = useStore.getState();
   const reqId = node.data?.requestId;
@@ -82,12 +83,14 @@ export async function executeRequestNode(
     const context: PigeonContext = {
       env: {
         get: (key: string) => {
+          if (flowVariables[key] !== undefined) return flowVariables[key];
           const env = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
           return env?.variables.find(v => v.key === key)?.value;
         },
         set: (key: string, value: string) => {
+          flowVariables[key] = value; // Always save to local flow state
           const envId = useStore.getState().activeEnvironmentId;
-          if (!envId) return;
+          if (!envId) return; // But also sync to environment if one is active
           const env = useStore.getState().environments.find(e => e.id === envId);
           if (!env) return;
           const newVars = [...env.variables];
@@ -117,11 +120,12 @@ export async function executeRequestNode(
 
     let finalHeaders: Record<string, string> = {};
     for (const [k, v] of Object.entries(context.request.headers)) {
-      finalHeaders[resolveEnvVariables(k, freshEnv)] = resolveEnvVariables(v as string, freshEnv);
+      finalHeaders[resolveEnvVariables(k, freshEnv, flowVariables)] = resolveEnvVariables(v as string, freshEnv, flowVariables);
     }
 
-    let finalUrl = resolveEnvVariables(context.request.url, freshEnv);
-    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody({ ...request, body: context.request.body }, freshEnv);
+    let finalUrl = resolveEnvVariables(context.request.url, freshEnv, flowVariables);
+    const resolvedRequest = { ...request, body: context.request.body };
+    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody(resolvedRequest, freshEnv, flowVariables);
     for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v as string;
 
     // Pigeon doesn't have queryParams in RequestItem yet. We extract them from the URL if needed, 

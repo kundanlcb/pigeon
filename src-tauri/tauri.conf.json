@@ -37,5 +37,14 @@
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }
+  },
+  "plugins": {
+    "updater": {
+      "requireSignedVersion": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJBOTUwN0UzQTE1MTg2RQpSV1J1R0JVNmZsQ3BBdTdIcWxOU0FZRlVKU3dvOGZGcTFIMnhaRlU3T1kwS1hqS05TaGlIQ3ZDQgo=",
+      "endpoints": [
+        "https://github.com/kundanlcb/pigeon/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

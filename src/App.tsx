@@ -14,6 +14,7 @@ import { resolveEnvVariables } from "./utils/env";
 import { downloadAsFile, openFileAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
+import { prepareRequestBody } from "./utils/request";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
@@ -87,7 +88,8 @@ export default function App() {
       }
       
       let finalUrl = resolveEnvVariables(localUrl, activeEnvironment);
-      const finalBody = (localMethod !== 'GET' && activeRequest?.body) ? resolveEnvVariables(activeRequest.body, activeEnvironment) : undefined;
+      const { body: finalBody, headers: bodyHeaders } = activeRequest ? prepareRequestBody({ ...activeRequest, method: localMethod }, activeEnvironment) : { body: undefined, headers: {} };
+      for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
       
       const context: PigeonContext = {
         env: {

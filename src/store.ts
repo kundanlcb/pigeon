@@ -27,13 +27,34 @@ export interface Environment {
   variables: EnvironmentVariable[];
 }
 
+export type BodyType = 'none' | 'form-data' | 'x-www-form-urlencoded' | 'raw' | 'binary' | 'graphql';
+export type RawBodyLanguage = 'json' | 'text' | 'xml' | 'html' | 'javascript';
+
+export interface KeyValPair {
+  id: string;
+  key: string;
+  value: string;
+  type?: 'text' | 'file';
+  enabled: boolean;
+}
+
+export interface RequestBody {
+  type: BodyType;
+  raw?: string;
+  rawLanguage?: RawBodyLanguage;
+  formData?: KeyValPair[];
+  urlencoded?: KeyValPair[];
+  graphql?: { query: string; variables: string };
+  binaryPath?: string;
+}
+
 export interface RequestItem {
   id: string;
   name: string;
   method: HttpMethod;
   url: string;
   headers: Record<string, string>;
-  body?: string;
+  body?: RequestBody | string; // keeping string for backwards compatibility
   auth?: Auth;
   preRequestScript?: string;
   testScript?: string;
@@ -146,7 +167,7 @@ export const useStore = create<AppState>()(
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: '{\n  "name": "morpheus",\n  "job": "leader"\n}'
+              body: { type: 'raw', raw: '{\n  "name": "morpheus",\n  "job": "leader"\n}', rawLanguage: 'json' }
             },
             {
               id: 'req-4',
@@ -156,7 +177,7 @@ export const useStore = create<AppState>()(
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: '{\n  "name": "morpheus",\n  "job": "zion resident"\n}'
+              body: { type: 'raw', raw: '{\n  "name": "morpheus",\n  "job": "zion resident"\n}', rawLanguage: 'json' }
             },
             {
               id: 'req-5',
@@ -166,7 +187,7 @@ export const useStore = create<AppState>()(
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: '{\n  "job": "matrix hacker"\n}'
+              body: { type: 'raw', raw: '{\n  "job": "matrix hacker"\n}', rawLanguage: 'json' }
             },
             {
               id: 'req-6',

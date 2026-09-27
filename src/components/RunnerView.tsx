@@ -2,6 +2,7 @@ import { useStore, type RequestItem } from '../store';
 import { Play, Loader2, Check, X, ArrowLeft } from 'lucide-react';
 import { resolveEnvVariables } from '../utils/env';
 import { runPreRequestScript, runTestScript, type PigeonContext } from '../utils/sandbox';
+import { prepareRequestBody } from '../utils/request';
 import { getMethodColor } from '../utils/styles';
 import { setQueryParams } from '../utils/url';
 import { fetch } from '@tauri-apps/plugin-http';
@@ -33,7 +34,8 @@ export function RunnerView() {
     }
     
     let finalUrl = resolveEnvVariables(req.url, activeEnvironment);
-    const finalBody = (req.method !== 'GET' && req.body) ? resolveEnvVariables(req.body, activeEnvironment) : undefined;
+    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody(req, activeEnvironment);
+    for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
     
     const context: PigeonContext = {
       env: {

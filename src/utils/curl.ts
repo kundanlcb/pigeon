@@ -103,8 +103,25 @@ export function exportCurl(req: RequestItem): string {
   }
 
   if (req.method !== 'GET' && req.body) {
-    const safeBody = req.body.replace(/'/g, "'\\''");
-    cmd += ` \\\n  -d '${safeBody}'`;
+    let bodyStr = '';
+    if (typeof req.body === 'string') {
+      bodyStr = req.body;
+    } else if (req.body.type === 'raw') {
+      bodyStr = req.body.raw || '';
+    } else if (req.body.type === 'graphql') {
+      let vars = {};
+      try { vars = JSON.parse(req.body.graphql?.variables || '{}'); } catch(e) {}
+      bodyStr = JSON.stringify({ query: req.body.graphql?.query, variables: vars });
+    } else if (req.body.type === 'x-www-form-urlencoded') {
+      const p = new URLSearchParams();
+      req.body.urlencoded?.forEach(k => { if (k.enabled) p.append(k.key, k.value); });
+      bodyStr = p.toString();
+    }
+    
+    if (bodyStr) {
+      const safeBody = bodyStr.replace(/'/g, "'\\''");
+      cmd += ` \\\n  -d '${safeBody}'`;
+    }
   }
 
   return cmd;

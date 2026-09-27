@@ -75,8 +75,6 @@ export async function executeRequestNode(
   if (!request) {
     return { nodeId: node.id, requestId: reqId, requestName: 'Unknown', status: 'error', error: 'Request not found' };
   }
-
-  const activeEnvironment = state.environments.find(e => e.id === state.activeEnvironmentId);
   const startTime = performance.now();
 
   try {

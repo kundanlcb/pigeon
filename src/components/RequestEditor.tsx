@@ -171,25 +171,21 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           </div>
         )}
         {activeTab === 'pre-request' && (
-          <div className="absolute inset-0 bg-app-bg flex relative">
-            <div className="flex-1 w-full h-full relative">
-              <JsonEditor 
-                language="javascript"
-                value={activeRequest?.preRequestScript || DEFAULT_PRE_REQUEST}
-                onChange={(val) => updateActiveRequest({ preRequestScript: val })}
-              />
-            </div>
+          <div className="absolute inset-0 bg-app-bg">
+            <JsonEditor 
+              language="javascript"
+              value={activeRequest?.preRequestScript || DEFAULT_PRE_REQUEST}
+              onChange={(val) => updateActiveRequest({ preRequestScript: val })}
+            />
           </div>
         )}
         {activeTab === 'tests' && (
-          <div className="absolute inset-0 bg-app-bg flex relative">
-            <div className="flex-1 w-full h-full relative">
-              <JsonEditor 
-                language="javascript"
-                value={activeRequest?.testScript || DEFAULT_TEST_SCRIPT}
-                onChange={(val) => updateActiveRequest({ testScript: val })}
-              />
-            </div>
+          <div className="absolute inset-0 bg-app-bg">
+            <JsonEditor 
+              language="javascript"
+              value={activeRequest?.testScript || DEFAULT_TEST_SCRIPT}
+              onChange={(val) => updateActiveRequest({ testScript: val })}
+            />
           </div>
         )}
       </div>

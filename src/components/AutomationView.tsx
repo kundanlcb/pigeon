@@ -116,10 +116,11 @@ export function AutomationView() {
 
     const sortedNodes = topologicalSort(activeFlow.nodes, activeFlow.edges);
     const requestNodes = sortedNodes.filter(n => n.type === 'requestNode' && n.data?.requestId);
+    const flowVariables: Record<string, string> = {};
 
     for (const node of requestNodes) {
       setRunResults(prev => [...prev, { nodeId: node.id, requestId: node.data.requestId, requestName: 'Running...', status: 'success' } as any]); // placeholder
-      const result = await executeRequestNode(node, (msg) => setLogs(l => [...l, msg]));
+      const result = await executeRequestNode(node, (msg) => setLogs(l => [...l, msg]), flowVariables);
       setRunResults(prev => {
         const copy = [...prev];
         const idx = copy.findIndex(r => r.nodeId === node.id);

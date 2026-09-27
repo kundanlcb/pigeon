@@ -148,21 +148,80 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           </div>
         )}
         {activeTab === 'pre-request' && (
-          <div className="absolute inset-0 bg-app-bg">
-            <JsonEditor 
-              language="javascript"
-              value={activeRequest?.preRequestScript || ''}
-              onChange={(val) => updateActiveRequest({ preRequestScript: val })}
-            />
+          <div className="absolute inset-0 bg-app-bg flex relative">
+            <div className="flex-1 w-full h-full relative">
+              <JsonEditor 
+                language="javascript"
+                value={activeRequest?.preRequestScript || ''}
+                onChange={(val) => updateActiveRequest({ preRequestScript: val })}
+              />
+              {!activeRequest?.preRequestScript && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6 z-10">
+                   <div className="bg-surface-bg/80 backdrop-blur-md border border-border-strong p-6 rounded-xl shadow-2xl pointer-events-auto max-w-md w-full animate-fade-in">
+                     <h3 className="text-text-primary font-semibold mb-2 flex items-center gap-2">
+                       <span className="text-accent">⚡</span> Pre-request Script
+                     </h3>
+                     <p className="text-text-secondary text-[13px] mb-4 leading-relaxed">
+                       Write JavaScript that runs before the request is sent. Use the <code className="text-accent bg-accent/10 px-1 py-0.5 rounded border border-accent/20">pigeon</code> object to set variables or modify headers dynamically.
+                     </p>
+                     <div className="bg-[#1e1e1e] border border-border-strong p-3 rounded-lg text-[11px] font-mono text-gray-300 whitespace-pre overflow-x-auto shadow-inner">
+{`// Generate a timestamp and set it as a variable
+const timestamp = Date.now();
+pigeon.env.set("req_time", timestamp.toString());
+
+// You can use {{req_time}} in your URL or headers!`}
+                     </div>
+                     <button 
+                       onClick={() => updateActiveRequest({ preRequestScript: '// Generate a timestamp and set it as a variable\nconst timestamp = Date.now();\npigeon.env.set("req_time", timestamp.toString());\n' })}
+                       className="mt-4 w-full bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 py-2 rounded-lg text-[13px] font-medium transition-colors"
+                     >
+                       Insert Example
+                     </button>
+                   </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
         {activeTab === 'tests' && (
-          <div className="absolute inset-0 bg-app-bg">
-            <JsonEditor 
-              language="javascript"
-              value={activeRequest?.testScript || ''}
-              onChange={(val) => updateActiveRequest({ testScript: val })}
-            />
+          <div className="absolute inset-0 bg-app-bg flex relative">
+            <div className="flex-1 w-full h-full relative">
+              <JsonEditor 
+                language="javascript"
+                value={activeRequest?.testScript || ''}
+                onChange={(val) => updateActiveRequest({ testScript: val })}
+              />
+              {!activeRequest?.testScript && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6 z-10">
+                   <div className="bg-surface-bg/80 backdrop-blur-md border border-border-strong p-6 rounded-xl shadow-2xl pointer-events-auto max-w-md w-full animate-fade-in">
+                     <h3 className="text-text-primary font-semibold mb-2 flex items-center gap-2">
+                       <span className="text-green-500">✓</span> Test Script
+                     </h3>
+                     <p className="text-text-secondary text-[13px] mb-4 leading-relaxed">
+                       Write JavaScript that runs after the response is received. Validate data, check status codes, or save response data to variables.
+                     </p>
+                     <div className="bg-[#1e1e1e] border border-border-strong p-3 rounded-lg text-[11px] font-mono text-gray-300 whitespace-pre overflow-x-auto shadow-inner">
+{`// Verify the request was successful
+pigeon.test("Status code is 200", () => {
+  pigeon.expect(pigeon.response.status).toEqual(200);
+});
+
+// Extract data from the response and save it
+const data = pigeon.response.json();
+if (data && data.token) {
+  pigeon.env.set("auth_token", data.token);
+}`}
+                     </div>
+                     <button 
+                       onClick={() => updateActiveRequest({ testScript: '// Verify the request was successful\npigeon.test("Status code is 200", () => {\n  pigeon.expect(pigeon.response.status).toEqual(200);\n});\n\n// Extract data from the response and save it\nconst data = pigeon.response.json();\nif (data && data.token) {\n  pigeon.env.set("auth_token", data.token);\n}\n' })}
+                       className="mt-4 w-full bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/30 py-2 rounded-lg text-[13px] font-medium transition-colors"
+                     >
+                       Insert Example
+                     </button>
+                   </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

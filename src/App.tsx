@@ -38,6 +38,7 @@ const ResizeHandle = ({ vertical = false }) => (
 
 
 import { RunnerView } from "./components/RunnerView";
+import { AutomationView } from "./components/AutomationView";
 
 
 export default function App() {
@@ -301,6 +302,8 @@ export default function App() {
         <Panel defaultSize={70} className="flex flex-col min-w-0 bg-app-bg z-0">
           {activeView === 'runner' ? (
             <RunnerView />
+          ) : activeView === 'automation' ? (
+            <AutomationView />
           ) : (
             <>
               <div className="flex items-end justify-between border-b border-border-subtle bg-panel-bg pr-4 pl-2 h-[44px]">

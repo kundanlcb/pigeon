@@ -56,6 +56,26 @@ export interface RunnerState {
   currentIndex: number;
 }
 
+export interface FlowNode {
+  id: string;
+  type: string; // 'requestNode', 'delayNode'
+  position: { x: number; y: number };
+  data: any;
+}
+
+export interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface Flow {
+  id: string;
+  name: string;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}
+
 export interface Collection {
   id: string;
   name: string;
@@ -91,8 +111,14 @@ interface AppState {
   openEnvironmentTab: (id: string) => void;
   importCollection: (collection: Collection) => void;
   importEnvironment: (env: Environment) => void;
-  activeView: 'editor' | 'runner';
-  setActiveView: (view: 'editor' | 'runner') => void;
+  activeView: 'editor' | 'runner' | 'automation';
+  setActiveView: (view: 'editor' | 'runner' | 'automation') => void;
+  flows: Flow[];
+  activeFlowId: string | null;
+  addFlow: (name: string) => void;
+  deleteFlow: (id: string) => void;
+  setActiveFlow: (id: string) => void;
+  updateFlow: (id: string, updates: Partial<Flow>) => void;
   runnerState: RunnerState;
   setRunnerState: (updates: Partial<RunnerState>) => void;
   toast: { message: string, type: 'success' | 'error' | 'info' } | null;
@@ -108,6 +134,8 @@ export const useStore = create<AppState>()(
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
       activeRequestId: 'req-1',
       openRequestIds: ['req-1'],
+      flows: [],
+      activeFlowId: null,
       environments: [
         {
           id: 'env-1',
@@ -361,6 +389,20 @@ export const useStore = create<AppState>()(
         environments: [...state.environments, { ...env, id: `env-${Date.now()}` }]
       })),
       setActiveView: (view) => set({ activeView: view }),
+      
+      addFlow: (name) => set((state) => {
+        const newFlow = { id: `flow-${Date.now()}`, name, nodes: [], edges: [] };
+        return { flows: [...state.flows, newFlow], activeFlowId: newFlow.id };
+      }),
+      deleteFlow: (id) => set((state) => ({ 
+        flows: state.flows.filter(f => f.id !== id),
+        activeFlowId: state.activeFlowId === id ? null : state.activeFlowId
+      })),
+      setActiveFlow: (id) => set({ activeFlowId: id, activeView: 'automation' }),
+      updateFlow: (id, updates) => set((state) => ({
+        flows: state.flows.map(f => f.id === id ? { ...f, ...updates } : f)
+      })),
+      
       setRunnerState: (updates) => set((state) => ({ runnerState: { ...state.runnerState, ...updates } })),
       toast: null,
       showToast: (message, type = 'info') => {

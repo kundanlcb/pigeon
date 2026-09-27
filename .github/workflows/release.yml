@@ -43,5 +43,5 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Pigeon ${{ github.ref_name }}'
           releaseBody: 'See the assets below to download and install this version of Pigeon.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false

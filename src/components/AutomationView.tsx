@@ -182,10 +182,11 @@ export function AutomationView() {
          <div className="flex items-center space-x-3">
             <button onClick={() => {
               const id = `node-${Date.now()}`;
+              const offset = (nodes.length % 5) * 20;
               const newNode = {
                 id,
                 type: 'requestNode',
-                position: { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 100 },
+                position: { x: window.innerWidth / 2 - 100 + offset, y: window.innerHeight / 2 - 100 + offset },
                 data: { requestId: '' }
               };
               setNodes(nds => [...nds, newNode]);
@@ -214,8 +215,8 @@ export function AutomationView() {
             fitView
             className="bg-app-bg"
           >
-            <Background color="#3f3f46" gap={16} />
-            <Controls className="bg-panel-bg border-border-strong fill-text-primary" />
+            <Background color="#52525b" gap={16} />
+            <Controls className="!bg-panel-bg !border-border-strong rounded overflow-hidden shadow-lg" />
           </ReactFlow>
         </div>
         

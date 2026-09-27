@@ -114,7 +114,7 @@ export function SettingsMenu() {
             <div className="w-16 h-16 bg-accent/20 rounded-2xl flex items-center justify-center mb-4 text-accent">
               <Bird size={32} strokeWidth={2} />
             </div>
-            <h2 className="text-xl font-bold text-text-primary mb-1">Pigeon API</h2>
+            <h2 className="text-xl font-bold text-text-primary mb-1">Pigeon</h2>
             <p className="text-sm text-text-secondary mb-6">v1.0.9</p>
             
             <div className="text-[13px] text-text-muted flex items-center gap-1.5 mb-2">

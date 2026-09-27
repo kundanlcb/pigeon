@@ -30,6 +30,7 @@
         }
       ]
     },
-    "process:default"
+    "process:default",
+    "core:window:allow-set-theme"
   ]
 }

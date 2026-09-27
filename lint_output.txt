@@ -1,0 +1,264 @@
+
+> pigeon@0.0.0 lint
+> oxlint
+
+
+  ! eslint(no-unused-vars): Variable 'getActiveRequest' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/RequestTabs.tsx:11:9]
+ 10 |   const closeRequest = useStore(state => state.closeRequest);
+ 11 |   const getActiveRequest = useStore(state => state.getActiveRequest);
+    :         ^^^^^^^^|^^^^^^^
+    :                 `-- 'getActiveRequest' is declared here
+ 12 |   const collections = useStore(state => state.collections);
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Catch parameter 'err' is caught but never used.
+    ,-[src/components/CurlModal.tsx:54:14]
+ 53 |       }
+ 54 |     } catch (err) {
+    :              ^|^
+    :               `-- 'err' is declared here
+ 55 |       alert('Failed to parse cURL command.');
+    `----
+  help: Consider handling this error.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/components/CurlModal.tsx:23:7]
+ 20 |   // When modal opens in export mode, generate the curl string
+ 21 |   React.useEffect(() => {
+    :   ^^^^^^^|^^^^^^^
+    :          `-- This is the containing effect
+ 22 |     if (isOpen && mode === 'export' && request) {
+ 23 |       setCurlText(exportCurl(request));
+    :       ^^^^^|^^^^^
+    :            `-- Avoid calling setState() directly within an effect
+ 24 |       setCopied(false);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! eslint(no-unused-vars): Parameter 'localUrl' is declared but never used. Unused parameters should start with a '_'.
+    ,-[src/components/RequestEditor.tsx:13:33]
+ 12 | 
+ 13 | export function RequestEditor({ localUrl, setLocalUrl }: RequestEditorProps) {
+    :                                 ^^^^|^^^
+    :                                     `-- 'localUrl' is declared here
+ 14 |   const activeRequest = useStore(state => state.getActiveRequest());
+    `----
+  help: Consider removing this parameter.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/KeyValueEditor.tsx:36:5]
+ 23 | 
+ 24 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 25 |     const currentRecord: Record<string, string> = {};
+ 26 |     pairs.forEach(p => {
+ 27 |       if (p.key.trim()) currentRecord[p.key.trim()] = p.value;
+ 28 |     });
+ 29 |     
+ 30 |     if (JSON.stringify(currentRecord) === JSON.stringify(items || {})) {
+ 31 |       return;
+ 32 |     }
+ 33 | 
+ 34 |     const newPairs = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
+ 35 |     newPairs.push({ key: '', value: '' });
+ 36 |     setPairs(newPairs);
+    :     ^^^^|^^^
+    :         `-- Avoid calling setState() directly within an effect
+ 37 |   }, [items]);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'pairs'
+    ,-[src/KeyValueEditor.tsx:37:6]
+ 25 |     const currentRecord: Record<string, string> = {};
+ 26 |     pairs.forEach(p => {
+    :     ^^|^^
+    :       `-- useEffect uses `pairs` here
+ 27 |       if (p.key.trim()) currentRecord[p.key.trim()] = p.value;
+ 28 |     });
+ 29 |     
+ 30 |     if (JSON.stringify(currentRecord) === JSON.stringify(items || {})) {
+ 31 |       return;
+ 32 |     }
+ 33 | 
+ 34 |     const newPairs = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
+ 35 |     newPairs.push({ key: '', value: '' });
+ 36 |     setPairs(newPairs);
+ 37 |   }, [items]);
+    :      ^^^^^^^
+ 38 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Identifier 'Folder' is imported but never used.
+    ,-[src/App.tsx:16:3]
+ 15 | import { 
+ 16 |   Folder, 
+    :   ^^^|^^
+    :      `-- 'Folder' is imported here
+ 17 |   Search, 
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Search' is imported but never used.
+    ,-[src/App.tsx:17:3]
+ 16 |   Folder, 
+ 17 |   Search, 
+    :   ^^^|^^
+    :      `-- 'Search' is imported here
+ 18 |    
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'ChevronRight' is imported but never used.
+    ,-[src/App.tsx:20:3]
+ 19 |   Send, 
+ 20 |   ChevronRight, 
+    :   ^^^^^^|^^^^^
+    :         `-- 'ChevronRight' is imported here
+ 21 |   ChevronDown, 
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'ChevronDown' is imported but never used.
+    ,-[src/App.tsx:21:3]
+ 20 |   ChevronRight, 
+ 21 |   ChevronDown, 
+    :   ^^^^^|^^^^^
+    :        `-- 'ChevronDown' is imported here
+ 22 |   Plus, 
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Plus' is imported but never used.
+    ,-[src/App.tsx:22:3]
+ 21 |   ChevronDown, 
+ 22 |   Plus, 
+    :   ^^|^
+    :     `-- 'Plus' is imported here
+ 23 |   Download,
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Download' is imported but never used.
+    ,-[src/App.tsx:23:3]
+ 22 |   Plus, 
+ 23 |   Download,
+    :   ^^^^|^^^
+    :       `-- 'Download' is imported here
+ 24 |   Copy, Check,
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Copy' is imported but never used.
+    ,-[src/App.tsx:24:3]
+ 23 |   Download,
+ 24 |   Copy, Check,
+    :   ^^|^
+    :     `-- 'Copy' is imported here
+ 25 |   Activity,
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Check' is imported but never used.
+    ,-[src/App.tsx:24:9]
+ 23 |   Download,
+ 24 |   Copy, Check,
+    :         ^^|^^
+    :           `-- 'Check' is imported here
+ 25 |   Activity,
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Sun' is imported but never used.
+    ,-[src/App.tsx:28:3]
+ 27 |   Loader2,
+ 28 |   Sun,
+    :   ^|^
+    :    `-- 'Sun' is imported here
+ 29 |   Moon
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Moon' is imported but never used.
+    ,-[src/App.tsx:29:3]
+ 28 |   Sun,
+ 29 |   Moon
+    :   ^^|^
+    :     `-- 'Moon' is imported here
+ 30 | } from 'lucide-react';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'exportCurl' is imported but never used.
+    ,-[src/App.tsx:31:10]
+ 30 | } from 'lucide-react';
+ 31 | import { exportCurl, parseCurl } from "./utils/curl";
+    :          ^^^^^|^^^^
+    :               `-- 'exportCurl' is imported here
+ 32 | import { useStore } from './store';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'parseCurl' is imported but never used.
+    ,-[src/App.tsx:31:22]
+ 30 | } from 'lucide-react';
+ 31 | import { exportCurl, parseCurl } from "./utils/curl";
+    :                      ^^^^|^^^^
+    :                          `-- 'parseCurl' is imported here
+ 32 | import { useStore } from './store';
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'toggleTheme' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/App.tsx:42:9]
+ 41 | export default function App() {
+ 42 |   const toggleTheme = useStore(state => state.toggleTheme);
+    :         ^^^^^|^^^^^
+    :              `-- 'toggleTheme' is declared here
+ 43 |   const theme = useStore(state => state.theme);
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+    ,-[src/App.tsx:44:149]
+ 43 |   const theme = useStore(state => state.theme);
+ 44 |   React.useEffect(() => { document.documentElement.classList.toggle('light', theme === 'light'); try { getCurrentWindow().setTheme(theme); } catch (e) {} }, [theme]);
+    :                                                                                                                                                     |
+    :                                                                                                                                                     `-- 'e' is declared here
+ 45 |   
+    `----
+  help: Consider handling this error.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+     ,-[src/App.tsx:103:46]
+ 102 |       let data = text;
+ 103 |       try { data = JSON.parse(text); } catch(e) {}
+     :                                              |
+     :                                              `-- 'e' is declared here
+ 104 | 
+     `----
+  help: Consider handling this error.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/App.tsx:60:7]
+ 57 | 
+ 58 |   React.useEffect(() => {
+    :   ^^^^^^^|^^^^^^^
+    :          `-- This is the containing effect
+ 59 |     if (activeRequest) {
+ 60 |       setLocalUrl(activeRequest.url);
+    :       ^^^^^|^^^^^
+    :            `-- Avoid calling setState() directly within an effect
+ 61 |       setLocalMethod(activeRequest.method);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+Found 22 warnings and 0 errors.
+Finished in 43ms on 17 files with 116 rules using 10 threads.

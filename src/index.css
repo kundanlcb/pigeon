@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@theme {
+  --color-app-bg: #09090b;       /* Deepest charcoal / black */
+  --color-panel-bg: #121214;     /* Sidebar/Pane background */
+  --color-surface-bg: #18181b;   /* Hover/Active states */
+  --color-surface-hover: #27272a;
+  
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  
+  --color-accent: #3b82f6;       /* Clean Cursor-like blue */
+  --color-accent-hover: #2563eb;
+  
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #52525b;
+
+  /* Method Colors */
+  --color-method-get: #60a5fa;
+  --color-method-post: #4ade80;
+  --color-method-put: #fbbf24;
+  --color-method-delete: #f87171;
+  --color-method-patch: #c084fc;
+
+  /* Syntax Highlighting Colors */
+  --color-syntax-key: #60a5fa;      /* Blue */
+  --color-syntax-string: #fb923c;   /* Orange */
+  --color-syntax-number: #4ade80;   /* Green */
+  --color-syntax-boolean: #c084fc;  /* Purple */
+  --color-syntax-null: #9ca3af;     /* Gray */
+}
+
+@layer base {
+  :root {
+    background-color: var(--color-app-bg);
+    color: var(--color-text-primary);
+    color-scheme: dark;
+    /* Use Inter/Geist-like font stack for a premium feel */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  
+  body {
+    @apply m-0 p-0 antialiased bg-app-bg text-text-primary h-screen w-screen overflow-hidden selection:bg-accent/30;
+  }
+
+  /* Custom scrollbars for a premium desktop feel */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-hover rounded-full border-2 border-solid border-transparent bg-clip-padding;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-text-muted;
+  }
+}
+
+/* Utilities for glassmorphism / specific effects */
+@layer utilities {
+  .panel-shadow {
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4);
+  }
+  .input-ring {
+    @apply focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all duration-200;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+html, body { background-color: var(--color-app-bg); }
+
+:root.light {
+  --color-app-bg: #fdfdfd;       
+  --color-panel-bg: #f4f4f5;     
+  --color-surface-bg: #ffffff;   
+  --color-surface-hover: #e4e4e7;
+  
+  --color-border-subtle: rgba(0, 0, 0, 0.06);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
+  
+  --color-accent: #2563eb;       
+  --color-accent-hover: #1d4ed8;
+  
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #a1a1aa;
+
+  --color-method-get: #3b82f6;
+  --color-method-post: #16a34a;
+  --color-method-put: #d97706;
+  --color-method-delete: #dc2626;
+  --color-method-patch: #9333ea;
+  
+  --color-syntax-key: #2563eb;
+  --color-syntax-string: #ea580c;
+  --color-syntax-number: #16a34a;
+  --color-syntax-boolean: #9333ea;
+  --color-syntax-null: #6b7280;
+
+  color-scheme: light;
+}

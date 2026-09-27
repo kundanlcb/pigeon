@@ -100,6 +100,9 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
       }
     } else if (action === 'export') {
       onExportClick?.('collection', col);
+    } else if (action === 'run-collection') {
+      useStore.getState().setActiveView('runner');
+      useStore.getState().setRunnerState({ collectionId: col.id, isRunning: false, results: [], currentIndex: 0 });
     }
   };
 
@@ -248,6 +251,10 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   
                   {openColMenuId === col.id && (
                     <div className="absolute top-full right-0 mt-1 w-36 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1">
+                      <div onClick={(e) => handleColAction(e, 'run-collection', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                        <span className="mr-2 opacity-70 flex items-center justify-center w-3 h-3"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> Run
+                      </div>
+                      <div className="h-px bg-border-subtle my-1"></div>
                       <div onClick={(e) => handleColAction(e, 'add-request', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                         <Plus size={12} className="mr-2 opacity-70" /> Add Request
                       </div>

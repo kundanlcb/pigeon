@@ -68,6 +68,13 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           Pre-request
           {activeTab === 'pre-request' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
         </button>
+        <button 
+          onClick={() => setActiveTab('tests')}
+          className={`py-3 font-medium transition-colors relative ${activeTab === 'tests' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}
+        >
+          Tests
+          {activeTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+        </button>
 
         {(activeTab === 'req-params' || activeTab === 'req-headers') && (
           <button 
@@ -97,7 +104,7 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
         )}
       </div>
       
-      <div className={`flex-1 relative ${activeTab === 'req-body' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <div className={`flex-1 relative ${activeTab === 'req-body' || activeTab === 'pre-request' || activeTab === 'tests' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {activeTab === 'req-params' && (
           <KeyValueEditor 
             items={getQueryParams(activeRequest?.url || '')} 
@@ -132,7 +139,22 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           </div>
         )}
         {activeTab === 'pre-request' && (
-           <div className="p-4 text-sm text-text-muted italic">Pre-request scripts coming soon...</div>
+          <div className="absolute inset-0 bg-app-bg">
+            <JsonEditor 
+              language="javascript"
+              value={activeRequest?.preRequestScript || ''}
+              onChange={(val) => updateActiveRequest({ preRequestScript: val })}
+            />
+          </div>
+        )}
+        {activeTab === 'tests' && (
+          <div className="absolute inset-0 bg-app-bg">
+            <JsonEditor 
+              language="javascript"
+              value={activeRequest?.testScript || ''}
+              onChange={(val) => updateActiveRequest({ testScript: val })}
+            />
+          </div>
         )}
       </div>
     </Panel>

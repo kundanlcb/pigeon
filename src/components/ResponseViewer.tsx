@@ -79,6 +79,18 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
           )}
           {activeResponseTab === 'headers' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
         </button>
+        <button 
+          onClick={() => setActiveResponseTab('tests')}
+          className={`py-2.5 font-medium relative ${activeResponseTab === 'tests' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
+        >
+          Test Results
+          {response?.testResults && response.testResults.length > 0 && (
+            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${response.testResults.every((t: any) => t.passed) ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+              {response.testResults.filter((t: any) => t.passed).length}/{response.testResults.length}
+            </span>
+          )}
+          {activeResponseTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+        </button>
       </div>
       
       <div className="flex-1 overflow-y-auto font-mono text-[13px] leading-relaxed relative">
@@ -109,7 +121,29 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
                 <div className="text-text-muted italic py-4 text-center">No headers received.</div>
               )}
             </div>
-          )
+          ) : activeResponseTab === 'tests' ? (
+            <div className="w-full text-sm p-4">
+              {response.testResults && response.testResults.length > 0 ? (
+                <div className="space-y-3">
+                  {response.testResults.map((test: any, i: number) => (
+                    <div key={i} className={`p-3 rounded-md border ${test.passed ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                      <div className="flex items-center space-x-2">
+                        {test.passed ? <Check size={16} className="text-green-500" /> : <span className="w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>}
+                        <span className={`font-medium ${test.passed ? 'text-green-400' : 'text-red-400'}`}>{test.name}</span>
+                      </div>
+                      {!test.passed && test.error && (
+                        <div className="mt-2 text-xs text-red-300 font-mono bg-red-500/10 p-2 rounded">
+                          {test.error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-text-muted italic py-4 text-center">No tests ran.</div>
+              )}
+            </div>
+          ) : null
         ) : (
            <span className="text-text-muted italic flex h-full items-center justify-center w-full">
              {isLoading ? 'Sending request...' : 'Hit Send to execute the request'}

@@ -1,0 +1,69 @@
+import { type RequestItem, type Environment } from '../store';
+import { resolveEnvVariables } from './env';
+
+export function prepareRequestBody(request: RequestItem, activeEnvironment?: Environment): { body: any, headers: Record<string, string> } {
+  const extraHeaders: Record<string, string> = {};
+  
+  if (request.method === 'GET' || !request.body) {
+    return { body: undefined, headers: extraHeaders };
+  }
+
+  let bodyData = request.body;
+
+  // Backward compatibility for string body
+  if (typeof bodyData === 'string') {
+    return { 
+      body: resolveEnvVariables(bodyData, activeEnvironment), 
+      headers: extraHeaders 
+    };
+  }
+
+  if (bodyData.type === 'none') {
+    return { body: undefined, headers: extraHeaders };
+  }
+
+  if (bodyData.type === 'raw') {
+    let content = bodyData.raw || '';
+    content = resolveEnvVariables(content, activeEnvironment);
+    
+    if (bodyData.rawLanguage === 'json') extraHeaders['Content-Type'] = 'application/json';
+    else if (bodyData.rawLanguage === 'html') extraHeaders['Content-Type'] = 'text/html';
+    else if (bodyData.rawLanguage === 'xml') extraHeaders['Content-Type'] = 'application/xml';
+    else if (bodyData.rawLanguage === 'javascript') extraHeaders['Content-Type'] = 'application/javascript';
+    else extraHeaders['Content-Type'] = 'text/plain';
+
+    return { body: content, headers: extraHeaders };
+  }
+
+  if (bodyData.type === 'x-www-form-urlencoded') {
+    const params = new URLSearchParams();
+    (bodyData.urlencoded || []).filter(p => p.enabled && p.key).forEach(p => {
+      params.append(resolveEnvVariables(p.key, activeEnvironment), resolveEnvVariables(p.value, activeEnvironment));
+    });
+    extraHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+    return { body: params.toString(), headers: extraHeaders };
+  }
+
+  if (bodyData.type === 'form-data') {
+    const formData = new FormData();
+    (bodyData.formData || []).filter(p => p.enabled && p.key).forEach(p => {
+      formData.append(resolveEnvVariables(p.key, activeEnvironment), resolveEnvVariables(p.value, activeEnvironment));
+      // Note: We don't support files yet, so everything is appended as string.
+    });
+    // Do NOT set Content-Type for FormData, the browser/fetch will set it automatically with the correct boundary!
+    return { body: formData, headers: extraHeaders };
+  }
+
+  if (bodyData.type === 'graphql') {
+    const q = resolveEnvVariables(bodyData.graphql?.query || '', activeEnvironment);
+    const v = resolveEnvVariables(bodyData.graphql?.variables || '{}', activeEnvironment);
+    let varsObj = {};
+    try { varsObj = JSON.parse(v); } catch(e) {}
+    
+    const payload = JSON.stringify({ query: q, variables: varsObj });
+    extraHeaders['Content-Type'] = 'application/json';
+    return { body: payload, headers: extraHeaders };
+  }
+
+  return { body: undefined, headers: extraHeaders };
+}

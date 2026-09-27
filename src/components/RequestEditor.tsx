@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { KeyValueEditor } from './KeyValueEditor';
 import { AuthEditor } from './AuthEditor';
+import { BodyEditor } from './BodyEditor';
 import { Braces } from 'lucide-react';
 
 import { JsonEditor } from './JsonEditor';
@@ -51,12 +52,12 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           )}
           {activeTab === 'req-headers' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
         </button>
-        <button 
+          <button 
           onClick={() => setActiveTab('req-body')}
           className={`py-3 font-medium transition-colors relative ${activeTab === 'req-body' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}
         >
           Body
-          {activeRequest?.body && (
+          {activeRequest?.body && (typeof activeRequest.body === 'string' || activeRequest.body.type !== 'none') && (
             <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>
           )}
           {activeTab === 'req-body' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
@@ -89,8 +90,16 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
             onClick={() => {
               if (activeRequest?.body) {
                 try {
-                  const parsed = JSON.parse(activeRequest.body);
-                  updateActiveRequest({ body: JSON.stringify(parsed, null, 2) });
+                  let bodyStr = '';
+                  if (typeof activeRequest.body === 'string') {
+                    bodyStr = activeRequest.body;
+                    const parsed = JSON.parse(bodyStr);
+                    updateActiveRequest({ body: { type: 'raw', raw: JSON.stringify(parsed, null, 2), rawLanguage: 'json' } });
+                  } else if (activeRequest.body.type === 'raw' && activeRequest.body.raw) {
+                    bodyStr = activeRequest.body.raw;
+                    const parsed = JSON.parse(bodyStr);
+                    updateActiveRequest({ body: { ...activeRequest.body, raw: JSON.stringify(parsed, null, 2) } });
+                  }
                 } catch (e) {
                   useStore.getState().showToast('Invalid JSON: Cannot beautify', 'error');
                 }
@@ -132,8 +141,8 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
         )}
         {activeTab === 'req-body' && (
           <div className="absolute inset-0 bg-app-bg">
-            <JsonEditor 
-              value={activeRequest?.body || ''}
+            <BodyEditor 
+              body={activeRequest?.body}
               onChange={(val) => updateActiveRequest({ body: val })}
             />
           </div>

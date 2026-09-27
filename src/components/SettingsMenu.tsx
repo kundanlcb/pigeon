@@ -12,7 +12,7 @@ export function SettingsMenu() {
   
   const theme = useStore(state => state.theme);
   const toggleTheme = useStore(state => state.toggleTheme);
-  const toast = useStore((state: any) => state.toast); // typing as any just to be safe if types differ
+  const showToast = useStore((state: any) => state.showToast);
 
   useEffect(() => {
     // Silently check for updates on mount
@@ -36,15 +36,15 @@ export function SettingsMenu() {
       setIsUpdating(true);
       const update = await check();
       if (update) {
-        toast(`Update found: ${update.version}. Installing...`);
+        showToast(`Update found: ${update.version}. Installing...`);
         await update.downloadAndInstall();
-        toast("Update installed! Restarting app...");
+        showToast("Update installed! Restarting app...");
         await relaunch();
       } else {
-        toast("You are on the latest version.");
+        showToast("You are on the latest version.");
       }
     } catch (e: any) {
-      toast("Error checking for updates: " + (e.message || String(e)));
+      showToast("Error checking for updates: " + (e.message || String(e)));
     } finally {
       setIsUpdating(false);
       setIsOpen(false);
@@ -52,7 +52,7 @@ export function SettingsMenu() {
   };
 
   const handleAbout = () => {
-    toast("Pigeon API Client - v1.0.8");
+    showToast("Pigeon API Client - v1.0.8");
     setIsOpen(false);
   };
 

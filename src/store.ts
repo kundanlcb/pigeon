@@ -35,6 +35,25 @@ export interface RequestItem {
   headers: Record<string, string>;
   body?: string;
   auth?: Auth;
+  preRequestScript?: string;
+  testScript?: string;
+}
+
+export interface RunnerResult {
+  requestId: string;
+  requestName: string;
+  status: 'success' | 'error' | 'pending' | 'running';
+  statusCode?: number;
+  responseTime?: number;
+  testResults: { name: string; passed: boolean; error?: string }[];
+  error?: string;
+}
+
+export interface RunnerState {
+  collectionId: string | null;
+  isRunning: boolean;
+  results: RunnerResult[];
+  currentIndex: number;
 }
 
 export interface Collection {
@@ -72,6 +91,10 @@ interface AppState {
   openEnvironmentTab: (id: string) => void;
   importCollection: (collection: Collection) => void;
   importEnvironment: (env: Environment) => void;
+  activeView: 'editor' | 'runner';
+  setActiveView: (view: 'editor' | 'runner') => void;
+  runnerState: RunnerState;
+  setRunnerState: (updates: Partial<RunnerState>) => void;
   toast: { message: string, type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   hideToast: () => void;
@@ -81,6 +104,8 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       theme: "dark",
+      activeView: 'editor',
+      runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
       activeRequestId: 'req-1',
       openRequestIds: ['req-1'],
       environments: [
@@ -335,6 +360,8 @@ export const useStore = create<AppState>()(
       importEnvironment: (env) => set((state) => ({
         environments: [...state.environments, { ...env, id: `env-${Date.now()}` }]
       })),
+      setActiveView: (view) => set({ activeView: view }),
+      setRunnerState: (updates) => set((state) => ({ runnerState: { ...state.runnerState, ...updates } })),
       toast: null,
       showToast: (message, type = 'info') => {
         set({ toast: { message, type } });

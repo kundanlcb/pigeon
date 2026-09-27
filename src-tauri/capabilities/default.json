@@ -9,7 +9,14 @@
     "core:default",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://reqres.in/*" }, { "url": "http://**" }, { "url": "https://**" }]
+      "allow": [
+        { "url": "http://**" }, 
+        { "url": "https://**" },
+        { "url": "http://*/**" }, 
+        { "url": "https://*/**" },
+        { "url": "http://*:*/**" }, 
+        { "url": "https://*:*/**" }
+      ]
     }
   ]
 }

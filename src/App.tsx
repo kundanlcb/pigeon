@@ -13,6 +13,7 @@ import { setQueryParams } from "./utils/url";
 import { resolveEnvVariables } from "./utils/env";
 import { downloadAsFile, openFileAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
+import { runPreRequestScript, runTestScript, PigeonContext } from "./utils/sandbox";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
@@ -36,8 +37,13 @@ const ResizeHandle = ({ vertical = false }) => (
 );
 
 
+import { RunnerView } from "./components/RunnerView";
+
+
 export default function App() {
   const theme = useStore(state => state.theme);
+  const activeView = useStore(state => state.activeView);
+  
   React.useEffect(() => { document.documentElement.classList.toggle('light', theme === 'light'); try { getCurrentWindow().setTheme(theme); } catch {} }, [theme]);
   
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
@@ -81,6 +87,43 @@ export default function App() {
       }
       
       let finalUrl = resolveEnvVariables(localUrl, activeEnvironment);
+      const finalBody = (localMethod !== 'GET' && activeRequest?.body) ? resolveEnvVariables(activeRequest.body, activeEnvironment) : undefined;
+      
+      const context: PigeonContext = {
+        env: {
+          get: (key: string) => {
+            const env = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
+            const v = env?.variables.find(v => v.key === key);
+            return v ? v.value : undefined;
+          },
+          set: (key: string, value: string) => {
+            const envId = useStore.getState().activeEnvironmentId;
+            if (!envId) return;
+            const env = useStore.getState().environments.find(e => e.id === envId);
+            if (!env) return;
+            const existing = env.variables.find(v => v.key === key);
+            let newVars = [...env.variables];
+            if (existing) {
+              newVars = newVars.map(v => v.key === key ? { ...v, value } : v);
+            } else {
+              newVars.push({ id: `var-${Date.now()}-${Math.random()}`, key, value, enabled: true });
+            }
+            useStore.getState().updateEnvironment(envId, { variables: newVars });
+          }
+        },
+        request: {
+          headers: finalHeaders,
+          url: finalUrl,
+          method: localMethod,
+          body: finalBody
+        }
+      };
+
+      if (activeRequest?.preRequestScript) {
+        runPreRequestScript(activeRequest.preRequestScript, context);
+        finalUrl = context.request.url;
+      }
+
       
       if (activeRequest?.auth) {
         if (activeRequest.auth.type === 'bearer' && activeRequest.auth.bearerToken) {
@@ -100,22 +143,22 @@ export default function App() {
           }
         }
       }
-
-      const finalBody = (localMethod !== 'GET' && activeRequest?.body) ? resolveEnvVariables(activeRequest.body, activeEnvironment) : undefined;
+      // the body is already computed into finalBody and context.request.body could have been modified by script
+      const reqBodyToUse = context.request.body;
 
       // Use Tauri's native HTTP plugin to bypass CORS if available, else fallback to browser fetch
       let res;
       if ('__TAURI_INTERNALS__' in window) {
         res = await fetch(finalUrl, {
-          method: localMethod,
-          headers: finalHeaders,
-          body: finalBody
+          method: context.request.method,
+          headers: context.request.headers,
+          body: reqBodyToUse
         });
       } else {
         res = await window.fetch(finalUrl, {
-          method: localMethod,
-          headers: finalHeaders,
-          body: finalBody
+          method: context.request.method,
+          headers: context.request.headers,
+          body: reqBodyToUse
         });
       }
 
@@ -128,6 +171,21 @@ export default function App() {
 
       const headersRecord: Record<string, string> = {};
       res.headers.forEach((value, key) => { headersRecord[key] = value; });
+      
+      let testResults: any[] = [];
+      
+      if (activeRequest?.testScript) {
+        context.response = {
+          status: res.status,
+          json: () => {
+            if (typeof data !== 'object') throw new Error('Response is not JSON');
+            return data;
+          },
+          text: () => text,
+          headers: headersRecord
+        };
+        testResults = runTestScript(activeRequest.testScript, context);
+      }
 
       setResponse({
         status: res.status,
@@ -135,7 +193,8 @@ export default function App() {
         time: timeMs,
         size: text.length,
         headers: headersRecord,
-        data: typeof data === 'object' ? JSON.stringify(data, null, 2) : data
+        data: typeof data === 'object' ? JSON.stringify(data, null, 2) : data,
+        testResults
       });
 
     } catch (error: any) {
@@ -146,7 +205,8 @@ export default function App() {
         time: Math.round(endTime - startTime),
         size: 0,
         headers: {},
-        data: error.message || String(error)
+        data: error.message || String(error),
+        testResults: []
       });
     } finally {
       setIsLoading(false);
@@ -239,8 +299,11 @@ export default function App() {
         <ResizeHandle />
 
         <Panel defaultSize={70} className="flex flex-col min-w-0 bg-app-bg z-0">
-          
-          <div className="flex items-end justify-between border-b border-border-subtle bg-panel-bg pr-4 pl-2 h-[44px]">
+          {activeView === 'runner' ? (
+            <RunnerView />
+          ) : (
+            <>
+              <div className="flex items-end justify-between border-b border-border-subtle bg-panel-bg pr-4 pl-2 h-[44px]">
             <div className="flex-1 overflow-hidden h-full">
               <RequestTabs />
             </div>
@@ -334,6 +397,8 @@ export default function App() {
               <Activity size={48} className="mb-4 opacity-20" />
               <p>Select or create a request to get started</p>
             </div>
+          )}
+            </>
           )}
         </Panel>
       </Group>

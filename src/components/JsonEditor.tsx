@@ -7,9 +7,10 @@ interface JsonEditorProps {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   bgType?: 'app' | 'panel';
+  language?: 'json' | 'javascript';
 }
 
-export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app' }: JsonEditorProps) {
+export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', language = 'json' }: JsonEditorProps) {
   const monaco = useMonaco();
   const theme = useStore(state => state.theme);
   
@@ -55,7 +56,7 @@ export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app' }
   return (
     <Editor
       height="100%"
-      language="json"
+      language={language}
       theme={`pigeon-${theme}-${bgType}`}
       value={value}
       onChange={(val) => onChange && onChange(val || '')}

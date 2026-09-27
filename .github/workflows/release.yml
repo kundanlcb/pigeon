@@ -44,6 +44,13 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Pigeon ${{ github.ref_name }}'
-          releaseBody: 'See the assets below to download and install this version of Pigeon.'
+          releaseBody: |
+            See the assets below to download and install this version of Pigeon.
+
+            ### macOS Users (Important)
+            Because this app is not signed with a paid Apple Developer certificate, macOS will say the app is **"damaged and can't be opened"** when you try to launch it. This is a known macOS quirk for open-source apps on Apple Silicon.
+
+            To fix this, move Pigeon to your Applications folder, then run this command in your Terminal:
+            `xattr -cr /Applications/Pigeon.app`
           releaseDraft: false
           prerelease: false

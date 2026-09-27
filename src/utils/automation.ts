@@ -111,13 +111,17 @@ export async function executeRequestNode(
       onLog(`[Pre-request] Executed script successfully`);
     }
 
+    // Refresh active environment in case pre-request script modified it
+    const freshState = useStore.getState();
+    const freshEnv = freshState.environments.find(e => e.id === freshState.activeEnvironmentId);
+
     let finalHeaders: Record<string, string> = {};
     for (const [k, v] of Object.entries(context.request.headers)) {
-      finalHeaders[resolveEnvVariables(k, activeEnvironment)] = resolveEnvVariables(v as string, activeEnvironment);
+      finalHeaders[resolveEnvVariables(k, freshEnv)] = resolveEnvVariables(v as string, freshEnv);
     }
 
-    let finalUrl = resolveEnvVariables(context.request.url, activeEnvironment);
-    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody({ ...request, body: context.request.body }, activeEnvironment);
+    let finalUrl = resolveEnvVariables(context.request.url, freshEnv);
+    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody({ ...request, body: context.request.body }, freshEnv);
     for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v as string;
 
     // Pigeon doesn't have queryParams in RequestItem yet. We extract them from the URL if needed, 

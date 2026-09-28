@@ -1,10 +1,13 @@
-import type { Collection, Environment, RequestItem } from '../store';
+import type { Collection, CollectionFolder, Environment, RequestItem } from '../store';
 
 export function parsePostmanCollection(json: any): Collection {
   const collectionName = json.info?.name || 'Imported Postman Collection';
   const requests: RequestItem[] = [];
+  const folders: CollectionFolder[] = [];
 
-  function extractRequests(items: any[]) {
+  function extractRequests(items: any[], parentId: string | null = null) {
+    let requestOrder = 0;
+    let folderOrder = 0;
     for (const item of items) {
       if (item.request) {
         // It's a request
@@ -33,11 +36,19 @@ export function parsePostmanCollection(json: any): Collection {
           method: (item.request.method || 'GET').toUpperCase() as any,
           url,
           headers,
-          body
+          body,
+          folderId: parentId,
+          order: requestOrder++
         });
       } else if (item.item && Array.isArray(item.item)) {
-        // It's a folder, recurse
-        extractRequests(item.item);
+        const folderId = `folder-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        folders.push({
+          id: folderId,
+          name: item.name || 'Untitled Folder',
+          parentId,
+          order: folderOrder++
+        });
+        extractRequests(item.item, folderId);
       }
     }
   }
@@ -50,7 +61,8 @@ export function parsePostmanCollection(json: any): Collection {
     id: `col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: collectionName,
     requests,
-    isOpen: true
+    isOpen: true,
+    folders
   };
 }
 

@@ -67,3 +67,9 @@ export function prepareRequestBody(request: RequestItem, activeEnvironment?: Env
 
   return { body: undefined, headers: extraHeaders };
 }
+
+export function getEnabledRequestHeaders(request: RequestItem): Record<string, string> {
+  const disabled = new Set((request.disabledHeaders || []).map(key => key.toLowerCase()));
+  return Object.fromEntries(Object.entries(request.headers || {})
+    .filter(([key]) => !disabled.has(key.toLowerCase())));
+}

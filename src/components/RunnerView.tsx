@@ -4,7 +4,8 @@ import { resolveEnvVariables } from '../utils/env';
 import { runPreRequestScript, runTestScript, type PigeonContext } from '../utils/sandbox';
 import { prepareRequestBody } from '../utils/request';
 import { getMethodColor } from '../utils/styles';
-import { setQueryParams } from '../utils/url';
+import { removeDisabledQueryParams, setQueryParams } from '../utils/url';
+import { getEnabledRequestHeaders } from '../utils/request';
 import { fetch } from '@tauri-apps/plugin-http';
 
 export function RunnerView() {
@@ -28,12 +29,12 @@ export function RunnerView() {
     const activeEnvironment = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
     
     const finalHeaders: Record<string, string> = {};
-    const baseHeaders = { ...(req.headers || {}) };
+    const baseHeaders = getEnabledRequestHeaders(req);
     for (const [k, v] of Object.entries(baseHeaders)) {
       finalHeaders[resolveEnvVariables(k, activeEnvironment)] = resolveEnvVariables(v, activeEnvironment);
     }
     
-    let finalUrl = resolveEnvVariables(req.url, activeEnvironment);
+    let finalUrl = resolveEnvVariables(removeDisabledQueryParams(req.url, req.disabledParams), activeEnvironment);
     const { body: finalBody, headers: bodyHeaders } = prepareRequestBody(req, activeEnvironment);
     for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
     

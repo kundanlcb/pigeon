@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import _Editor from 'react-simple-code-editor';
 const Editor = (_Editor as any).default || _Editor;
 import { useStore } from '../store';
+import { setSecret } from '../utils/secrets';
 import { highlightJson, isJsonString } from '../utils/syntax';
 
 interface HighlightedInputProps {
@@ -11,12 +13,13 @@ interface HighlightedInputProps {
   className?: string;
   placeholder?: string;
   isTextArea?: boolean;
+  singleLineEllipsis?: boolean;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
 
-export function HighlightedInput({ value, onChange, className = '', placeholder, isTextArea = false, onKeyDown, onFocus, onBlur }: HighlightedInputProps) {
+export function HighlightedInput({ value, onChange, className = '', placeholder, isTextArea = false, singleLineEllipsis = false, onKeyDown, onFocus, onBlur }: HighlightedInputProps) {
   const environments = useStore(state => state.environments);
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const activeEnv = environments.find(e => e.id === activeEnvironmentId);
@@ -28,11 +31,12 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
   const [cursorPos, setCursorPos] = useState<{ top: number; left: number } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const [hoveredVar, setHoveredVar] = useState<{name: string, id: string, value: string, top: number, left: number} | null>(null);
+  const [hoveredVar, setHoveredVar] = useState<{name: string, id: string, value: string, secret: boolean, top: number, left: number} | null>(null);
   const [isPopoverPinned, setIsPopoverPinned] = useState(false);
   const [editVarValue, setEditVarValue] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const mouseMoveHandlerRef = useRef<(event: MouseEvent) => void>(() => {});
   
   const highlightText = (code: string) => {
     if (!code) return '';
@@ -54,7 +58,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         const activeVar = activeEnv?.variables.find(v => v.key === varName && v.enabled);
         const colorClass = activeVar ? 'text-accent font-medium' : 'text-red-500 font-medium';
         const valEscaped = activeVar ? activeVar.value.replace(/"/g, '&quot;') : '';
-        return `<span class="${colorClass}" data-varname="${varName}" data-varid="${activeVar?.id || ''}" data-varval="${valEscaped}">${part}</span>`;
+        return `<span class="${colorClass}" data-varname="${varName}" data-varid="${activeVar?.id || ''}" data-varval="${valEscaped}" data-varsecret="${activeVar?.secret ? 'true' : 'false'}">${part}</span>`;
       }
       // Highlight partially typed {{var...
       if (part.startsWith('{{') && !part.endsWith('}}')) {
@@ -164,6 +168,45 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     }
   };
 
+  const saveHoveredVariable = async () => {
+    if (!hoveredVar || !activeEnvironmentId || !activeEnv) return;
+    try {
+      if (hoveredVar.id) {
+        if (hoveredVar.secret) {
+          await setSecret(activeEnvironmentId, hoveredVar.name, editVarValue);
+          updateEnvironment(activeEnvironmentId, {
+            variables: activeEnv.variables.map(variable => variable.id === hoveredVar.id
+              ? { ...variable, secret: true, secretStored: true, value: '' }
+              : variable)
+          });
+        } else {
+          updateEnvironment(activeEnvironmentId, {
+            variables: activeEnv.variables.map(variable => variable.id === hoveredVar.id
+              ? { ...variable, value: editVarValue }
+              : variable)
+          });
+        }
+      } else {
+        const secret = /token|secret/i.test(hoveredVar.name);
+        if (secret) await setSecret(activeEnvironmentId, hoveredVar.name, editVarValue);
+        updateEnvironment(activeEnvironmentId, {
+          variables: [...activeEnv.variables, {
+            id: `var-${crypto.randomUUID()}`,
+            key: hoveredVar.name,
+            value: secret ? '' : editVarValue,
+            enabled: true,
+            secret,
+            secretStored: secret ? true : undefined
+          }]
+        });
+      }
+      setHoveredVar(null);
+      setIsPopoverPinned(false);
+    } catch (error) {
+      useStore.getState().showToast(`Failed to save environment variable: ${String(error)}`, 'error');
+    }
+  };
+
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -180,25 +223,22 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [hoveredVar]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (isPopoverPinned) return; // Don't change hover state while pinned
     if (e.buttons !== 0) return; // Don't interrupt dragging
-    const textarea = containerRef.current?.querySelector('textarea');
-    if (!textarea) return;
-    const pre = containerRef.current?.querySelector('pre');
-    
-    textarea.style.pointerEvents = 'none';
-    if (pre) pre.style.pointerEvents = 'auto';
-    
-    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
-    
-    textarea.style.pointerEvents = 'auto';
-    if (pre) pre.style.pointerEvents = 'none';
-    
-    if (el && el.closest('.var-popover')) {
+    const hitTarget = document.elementFromPoint(e.clientX, e.clientY);
+    if (hitTarget?.closest('.var-popover')) {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
       return; // Keep open if hovering popover
     }
+
+    const el = [...(containerRef.current?.querySelectorAll<HTMLElement>('span[data-varname]') || [])]
+      .find(span => {
+        const rect = span.getBoundingClientRect();
+        return e.clientX >= rect.left && e.clientX <= rect.right
+          && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      });
 
     if (el && el.tagName === 'SPAN' && el.hasAttribute('data-varname')) {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -206,20 +246,19 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       const varName = el.getAttribute('data-varname');
       const varId = el.getAttribute('data-varid');
       const varVal = el.getAttribute('data-varval');
+      const varSecret = el.getAttribute('data-varsecret') === 'true';
       
       if (varName && varName !== hoveredVar?.name) {
-        const containerRect = containerRef.current?.getBoundingClientRect();
         const elRect = el.getBoundingClientRect();
-        if (containerRect) {
-          setHoveredVar({
-            name: varName,
-            id: varId || '',
-            value: varVal || '',
-            top: elRect.bottom - containerRect.top + 5,
-            left: elRect.left - containerRect.left,
-          });
-          setEditVarValue(varVal || '');
-        }
+        setHoveredVar({
+          name: varName,
+          id: varId || '',
+          value: varSecret ? '' : varVal || '',
+          secret: varSecret,
+          top: Math.max(8, elRect.top - 78),
+          left: Math.max(8, Math.min(elRect.left, window.innerWidth - 272)),
+        });
+        setEditVarValue(varSecret ? '' : varVal || '');
       }
     } else {
       if (!hideTimeoutRef.current && hoveredVar) {
@@ -231,11 +270,20 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     }
   };
 
+  useEffect(() => {
+    mouseMoveHandlerRef.current = handleMouseMove;
+  });
+
+  useEffect(() => {
+    const listener = (event: MouseEvent) => mouseMoveHandlerRef.current(event);
+    document.addEventListener('mousemove', listener);
+    return () => document.removeEventListener('mousemove', listener);
+  }, []);
+
   return (
     <div 
       className={`relative flex items-center ${className} editor-container`} 
       ref={containerRef}
-      onMouseMove={handleMouseMove}
       onMouseLeave={() => {
         if (isPopoverPinned) return;
         if (!hideTimeoutRef.current && hoveredVar) {
@@ -253,9 +301,9 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         padding={isTextArea ? 16 : 8}
         onKeyUp={getCaretCoordinates}
         onClick={getCaretCoordinates}
-        className={`w-full font-mono text-[13px] outline-none !bg-transparent ${isTextArea ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-auto no-scrollbar'}`}
-        textareaClassName="outline-none focus:outline-none"
-        preClassName="!bg-transparent"
+        className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${isTextArea ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'}`}
+        textareaClassName={`outline-none focus:outline-none ${isTextArea ? '' : `!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar ${singleLineEllipsis ? '!text-ellipsis' : ''}`}`}
+        preClassName={`!bg-transparent ${isTextArea ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
         placeholder={placeholder}
         onFocus={onFocus}
         onBlur={() => {
@@ -294,10 +342,22 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       )}
 
       {/* Variable Hover Popover */}
-      {hoveredVar && (
-        <div 
-          className="var-popover absolute z-[100] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 w-64 flex flex-col gap-2"
+      {hoveredVar && createPortal(
+        <div
+          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 w-64 flex flex-col gap-2"
           style={{ top: hoveredVar.top, left: hoveredVar.left }}
+          onMouseEnter={() => {
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+            hideTimeoutRef.current = null;
+          }}
+          onMouseLeave={() => {
+            if (!isPopoverPinned && !hideTimeoutRef.current) {
+              hideTimeoutRef.current = setTimeout(() => {
+                setHoveredVar(null);
+                hideTimeoutRef.current = null;
+              }, 200);
+            }
+          }}
         >
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-text-secondary flex items-center gap-1">
@@ -316,20 +376,17 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
                   setIsPopoverPinned(true);
                 }}
                 onClick={() => setIsPopoverPinned(true)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void saveHoveredVariable();
+                  }
+                }}
                 className="flex-1 min-w-0 bg-surface-bg border border-border-strong rounded px-2 py-1.5 text-xs text-text-primary outline-none focus:border-accent font-mono"
                 placeholder="Initial Value"
               />
               <button
-                onClick={() => {
-                  if (activeEnvironmentId) {
-                    const updatedVars = activeEnv!.variables.map(v => 
-                      v.id === hoveredVar.id ? { ...v, value: editVarValue } : v
-                    );
-                    updateEnvironment(activeEnvironmentId, { variables: updatedVars });
-                    setHoveredVar(null);
-                    setIsPopoverPinned(false);
-                  }
-                }}
+                onClick={() => void saveHoveredVariable()}
                 className="p-1.5 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors shadow-sm active:scale-95 flex-shrink-0"
                 title="Save"
               >
@@ -346,19 +403,17 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
                   setIsPopoverPinned(true);
                 }}
                 onClick={() => setIsPopoverPinned(true)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void saveHoveredVariable();
+                  }
+                }}
                 className="flex-1 min-w-0 bg-surface-bg border border-border-strong rounded px-2 py-1.5 text-xs text-text-primary outline-none focus:border-accent font-mono"
                 placeholder="Initial Value"
               />
               <button
-                onClick={() => {
-                  const updatedVars = [
-                    ...activeEnv!.variables,
-                    { id: `var-${Date.now()}`, key: hoveredVar.name, value: editVarValue, enabled: true }
-                  ];
-                  updateEnvironment(activeEnvironmentId, { variables: updatedVars });
-                  setHoveredVar(null);
-                  setIsPopoverPinned(false);
-                }}
+                onClick={() => void saveHoveredVariable()}
                 className="p-1.5 rounded-md bg-accent hover:bg-accent-hover text-white transition-colors shadow-sm active:scale-95 flex-shrink-0"
                 title="Create Variable"
               >
@@ -368,7 +423,8 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
           ) : (
             <div className="text-xs text-text-muted">Select an environment to create this variable.</div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
       
       <style>{`

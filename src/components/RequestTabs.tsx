@@ -1,5 +1,5 @@
 
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { useStore } from '../store';
 import { getMethodColor } from '../utils/styles';
 
@@ -8,9 +8,22 @@ export function RequestTabs() {
   const activeRequestId = useStore(state => state.activeRequestId);
   const setActiveRequest = useStore(state => state.setActiveRequest);
   const closeRequest = useStore(state => state.closeRequest);
+  const addRequest = useStore(state => state.addRequest);
+  const showToast = useStore(state => state.showToast);
 
   const collections = useStore(state => state.collections);
   const environments = useStore(state => state.environments);
+
+  const createRequest = () => {
+    const activeCollection = collections.find(collection =>
+      collection.requests.some(request => request.id === activeRequestId)
+    ) || collections[0];
+    if (!activeCollection) {
+      showToast('Create a collection before adding a request.', 'info');
+      return;
+    }
+    addRequest(activeCollection.id, { name: 'New Request', method: 'GET', url: '', headers: {} });
+  };
 
   const getTabItem = (id: string) => {
     if (id.startsWith('env-')) {
@@ -48,7 +61,7 @@ export function RequestTabs() {
               onClick={(e) => { e.stopPropagation(); closeRequest(id); }}
               className={`ml-1 flex items-center justify-center w-5 h-5 rounded-full transition-colors ${isActive ? 'opacity-100 hover:bg-surface-hover' : 'opacity-0 group-hover:opacity-100 hover:bg-border-strong'}`}
             >
-              <Plus size={14} className="rotate-45" />
+              <X size={13} />
             </div>
             
             {/* Inactive tab separator */}
@@ -58,6 +71,15 @@ export function RequestTabs() {
           </div>
         );
       })}
+      <button
+        type="button"
+        onClick={createRequest}
+        title="New Request"
+        aria-label="New Request"
+        className="flex shrink-0 items-center justify-center w-8 h-8 mb-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+      >
+        <Plus size={16} />
+      </button>
     </div>
   );
 }

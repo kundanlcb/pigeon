@@ -14,6 +14,8 @@ Pigeon is a blazingly fast, lightweight, and modern API testing client built as 
 - **Advanced Code Editing**: Integrated Monaco Editor (the engine behind VS Code) for precise JSON formatting, syntax highlighting, line numbers, and expand/collapse folding.
 - **Environment Management**: Robust environment variable support (`{{variable_name}}`) seamlessly integrated throughout the app.
 - **Postman Compatibility**: Seamlessly import your existing Postman Collections and Environment files.
+- **Local Secret Storage**: Environment secrets and request credentials are stored in the operating system keychain instead of collection JSON or the persisted app store.
+- **Git-Native Collections**: Store a collection in a folder with one deterministic JSON file per request, nested folders, autosave, and external Git-change detection.
 - **cURL Integration**: Instantly copy requests as cURL commands to share with your team.
 - **Cross-Platform**: Available natively on macOS, Windows, and Linux.
 
@@ -74,6 +76,16 @@ Once the build finishes, you can find the binaries in the `src-tauri/target/rele
 - **macOS**: `.dmg` and `.app` files
 - **Windows**: `.msi` and `.exe` files
 - **Linux**: `.AppImage` and `.deb` files
+
+## Secrets and Git-Native Collections
+
+Environment variables marked **Secret** and literal request credentials are written to the operating system credential store. Pigeon does not fall back to local storage if the keychain is unavailable. Existing plaintext environment and request credentials are migrated on startup only after the keychain confirms a successful write; a failed migration retains the original value and reports the error.
+
+Collection storage remains local by default. Use a collection's menu to choose **Use Git Folder** and select an empty folder, or use **Open Collection Folder** to open an existing Pigeon folder. The collection manifest records its name, stable ID, format version, and nested folders. Each request is stored as its own JSON file under `requests/`; edits are debounced and written atomically. The selected folder is watched for external changes, including edits from Git operations. Conflicts offer **Reload from disk** or **Keep my edits**; malformed request files are reported independently so other requests remain available.
+
+Nested folders are represented in the collection manifest, and moving requests changes their folder assignment and file path. Existing flat collections remain local and appear at the collection root until moved. Switching a collection back to local storage leaves its folder files untouched.
+
+Collection and environment exports omit secret values. Keychain references in a Git-backed collection are local references, not shared credentials; collaborators must enter their own credentials in their own OS keychain. Folder mode is available in the native desktop app, while local storage remains available in browser previews.
 
 ## Project Structure
 

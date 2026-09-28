@@ -401,6 +401,15 @@ export default function App() {
           ) : activeRequest ? (
 
             <div className="flex-1 min-h-0 flex flex-col">
+              <div className="px-4 py-3 border-b border-border-subtle flex justify-between items-center shrink-0">
+                <input 
+                  type="text"
+                  value={activeRequest.name}
+                  onChange={(e) => updateActiveRequest({ name: e.target.value })}
+                  className="bg-transparent text-lg font-bold text-text-primary outline-none focus:border-accent border-b border-transparent w-full"
+                  placeholder="Request Name"
+                />
+              </div>
               <div className="px-4 h-[68px] flex items-center space-x-3 border-b border-border-subtle shrink-0">
             <div className="flex-1 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
               <div className="relative border-r border-border-strong flex items-center w-28 h-full">

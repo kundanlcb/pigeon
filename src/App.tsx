@@ -17,7 +17,7 @@ import { downloadAsFile, openFilesAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
 import { secureImportedEnvironment } from './utils/authSecrets';
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
-import { getEnabledRequestHeaders, prepareRequestBody } from "./utils/request";
+import { getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
@@ -430,7 +430,7 @@ export default function App() {
 
       setResponse({
         status: res.status,
-        statusText: res.statusText || (res.status === 200 ? 'OK' : 'Unknown'),
+        statusText: getResponseStatusText(res.status, res.statusText),
         time: timeMs,
         size: text.length,
         headers: headersRecord,

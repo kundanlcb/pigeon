@@ -1,6 +1,37 @@
 import { type RequestItem, type Environment } from '../store';
 import { resolveEnvVariables } from './env';
 
+const HTTP_STATUS_LABELS: Record<number, string> = {
+  200: 'OK',
+  201: 'Created',
+  202: 'Accepted',
+  204: 'No Content',
+  301: 'Moved Permanently',
+  302: 'Found',
+  304: 'Not Modified',
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+  405: 'Method Not Allowed',
+  408: 'Request Timeout',
+  409: 'Conflict',
+  410: 'Gone',
+  413: 'Content Too Large',
+  415: 'Unsupported Media Type',
+  422: 'Unprocessable Content',
+  429: 'Too Many Requests',
+  500: 'Internal Server Error',
+  501: 'Not Implemented',
+  502: 'Bad Gateway',
+  503: 'Service Unavailable',
+  504: 'Gateway Timeout',
+};
+
+export function getResponseStatusText(status: number, statusText: string): string {
+  return statusText.trim() || HTTP_STATUS_LABELS[status] || `HTTP ${status}`;
+}
+
 export function prepareRequestBody(request: RequestItem, activeEnvironment?: Environment | null, localVars?: Record<string, string>): { body: any, headers: Record<string, string> } {
   const extraHeaders: Record<string, string> = {};
   

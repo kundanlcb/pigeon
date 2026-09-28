@@ -495,13 +495,13 @@ export default function App() {
             </Group>
           </div>
           </div>
+            </ErrorBoundary>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-text-muted bg-app-bg">
               <Activity size={48} className="mb-4 opacity-20" />
               <p>Select or create a request to get started</p>
             </div>
           )}
-          </ErrorBoundary>
             </>
           )}
         </Panel>

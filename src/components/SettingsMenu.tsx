@@ -9,7 +9,7 @@ import { SettingsModal } from './SettingsModal';
 export function SettingsMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [hasUpdate, setHasUpdate] = useState(false);
+  const [hasUpdate] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   

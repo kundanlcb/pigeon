@@ -17,7 +17,7 @@ import { downloadAsFile, openFilesAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
 import { secureImportedEnvironment } from './utils/authSecrets';
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
-import { getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
+import { formatRequestError, getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
@@ -446,7 +446,7 @@ export default function App() {
         time: Math.round(endTime - startTime),
         size: 0,
         headers: {},
-        data: error.message || String(error),
+        data: formatRequestError(error),
         testResults: []
       });
     } finally {

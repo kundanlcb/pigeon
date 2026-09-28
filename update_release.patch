@@ -1,7 +1,0 @@
---- .github/workflows/release.yml
-+++ .github/workflows/release.yml
-@@ -52,5 +52,6 @@
-             `xattr -cr /Applications/Pigeon.app`
-           releaseDraft: false
-           prerelease: false
-+          includeUpdaterJson: true

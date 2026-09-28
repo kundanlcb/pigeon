@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { HighlightedInput } from './HighlightedInput';
+import { Trash2 } from 'lucide-react';
 
 interface KeyValue {
   key: string;
@@ -74,15 +75,21 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
   }
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-24">
+    <div className="flex flex-col h-full relative p-4">
+      <div className="border border-border-strong rounded-lg overflow-hidden">
+        <div className="grid grid-cols-[1fr_1fr_40px] gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong">
+          <div className="py-1.5 px-3 bg-surface-bg flex items-center">{placeholderKey}</div>
+          <div className="py-1.5 px-3 bg-surface-bg flex items-center">{placeholderValue}</div>
+          <div className="py-1.5 px-2 bg-surface-bg"></div>
+        </div>
+        
         {pairs.map((pair, idx) => {
           const filteredSuggestions = keySuggestions?.filter(s => s.toLowerCase().includes(pair.key.toLowerCase())) || [];
           return (
-            <div key={idx} className="flex items-center space-x-2 group">
-              <div className="flex-1 relative h-[34px]">
+            <div key={idx} className="grid grid-cols-[1fr_1fr_40px] gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0">
+              <div className="bg-app-bg relative h-[34px]">
                 <HighlightedInput 
-                  className="w-full h-full bg-surface-bg border border-border-strong rounded text-[13px] font-mono focus-within:border-accent"
+                  className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
                   value={pair.key}
                   placeholder={placeholderKey}
                   onFocus={() => setFocusedKeyIdx(idx)}
@@ -96,7 +103,7 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
                   }}
                 />
                 {focusedKeyIdx === idx && filteredSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-panel-bg border border-border-strong rounded-lg shadow-xl z-50 py-1">
+                  <div className="absolute top-[100%] left-0 mt-1 w-[200%] max-w-sm max-h-48 overflow-y-auto bg-panel-bg border border-border-strong rounded-lg shadow-xl z-[9999] py-1">
                     {filteredSuggestions.map(s => (
                       <div 
                         key={s} 
@@ -117,9 +124,9 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
                   </div>
                 )}
               </div>
-              <div className="flex-1 relative h-[34px]">
+              <div className="bg-app-bg relative h-[34px]">
                 <HighlightedInput 
-                  className="w-full h-full bg-surface-bg border border-border-strong rounded text-[13px] font-mono focus-within:border-accent pr-8"
+                  className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
                   value={pair.value}
                   placeholder={placeholderValue}
                   onChange={(e: any) => {
@@ -129,6 +136,8 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
                     updateStore(newPairs);
                   }}
                 />
+              </div>
+              <div className="bg-app-bg flex items-center justify-center">
                 <button 
                   onClick={() => {
                     const newPairs = pairs.filter((_, i) => i !== idx);
@@ -136,9 +145,9 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
                     setPairs(newPairs);
                     updateStore(newPairs);
                   }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 text-text-muted hover:text-red-400 transition-opacity z-10"
+                  className="opacity-0 group-hover:opacity-100 p-1.5 text-text-muted hover:text-red-400 transition-opacity z-10"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>

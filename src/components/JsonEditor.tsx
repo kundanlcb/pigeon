@@ -2,6 +2,92 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import { useEffect } from 'react';
 import { useStore } from '../store';
 
+let providersRegistered = false;
+
+function registerProviders(monaco: any) {
+  if (providersRegistered) return;
+  providersRegistered = true;
+  
+  const langs = ['json', 'javascript', 'html', 'xml', 'plaintext', 'graphql'];
+  langs.forEach(l => {
+    // Autocomplete Provider
+    monaco.languages.registerCompletionItemProvider(l, {
+      triggerCharacters: ['{'],
+      provideCompletionItems: (model: any, position: any) => {
+        const textUntilPosition = model.getValueInRange({
+          startLineNumber: position.lineNumber,
+          startColumn: 1,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column
+        });
+        
+        const match = textUntilPosition.match(/\{\{([^}]*)$/);
+        if (!match) return { suggestions: [] };
+        
+        const range = {
+           startLineNumber: position.lineNumber,
+           endLineNumber: position.lineNumber,
+           startColumn: position.column - match[1].length,
+           endColumn: position.column,
+        };
+
+        const state = useStore.getState();
+        const activeEnv = state.environments.find(e => e.id === state.activeEnvironmentId);
+        const vars = activeEnv ? activeEnv.variables.filter(v => v.enabled) : [];
+
+        const suggestions = vars.map(v => ({
+          label: v.key,
+          kind: monaco.languages.CompletionItemKind.Variable,
+          detail: v.secret ? 'Secret' : v.value,
+          insertText: v.key + '}}',
+          range: range
+        }));
+        
+        return { suggestions };
+      }
+    });
+
+    // Hover Provider
+    monaco.languages.registerHoverProvider(l, {
+      provideHover: (model: any, position: any) => {
+        const matches = model.findMatches('{{[^}]+}}', false, true, false, null, true);
+        const match = matches.find((m: any) => 
+          position.lineNumber >= m.range.startLineNumber && 
+          position.lineNumber <= m.range.endLineNumber &&
+          position.column >= m.range.startColumn && 
+          position.column <= m.range.endColumn
+        );
+
+        if (match) {
+          const varName = model.getValueInRange(match.range).slice(2, -2).trim();
+          const state = useStore.getState();
+          const activeEnv = state.environments.find(e => e.id === state.activeEnvironmentId);
+          const v = activeEnv?.variables.find(v => v.key === varName && v.enabled);
+          
+          if (v) {
+            return {
+              range: match.range,
+              contents: [
+                { value: `**Environment Variable**` },
+                { value: `\`${v.key}\` = ${v.secret ? '*•••••• (Secret)*' : v.value}` }
+              ]
+            };
+          } else {
+            return {
+              range: match.range,
+              contents: [
+                { value: `**Environment Variable**` },
+                { value: `⚠️ \`${varName}\` is not defined in the active environment.` }
+              ]
+            };
+          }
+        }
+        return null;
+      }
+    });
+  });
+}
+
 interface JsonEditorProps {
   value: string;
   onChange?: (value: string) => void;
@@ -14,8 +100,29 @@ export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', 
   const monaco = useMonaco();
   const theme = useStore(state => state.theme);
   
+  const handleEditorDidMount = (editor: any, _monacoInstance: any) => {
+    let oldDecorations: string[] = [];
+    
+    const updateDecorations = () => {
+      const model = editor.getModel();
+      if (!model) return;
+      const matches = model.findMatches('{{[^}]+}}', false, true, false, null, true);
+      const newDecorations = matches.map((m: any) => ({
+        range: m.range,
+        options: {
+          inlineClassName: '!text-accent !font-bold',
+        }
+      }));
+      oldDecorations = editor.deltaDecorations(oldDecorations, newDecorations);
+    };
+
+    editor.onDidChangeModelContent(updateDecorations);
+    updateDecorations();
+  };
+  
   useEffect(() => {
     if (monaco) {
+      registerProviders(monaco);
       // Small timeout ensures CSS variables are updated in the DOM after theme toggle
       setTimeout(() => {
         const rootStyle = getComputedStyle(document.documentElement);
@@ -60,6 +167,7 @@ export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', 
       theme={`pigeon-${theme}-${bgType}`}
       value={value}
       onChange={(val) => onChange && onChange(val || '')}
+      onMount={handleEditorDidMount}
       options={{
         minimap: { enabled: false },
         readOnly: readOnly,

@@ -88,9 +88,13 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     
     if (lastOpen > lastClose && lastOpen !== -1) {
       const filterText = currentLine.substring(lastOpen + 2);
-      setSuggestionFilter(filterText);
+      setSuggestionFilter(prev => {
+        if (prev !== filterText) {
+          setSelectedIndex(0);
+        }
+        return filterText;
+      });
       setShowSuggestions(true);
-      setSelectedIndex(0);
       
       // Calculate position
       const top = (currentLineIdx + 1) * 20; // Approx line height

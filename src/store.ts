@@ -19,6 +19,7 @@ export interface EnvironmentVariable {
   key: string;
   value: string;
   enabled: boolean;
+  secret?: boolean;
 }
 
 export interface Environment {
@@ -104,6 +105,12 @@ export interface Collection {
   isOpen: boolean;
 }
 
+export interface AppSettings {
+  insecureSSL: boolean;
+  requestTimeout: number;
+  maxRedirects: number;
+}
+
 interface AppState {
   theme: "dark" | "light";
   toggleTheme: () => void;
@@ -145,11 +152,14 @@ interface AppState {
   toast: { message: string, type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   hideToast: () => void;
+  appSettings: AppSettings;
+  updateAppSettings: (settings: Partial<AppSettings>) => void;
 }
 
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
+      appSettings: { insecureSSL: true, requestTimeout: 30000, maxRedirects: 10 },
       theme: "dark",
       activeView: 'editor',
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
@@ -370,7 +380,7 @@ export const useStore = create<AppState>()(
         environments: [...state.environments, {
           id: `env-${Date.now()}`,
           name,
-          variables: []
+          variables: [{ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true }]
         }]
       })),
       updateEnvironment: (id, updates) => set((state) => ({
@@ -432,7 +442,8 @@ export const useStore = create<AppState>()(
           set((state) => (state.toast?.message === message ? { toast: null } : state));
         }, 3000);
       },
-      hideToast: () => set({ toast: null })
+      hideToast: () => set({ toast: null }),
+      updateAppSettings: (settings) => set((state) => ({ appSettings: { ...state.appSettings, ...settings } }))
     }),
     {
       name: 'pigeon-store',

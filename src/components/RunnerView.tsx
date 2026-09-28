@@ -93,12 +93,18 @@ export function RunnerView() {
 
     const reqBodyToUse = context.request.body;
 
+    const appSettings = useStore.getState().appSettings;
+    const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+
     let res;
     if ('__TAURI_INTERNALS__' in window) {
       res = await fetch(finalUrl, {
         method: context.request.method,
         headers: context.request.headers,
-        body: reqBodyToUse
+        body: reqBodyToUse,
+        connectTimeout: appSettings?.requestTimeout,
+        maxRedirections: appSettings?.maxRedirects,
+        ...(dangerOptions ? { danger: dangerOptions } : {})
       });
     } else {
       res = await window.fetch(finalUrl, {

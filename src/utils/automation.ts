@@ -129,10 +129,16 @@ export async function executeRequestNode(
     // Pigeon doesn't have queryParams in RequestItem yet. We extract them from the URL if needed, 
     // but url already contains them. So no queryParams logic here.
 
+    const appSettings = useStore.getState().appSettings;
+    const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+
     const response = await fetch(finalUrl, {
       method: context.request.method,
       headers: finalHeaders,
-      body: finalBody as any
+      body: finalBody as any,
+      connectTimeout: appSettings?.requestTimeout,
+      maxRedirections: appSettings?.maxRedirects,
+      ...(dangerOptions ? { danger: dangerOptions } : {})
     });
 
     const responseBuffer = await response.arrayBuffer();

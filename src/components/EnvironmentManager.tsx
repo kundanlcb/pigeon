@@ -43,23 +43,15 @@ export function EnvironmentManager({ isOpen, onClose }: EnvironmentManagerProps)
     }
   };
 
-  const handleAddVariable = () => {
-    if (selectedEnv) {
-      updateEnvironment(selectedEnvId!, {
-        variables: [
-          ...selectedEnv.variables,
-          { id: `var-${Date.now()}`, key: '', value: '', enabled: true }
-        ]
-      });
-    }
-  };
+
 
   const handleUpdateVariable = (id: string, updates: Partial<EnvironmentVariable>) => {
-    if (selectedEnv) {
-      updateEnvironment(selectedEnvId!, {
-        variables: selectedEnv.variables.map(v => v.id === id ? { ...v, ...updates } : v)
-      });
-    }
+    const state = useStore.getState();
+    const currentEnv = state.environments.find(e => e.id === selectedEnvId);
+    if (!currentEnv) return;
+    updateEnvironment(selectedEnvId!, {
+      variables: currentEnv.variables.map(v => v.id === id ? { ...v, ...updates } : v)
+    });
   };
 
   const handleDeleteVariable = (id: string) => {
@@ -169,7 +161,7 @@ export function EnvironmentManager({ isOpen, onClose }: EnvironmentManagerProps)
                     <div className="p-2 bg-surface-bg"></div>
                   </div>
                   
-                  {selectedEnv.variables.map((v, index) => (
+                  {selectedEnv.variables.map((v) => (
                     <div key={v.id} className="grid grid-cols-[48px_1fr_1fr_48px] gap-px bg-border-strong text-sm">
                       <div className="p-2 bg-app-bg flex items-center justify-center">
                         <input 
@@ -184,10 +176,26 @@ export function EnvironmentManager({ isOpen, onClose }: EnvironmentManagerProps)
                           type="text"
                           value={v.key}
                           onChange={(e) => {
-                            handleUpdateVariable(v.id, { key: e.target.value });
-                            if (index === selectedEnv.variables.length - 1 && e.target.value.trim() !== '') {
-                              handleAddVariable();
+                            const newKey = e.target.value;
+                            
+                            const state = useStore.getState();
+                            const currentEnv = state.environments.find(env => env.id === selectedEnvId);
+                            if (!currentEnv) return;
+                            
+                            const freshVars = [...currentEnv.variables];
+                            const freshIndex = freshVars.findIndex(v_ => v_.id === v.id);
+                            if (freshIndex === -1) return;
+                            
+                            const isLast = freshIndex === freshVars.length - 1;
+                            const isAdding = isLast && newKey.trim() !== '';
+                            
+                            freshVars[freshIndex] = { ...freshVars[freshIndex], key: newKey };
+                            
+                            if (isAdding) {
+                              freshVars.push({ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true, secret: false });
                             }
+                            
+                            updateEnvironment(selectedEnvId!, { variables: freshVars });
                           }}
                           placeholder="Add new variable"
                           className="w-full h-full p-2 bg-transparent text-text-primary outline-none font-mono text-sm placeholder-text-muted"
@@ -213,30 +221,7 @@ export function EnvironmentManager({ isOpen, onClose }: EnvironmentManagerProps)
                     </div>
                   ))}
 
-                  {/* Empty row for adding new */}
-                  <div className="grid grid-cols-[48px_1fr_1fr_48px] gap-px bg-border-strong text-sm opacity-60 hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    <div className="p-2 bg-app-bg flex items-center justify-center"></div>
-                    <div className="bg-app-bg">
-                      <input
-                        type="text"
-                        placeholder="New key"
-                        onChange={(e) => {
-                          if (e.target.value.trim()) {
-                            updateEnvironment(selectedEnvId!, {
-                              variables: [
-                                ...selectedEnv.variables,
-                                { id: `var-${Date.now()}`, key: e.target.value, value: '', enabled: true }
-                              ]
-                            });
-                            e.target.value = '';
-                          }
-                        }}
-                        className="w-full h-full p-2 bg-transparent text-text-primary outline-none font-mono text-sm placeholder-text-muted"
-                      />
-                    </div>
-                    <div className="bg-app-bg p-2 text-text-muted">Value</div>
-                    <div className="p-2 bg-app-bg"></div>
-                  </div>
+                  {/* Standalone empty row removed because we append an empty row in variables */}
                 </div>
                 
                 <div className="mt-8 flex justify-end">

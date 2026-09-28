@@ -23,6 +23,28 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
     return initial;
   });
   const [focusedKeyIdx, setFocusedKeyIdx] = useState<number | null>(null);
+  const [keyColWidth, setKeyColWidth] = useState(250);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.pageX;
+    const startWidth = keyColWidth;
+    
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(100, Math.min(600, startWidth + (moveEvent.pageX - startX)));
+      setKeyColWidth(newWidth);
+    };
+    
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'default';
+    };
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+  };
 
   useEffect(() => {
     const currentRecord: Record<string, string> = {};
@@ -76,17 +98,32 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
 
   return (
     <div className="flex flex-col h-full relative p-4">
-      <div className="border border-border-strong rounded-lg overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_40px] gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong">
-          <div className="py-1.5 px-3 bg-surface-bg flex items-center">{placeholderKey}</div>
+      <div className="border border-border-strong rounded-lg overflow-hidden flex flex-col min-h-0">
+        <div 
+          className="grid gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong shrink-0"
+          style={{ gridTemplateColumns: `${keyColWidth}px 1fr 40px` }}
+        >
+          <div className="py-1.5 px-3 bg-surface-bg flex items-center relative">
+            {placeholderKey}
+            <div 
+              onMouseDown={handleResizeStart}
+              className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/50 z-10 translate-x-1/2"
+              title="Resize Column"
+            />
+          </div>
           <div className="py-1.5 px-3 bg-surface-bg flex items-center">{placeholderValue}</div>
           <div className="py-1.5 px-2 bg-surface-bg"></div>
         </div>
         
+        <div className="flex-1 overflow-y-auto">
         {pairs.map((pair, idx) => {
           const filteredSuggestions = keySuggestions?.filter(s => s.toLowerCase().includes(pair.key.toLowerCase())) || [];
           return (
-            <div key={idx} className="grid grid-cols-[1fr_1fr_40px] gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0">
+            <div 
+              key={idx} 
+              className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
+              style={{ gridTemplateColumns: `${keyColWidth}px 1fr 40px` }}
+            >
               <div className="bg-app-bg relative h-[34px]">
                 <HighlightedInput 
                   className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
@@ -153,6 +190,7 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

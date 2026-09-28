@@ -37,3 +37,41 @@ export function openFileAndRead(accept: string = '.json'): Promise<string> {
     document.body.removeChild(input);
   });
 }
+
+export function openFilesAndRead(accept: string = '.json'): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.multiple = true;
+    input.style.display = 'none';
+    
+    input.onchange = async (e: any) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) {
+        reject(new Error('No file selected'));
+        return;
+      }
+      
+      const readPromises = files.map((file: any) => {
+        return new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = (event) => res(event.target?.result as string);
+          reader.onerror = (error) => rej(error);
+          reader.readAsText(file);
+        });
+      });
+      
+      try {
+        const contents = await Promise.all(readPromises);
+        resolve(contents);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  });
+}

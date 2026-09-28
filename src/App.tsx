@@ -11,7 +11,7 @@ import { HighlightedInput } from "./components/HighlightedInput";
 import { getMethodColor } from "./utils/styles";
 import { setQueryParams } from "./utils/url";
 import { resolveEnvVariables } from "./utils/env";
-import { downloadAsFile, openFileAndRead } from "./utils/file";
+import { downloadAsFile, openFilesAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
 import { prepareRequestBody } from "./utils/request";
@@ -312,43 +312,55 @@ export default function App() {
               setIsCurlModalOpen(true);
             } else if (type === 'collection') {
               try {
-                const json = await openFileAndRead('.json');
-                const parsed = JSON.parse(json);
-                
-                let col: any = null;
-                if (parsed.info && parsed.info.schema && parsed.item) {
-                  col = parsePostmanCollection(parsed);
-                } else if (parsed && parsed.name && Array.isArray(parsed.requests)) {
-                  col = parsed;
+                const jsons = await openFilesAndRead('.json');
+                let successCount = 0;
+                for (const json of jsons) {
+                  const parsed = JSON.parse(json);
+                  let col: any = null;
+                  if (parsed.info && parsed.info.schema && parsed.item) {
+                    col = parsePostmanCollection(parsed);
+                  } else if (parsed && parsed.name && Array.isArray(parsed.requests)) {
+                    col = parsed;
+                  }
+                  if (col) {
+                    useStore.getState().importCollection(col);
+                    successCount++;
+                  }
                 }
-
-                if (col) {
-                  useStore.getState().importCollection(col);
-                  useStore.getState().showToast(`Successfully imported collection: ${col.name}`, 'success');
-                } else {
-                  useStore.getState().showToast('Invalid collection format. Must be Pigeon JSON or Postman v2.1', 'error');
-                }
+                if (successCount > 0) useStore.getState().showToast(`Successfully imported ${successCount} collection(s)`, 'success');
+                else useStore.getState().showToast('Invalid collection format(s)', 'error');
               } catch (err: any) {
                 if (err.message !== 'No file selected') useStore.getState().showToast('Failed to parse JSON', 'error');
               }
             } else if (type === 'environment') {
               try {
-                const json = await openFileAndRead('.json');
-                const parsed = JSON.parse(json);
-
-                let env: any = null;
-                if (parsed.values && Array.isArray(parsed.values)) {
-                  env = parsePostmanEnvironment(parsed);
-                } else if (parsed && parsed.name && Array.isArray(parsed.variables)) {
-                  env = parsed;
+                const jsons = await openFilesAndRead('.json');
+                let successCount = 0;
+                for (const json of jsons) {
+                  const parsed = JSON.parse(json);
+                  let env: any = null;
+                  if (parsed.values && Array.isArray(parsed.values)) {
+                    env = parsePostmanEnvironment(parsed);
+                  } else if (parsed && parsed.name && Array.isArray(parsed.variables)) {
+                    env = {
+                      ...parsed,
+                      variables: parsed.variables.map((v: any) => ({
+                        ...v,
+                        key: v.key || v.name || '',
+                        id: v.id || `var-${Date.now()}-${Math.random()}`
+                      }))
+                    };
+                  }
+                  if (env) {
+                    useStore.getState().importEnvironment(env);
+                    successCount++;
+                  }
                 }
-
-                if (env) {
-                  useStore.getState().importEnvironment(env);
+                if (successCount > 0) {
                   setIsEnvManagerOpen(true);
-                  useStore.getState().showToast(`Successfully imported environment: ${env.name}`, 'success');
+                  useStore.getState().showToast(`Successfully imported ${successCount} environment(s)`, 'success');
                 } else {
-                  useStore.getState().showToast('Invalid environment format. Must be Pigeon JSON or Postman Env', 'error');
+                  useStore.getState().showToast('Invalid environment format(s)', 'error');
                 }
               } catch (err: any) {
                 if (err.message !== 'No file selected') useStore.getState().showToast('Failed to parse JSON', 'error');

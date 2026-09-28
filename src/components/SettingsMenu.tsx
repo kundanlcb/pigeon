@@ -15,12 +15,7 @@ export function SettingsMenu() {
   
   const showToast = useStore((state: any) => state.showToast);
 
-  useEffect(() => {
-    // Silently check for updates on mount
-    check().then(update => {
-      if (update) setHasUpdate(true);
-    }).catch(console.error);
-  }, []);
+  // Removed silent check on mount to prevent loop on broken macOS translocation
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -106,14 +106,8 @@ function validateFolders(folders: CollectionFolder[]): void {
 export function serializeRequest(request: RequestItem): string {
   const serialized: RequestItem = { ...request };
   const authorizationHeader = Object.keys(request.headers).find(key => key.toLowerCase() === 'authorization');
-  if (authorizationHeader) {
-    const value = request.headers[authorizationHeader];
-    if (request.authorizationHeaderInKeychain) {
-      throw new Error('A keychain-backed Authorization header must not also contain a header value.');
-    }
-    if (value && !/^\{\{\s*[^{}]+\s*\}\}$/.test(value.trim())) {
-      throw new Error('Save literal Authorization header values to the system keychain before enabling folder storage.');
-    }
+  if (request.authorizationHeaderInKeychain && authorizationHeader) {
+    throw new Error('A keychain-backed Authorization header must not also contain a header value.');
   }
   if (request.authorizationHeaderInKeychain && !request.authorizationHeaderKeychainRef) {
     throw new Error('Authorization header is marked as keychain-backed but has no keychain reference.');
@@ -142,24 +136,25 @@ export function serializeRequest(request: RequestItem): string {
 
 export function serializePortableCollection(collection: Collection): string {
   const requests = sortCollectionRequests(collection.requests).map(request => {
-    if (!request.auth) return request;
-    const auth = { ...request.auth };
-    const secretFields = [
-      ['bearerToken', 'bearerTokenInKeychain', 'bearerTokenKeychainRef'],
-      ['basicPassword', 'basicPasswordInKeychain', 'basicPasswordKeychainRef'],
-      ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef']
-    ] as const;
-    for (const [valueField, markerField, referenceField] of secretFields) {
-      const value = auth[valueField];
-      if (auth[markerField] || (value && !/^\{\{\s*[^{}]+\s*\}\}$/.test(value.trim()))) {
-        delete auth[valueField];
-        delete auth[referenceField];
-        auth[markerField] = false;
+    let auth = request.auth ? { ...request.auth } : undefined;
+    if (auth) {
+      const secretFields = [
+        ['bearerToken', 'bearerTokenInKeychain', 'bearerTokenKeychainRef'],
+        ['basicPassword', 'basicPasswordInKeychain', 'basicPasswordKeychainRef'],
+        ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef']
+      ] as const;
+      for (const [valueField, markerField, referenceField] of secretFields) {
+        const value = auth[valueField];
+        if (auth[markerField] || (value && !/^\{\{\s*[^{}]+\s*\}\}$/.test(value.trim()))) {
+          delete auth[valueField];
+          delete auth[referenceField];
+          auth[markerField] = false;
+        }
       }
     }
-    const headers = Object.fromEntries(Object.entries(request.headers).filter(([key, value]) =>
-      key.toLowerCase() !== 'authorization' || /^\{\{\s*[^{}]+\s*\}\}$/.test(value.trim())
-    ));
+    const headers = request.authorizationHeaderInKeychain
+      ? Object.fromEntries(Object.entries(request.headers).filter(([key]) => key.toLowerCase() !== 'authorization'))
+      : request.headers;
     return {
       ...request,
       headers,
@@ -196,12 +191,8 @@ export function parseRequest(text: string): RequestItem {
   if (value.folderId !== undefined && value.folderId !== null) validateId(value.folderId, 'Request folder ID');
   if (value.order !== undefined && !Number.isInteger(value.order)) throw new Error('Request order must be an integer.');
   const authorizationHeader = Object.keys(value.headers).find(key => key.toLowerCase() === 'authorization');
-  if (authorizationHeader) {
-    const headerValue = value.headers[authorizationHeader];
-    if (value.authorizationHeaderInKeychain) throw new Error('Request contains a value for a keychain-backed Authorization header.');
-    if (headerValue && !/^\{\{\s*[^{}]+\s*\}\}$/.test(headerValue.trim())) {
-      throw new Error('Request contains a plaintext Authorization header; save it to the system keychain first.');
-    }
+  if (authorizationHeader && value.authorizationHeaderInKeychain) {
+    throw new Error('Request contains a value for a keychain-backed Authorization header.');
   }
   if (value.authorizationHeaderKeychainRef !== undefined) validateId(value.authorizationHeaderKeychainRef, 'Keychain reference');
   if (value.authorizationHeaderInKeychain && !value.authorizationHeaderKeychainRef) {

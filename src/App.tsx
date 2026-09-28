@@ -111,9 +111,6 @@ export default function App() {
       for (const collection of state.collections) {
         for (const request of collection.requests) {
           let migratedAuth = request.auth ? { ...request.auth } : undefined;
-          let migratedHeaders = { ...request.headers };
-          let authorizationHeaderInKeychain = request.authorizationHeaderInKeychain;
-          let authorizationHeaderKeychainRef = request.authorizationHeaderKeychainRef;
           let authChanged = false;
           if (migratedAuth) {
             for (const { valueKey, markerKey } of secretFields) {
@@ -132,21 +129,6 @@ export default function App() {
               }
             }
           }
-          const authorizationHeader = Object.keys(migratedHeaders).find(key => key.toLowerCase() === 'authorization');
-          const authorizationValue = authorizationHeader ? migratedHeaders[authorizationHeader] : undefined;
-          if (authorizationHeader && authorizationValue && !/^\{\{\s*[^{}]+\s*\}\}$/.test(authorizationValue.trim())) {
-            try {
-              const reference = createSecretReference();
-              await setSecret('request-auth', reference, authorizationValue);
-              delete migratedHeaders[authorizationHeader];
-              authorizationHeaderInKeychain = true;
-              authorizationHeaderKeychainRef = reference;
-              authChanged = true;
-            } catch (error) {
-              authMigrationFailed = true;
-              console.error(`Failed to migrate Authorization header for request ${request.name}`, error);
-            }
-          }
           if (authChanged) {
             const current = useStore.getState();
             useStore.setState({
@@ -157,10 +139,7 @@ export default function App() {
                     requests: currentCollection.requests.map(currentRequest =>
                       currentRequest.id === request.id ? {
                         ...currentRequest,
-                        auth: migratedAuth,
-                        headers: migratedHeaders,
-                        authorizationHeaderInKeychain,
-                        authorizationHeaderKeychainRef
+                        auth: migratedAuth
                       } : currentRequest
                     )
                   })

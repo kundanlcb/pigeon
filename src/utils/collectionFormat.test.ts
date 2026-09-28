@@ -108,12 +108,18 @@ describe('collection file format', () => {
     expect(exported.variables[1].value).toBe('https://example.test');
   });
 
-  it('strips local Keychain references and literal Authorization headers from portable collections', () => {
+  it('keeps normal Authorization headers and strips opted-in Keychain secrets from portable collections', () => {
+    const normalHeaders = serializePortableCollection({
+      ...collection,
+      requests: [{ ...request, headers: { Authorization: 'Bearer portable-value' } }]
+    });
+    expect(JSON.parse(normalHeaders).requests[0].headers.Authorization).toBe('Bearer portable-value');
+
     const contents = serializePortableCollection({
       ...collection,
       requests: [{
         ...request,
-        headers: { Authorization: 'Bearer never-export-this' },
+        headers: {},
         authorizationHeaderInKeychain: true,
         authorizationHeaderKeychainRef: 'local-reference',
         auth: {
@@ -123,9 +129,28 @@ describe('collection file format', () => {
         }
       }]
     });
-    expect(contents).not.toContain('never-export-this');
     expect(contents).not.toContain('local-reference');
     expect(contents).not.toContain('auth-reference');
+    const exportedSecretRequest = JSON.parse(contents).requests[0];
+    expect(exportedSecretRequest.authorizationHeaderInKeychain).toBe(false);
+    expect(exportedSecretRequest).not.toHaveProperty('authorizationHeaderKeychainRef');
+    expect(exportedSecretRequest.headers).toEqual({});
+  });
+
+  it('allows literal Authorization headers in folder-backed request files unless marked secret', () => {
+    const normalRequest = { ...request, headers: { Authorization: 'Bearer plain-value' } };
+    expect(JSON.parse(serializeRequest(normalRequest)).headers.Authorization).toBe('Bearer plain-value');
+    expect(parseRequest(serializeRequest(normalRequest)).headers.Authorization).toBe('Bearer plain-value');
+    expect(() => serializeRequest({
+      ...normalRequest,
+      authorizationHeaderInKeychain: true,
+      authorizationHeaderKeychainRef: 'secret-reference'
+    })).toThrow(/must not also contain/i);
+    expect(() => parseRequest(JSON.stringify({
+      ...normalRequest,
+      authorizationHeaderInKeychain: true,
+      authorizationHeaderKeychainRef: 'secret-reference'
+    }))).toThrow(/keychain-backed/i);
   });
 
   it('keeps unchecked request headers and query parameters out of outgoing requests', () => {

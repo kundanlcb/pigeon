@@ -18,6 +18,7 @@ import { prepareRequestBody } from "./utils/request";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
+import { getSecret, setSecret } from './utils/secrets';
 
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { fetch } from '@tauri-apps/plugin-http';
@@ -47,6 +48,49 @@ export default function App() {
   const activeView = useStore(state => state.activeView);
   
   React.useEffect(() => { document.documentElement.classList.toggle('light', theme === 'light'); try { getCurrentWindow().setTheme(theme); } catch {} }, [theme]);
+  
+  React.useEffect(() => {
+    const migrateSecrets = async () => {
+      const state = useStore.getState();
+      const authVars = new Set<string>();
+      for (const col of state.collections) {
+        for (const req of col.requests) {
+          if (req.auth) {
+            if (req.auth.bearerToken?.includes('{{')) {
+               const match = req.auth.bearerToken.match(/\{\{([^}]+)\}\}/);
+               if (match) authVars.add(match[1].trim());
+            }
+            if (req.auth.basicPassword?.includes('{{')) {
+               const match = req.auth.basicPassword.match(/\{\{([^}]+)\}\}/);
+               if (match) authVars.add(match[1].trim());
+            }
+          }
+        }
+      }
+
+      for (const env of state.environments) {
+        let envChanged = false;
+        const newVars = [];
+        for (const v of env.variables) {
+           if ((v.secret || authVars.has(v.key) || v.key.toLowerCase().includes('token') || v.key.toLowerCase().includes('secret')) && v.value !== '') {
+              await setSecret(env.id, v.key, v.value).catch(() => {});
+              newVars.push({ ...v, secret: true, value: '' });
+              envChanged = true;
+           } else {
+              newVars.push(v);
+           }
+        }
+        if (envChanged) {
+           useStore.getState().updateEnvironment(env.id, { variables: newVars });
+        } else if (env.variables.length === 0) {
+           useStore.getState().updateEnvironment(env.id, { 
+             variables: [{ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true, secret: false }] 
+           });
+        }
+      }
+    };
+    migrateSecrets();
+  }, []);
   
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
   const [isEnvManagerOpen, setIsEnvManagerOpen] = useState(false);
@@ -82,14 +126,26 @@ export default function App() {
     try {
       const activeEnvironment = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
       
+      const localVars: Record<string, string> = {};
+      if (activeEnvironment) {
+        for (const v of activeEnvironment.variables) {
+          if (v.secret && v.enabled) {
+            const val = await getSecret(activeEnvironment.id, v.key);
+            if (val !== null && val !== undefined) {
+              localVars[v.key] = val;
+            }
+          }
+        }
+      }
+
       const finalHeaders: Record<string, string> = {};
       const baseHeaders = { ...(activeRequest?.headers || {}) };
       for (const [k, v] of Object.entries(baseHeaders)) {
-        finalHeaders[resolveEnvVariables(k, activeEnvironment)] = resolveEnvVariables(v, activeEnvironment);
+        finalHeaders[resolveEnvVariables(k, activeEnvironment, localVars)] = resolveEnvVariables(v, activeEnvironment, localVars);
       }
       
-      let finalUrl = resolveEnvVariables(localUrl, activeEnvironment);
-      const { body: finalBody, headers: bodyHeaders } = activeRequest ? prepareRequestBody({ ...activeRequest, method: localMethod }, activeEnvironment) : { body: undefined, headers: {} };
+      let finalUrl = resolveEnvVariables(localUrl, activeEnvironment, localVars);
+      const { body: finalBody, headers: bodyHeaders } = activeRequest ? prepareRequestBody({ ...activeRequest, method: localMethod }, activeEnvironment, localVars) : { body: undefined, headers: {} };
       for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
       
       const context: PigeonContext = {
@@ -97,6 +153,9 @@ export default function App() {
           get: (key: string) => {
             const env = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
             const v = env?.variables.find(v => v.key === key);
+            if (v && v.secret) {
+              return localVars[key];
+            }
             return v ? v.value : undefined;
           },
           set: (key: string, value: string) => {
@@ -107,7 +166,12 @@ export default function App() {
             const existing = env.variables.find(v => v.key === key);
             let newVars = [...env.variables];
             if (existing) {
-              newVars = newVars.map(v => v.key === key ? { ...v, value } : v);
+              if (existing.secret) {
+                setSecret(envId, key, value).catch(console.error);
+                newVars = newVars.map(v => v.key === key ? { ...v, value: '' } : v);
+              } else {
+                newVars = newVars.map(v => v.key === key ? { ...v, value } : v);
+              }
             } else {
               newVars.push({ id: `var-${Date.now()}-${Math.random()}`, key, value, enabled: true });
             }
@@ -130,15 +194,15 @@ export default function App() {
       
       if (activeRequest?.auth) {
         if (activeRequest.auth.type === 'bearer' && activeRequest.auth.bearerToken) {
-          finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(activeRequest.auth.bearerToken, activeEnvironment)}`;
+          finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(activeRequest.auth.bearerToken, activeEnvironment, localVars)}`;
         } else if (activeRequest.auth.type === 'basic' && (activeRequest.auth.basicUsername || activeRequest.auth.basicPassword)) {
-          const user = resolveEnvVariables(activeRequest.auth.basicUsername || '', activeEnvironment);
-          const pass = resolveEnvVariables(activeRequest.auth.basicPassword || '', activeEnvironment);
+          const user = resolveEnvVariables(activeRequest.auth.basicUsername || '', activeEnvironment, localVars);
+          const pass = resolveEnvVariables(activeRequest.auth.basicPassword || '', activeEnvironment, localVars);
           const creds = btoa(`${user}:${pass}`);
           finalHeaders['Authorization'] = `Basic ${creds}`;
         } else if (activeRequest.auth.type === 'api_key' && activeRequest.auth.apiKeyKey) {
-          const key = resolveEnvVariables(activeRequest.auth.apiKeyKey, activeEnvironment);
-          const val = resolveEnvVariables(activeRequest.auth.apiKeyValue || '', activeEnvironment);
+          const key = resolveEnvVariables(activeRequest.auth.apiKeyKey, activeEnvironment, localVars);
+          const val = resolveEnvVariables(activeRequest.auth.apiKeyValue || '', activeEnvironment, localVars);
           if (activeRequest.auth.apiKeyIn === 'query') {
             finalUrl = setQueryParams(finalUrl, { [key]: val });
           } else {
@@ -149,13 +213,18 @@ export default function App() {
       // the body is already computed into finalBody and context.request.body could have been modified by script
       const reqBodyToUse = context.request.body;
 
-      // Use Tauri's native HTTP plugin to bypass CORS if available, else fallback to browser fetch
+      const appSettings = useStore.getState().appSettings;
+      const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+
       let res;
       if ('__TAURI_INTERNALS__' in window) {
         res = await fetch(finalUrl, {
           method: context.request.method,
           headers: context.request.headers,
-          body: reqBodyToUse
+          body: reqBodyToUse,
+          connectTimeout: appSettings?.requestTimeout,
+          maxRedirections: appSettings?.maxRedirects,
+          ...(dangerOptions ? { danger: dangerOptions } : {})
         });
       } else {
         res = await window.fetch(finalUrl, {

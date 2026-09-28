@@ -1,8 +1,10 @@
 
 import { useStore } from '../store';
 import type { EnvironmentVariable } from '../store';
-import { Trash2, Share } from 'lucide-react';
+import { Trash2, Share, Check } from 'lucide-react';
 import { downloadAsFile } from '../utils/file';
+import { setSecret, deleteSecret } from '../utils/secrets';
+import { useState } from 'react';
 
 interface EnvironmentEditorProps {
   environmentId: string;
@@ -13,6 +15,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const updateEnvironment = useStore(state => state.updateEnvironment);
   const setActiveEnvironment = useStore(state => state.setActiveEnvironment);
+  const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
   
   const selectedEnv = environments.find(e => e.id === environmentId);
 
@@ -28,22 +31,22 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
     updateEnvironment(environmentId, { name });
   };
 
-  const handleAddVariable = () => {
-    updateEnvironment(environmentId, {
-      variables: [
-        ...selectedEnv.variables,
-        { id: `var-${Date.now()}`, key: '', value: '', enabled: true }
-      ]
-    });
-  };
+
 
   const handleUpdateVariable = (id: string, updates: Partial<EnvironmentVariable>) => {
+    const state = useStore.getState();
+    const currentEnv = state.environments.find(e => e.id === environmentId);
+    if (!currentEnv) return;
     updateEnvironment(environmentId, {
-      variables: selectedEnv.variables.map(v => v.id === id ? { ...v, ...updates } : v)
+      variables: currentEnv.variables.map(v => v.id === id ? { ...v, ...updates } : v)
     });
   };
 
   const handleDeleteVariable = (id: string) => {
+    const v = selectedEnv.variables.find(v => v.id === id);
+    if (v && v.secret) {
+      deleteSecret(environmentId, v.key).catch(console.error);
+    }
     updateEnvironment(environmentId, {
       variables: selectedEnv.variables.filter(v => v.id !== id)
     });
@@ -90,15 +93,16 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
           </div>
           
           <div className="border border-border-strong rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[48px_1fr_1fr_48px] gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong">
+            <div className="grid grid-cols-[48px_1fr_1fr_64px_48px] gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong">
               <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Use</div>
               <div className="py-1.5 px-3 bg-surface-bg flex items-center">Variable</div>
               <div className="py-1.5 px-3 bg-surface-bg flex items-center">Initial Value</div>
+              <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Secret</div>
               <div className="py-1.5 px-2 bg-surface-bg"></div>
             </div>
             
-            {selectedEnv.variables.map((v, index) => (
-              <div key={v.id} className="grid grid-cols-[48px_1fr_1fr_48px] gap-px bg-border-strong text-[13px] group border-b border-border-strong">
+            {selectedEnv.variables.map((v) => (
+              <div key={v.id} className="grid grid-cols-[48px_1fr_1fr_64px_48px] gap-px bg-border-strong text-[13px] group border-b border-border-strong">
                 <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
                   <input 
                     type="checkbox" 
@@ -112,22 +116,121 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                     type="text"
                     value={v.key}
                     onChange={(e) => {
-                      handleUpdateVariable(v.id, { key: e.target.value });
-                      if (index === selectedEnv.variables.length - 1 && e.target.value.trim() !== '') {
-                        handleAddVariable();
+                      const newKey = e.target.value;
+                      
+                      const state = useStore.getState();
+                      const currentEnv = state.environments.find(env => env.id === environmentId);
+                      if (!currentEnv) return;
+                      
+                      const freshVars = [...currentEnv.variables];
+                      const freshIndex = freshVars.findIndex(v_ => v_.id === v.id);
+                      if (freshIndex === -1) return;
+                      
+                      const isLast = freshIndex === freshVars.length - 1;
+                      const isAdding = isLast && newKey.trim() !== '';
+                      
+                      freshVars[freshIndex] = { ...freshVars[freshIndex], key: newKey };
+                      
+                      if (isAdding) {
+                        freshVars.push({ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true, secret: false });
                       }
+                      
+                      updateEnvironment(environmentId, { variables: freshVars });
                     }}
                     placeholder="Add new variable"
                     className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
                 </div>
-                <div className="bg-app-bg">
+                <div className="bg-app-bg relative">
                   <input
-                    type="text"
-                    value={v.value}
-                    onChange={(e) => handleUpdateVariable(v.id, { value: e.target.value })}
-                    placeholder="Value"
+                    id={`secret-input-${v.id}`}
+                    type={v.secret ? "password" : "text"}
+                    value={secretDrafts[v.id] !== undefined ? secretDrafts[v.id] : (v.secret ? '' : v.value)}
+                    onChange={(e) => {
+                       if (v.secret) {
+                         setSecretDrafts(prev => ({...prev, [v.id]: e.target.value}));
+                       } else {
+                         handleUpdateVariable(v.id, { value: e.target.value });
+                       }
+                    }}
+                    onBlur={() => {
+                       if (v.secret && secretDrafts[v.id] !== undefined) {
+                         if (secretDrafts[v.id] !== '') {
+                           setSecret(selectedEnv.id, v.key, secretDrafts[v.id]).then(() => {
+                             useStore.getState().showToast('Secret saved to keychain', 'success');
+                           }).catch(err => {
+                             useStore.getState().showToast('Failed to save secret: ' + err, 'error');
+                           });
+                         }
+                         setSecretDrafts(prev => {
+                            const newDrafts = {...prev};
+                            delete newDrafts[v.id];
+                            return newDrafts;
+                         });
+                         handleUpdateVariable(v.id, { value: '' });
+                       }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && v.secret && secretDrafts[v.id] !== undefined) {
+                         if (secretDrafts[v.id] !== '') {
+                           setSecret(selectedEnv.id, v.key, secretDrafts[v.id]).then(() => {
+                             useStore.getState().showToast('Secret saved to keychain', 'success');
+                           }).catch(err => {
+                             useStore.getState().showToast('Failed to save secret: ' + err, 'error');
+                           });
+                         }
+                         setSecretDrafts(prev => {
+                            const newDrafts = {...prev};
+                            delete newDrafts[v.id];
+                            return newDrafts;
+                         });
+                         handleUpdateVariable(v.id, { value: '' });
+                      }
+                    }}
+                    placeholder={v.secret ? "••••••" : "Value"}
                     className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
+                  />
+                  {v.secret && secretDrafts[v.id] !== undefined && (
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                         if (secretDrafts[v.id] !== '') {
+                           setSecret(selectedEnv.id, v.key, secretDrafts[v.id]).then(() => {
+                             useStore.getState().showToast('Secret saved to keychain', 'success');
+                           }).catch(err => {
+                             useStore.getState().showToast('Failed to save secret: ' + err, 'error');
+                           });
+                         }
+                         setSecretDrafts(prev => {
+                            const newDrafts = {...prev};
+                            delete newDrafts[v.id];
+                            return newDrafts;
+                         });
+                         handleUpdateVariable(v.id, { value: '' });
+                         const el = document.getElementById(`secret-input-${v.id}`);
+                         if (el) el.blur();
+                      }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 bg-accent text-white rounded-md shadow hover:bg-accent-hover active:scale-95 transition-all z-10"
+                      title="Save Secret"
+                    >
+                      <Check size={14} />
+                    </button>
+                  )}
+                </div>
+                <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
+                  <input 
+                    type="checkbox" 
+                    checked={v.secret || false}
+                    onChange={(e) => {
+                       const isSecret = e.target.checked;
+                       handleUpdateVariable(v.id, { secret: isSecret });
+                       if (isSecret && v.value) {
+                         setSecret(selectedEnv.id, v.key, v.value).then(() => {
+                           handleUpdateVariable(v.id, { value: '' });
+                         });
+                       }
+                    }}
+                    className="accent-accent w-3.5 h-3.5 cursor-pointer rounded-sm"
                   />
                 </div>
                 <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
@@ -141,30 +244,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
               </div>
             ))}
 
-            {/* Empty row for adding new */}
-            <div className="grid grid-cols-[48px_1fr_1fr_48px] gap-px bg-border-strong text-[13px] opacity-60 hover:opacity-100 focus-within:opacity-100 transition-opacity">
-              <div className="py-1 px-2 bg-app-bg flex items-center justify-center"></div>
-              <div className="bg-app-bg">
-                <input
-                  type="text"
-                  placeholder="New key"
-                  onChange={(e) => {
-                    if (e.target.value.trim()) {
-                      updateEnvironment(environmentId, {
-                        variables: [
-                          ...selectedEnv.variables,
-                          { id: `var-${Date.now()}`, key: e.target.value, value: '', enabled: true }
-                        ]
-                      });
-                      e.target.value = '';
-                    }
-                  }}
-                  className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
-                />
-              </div>
-              <div className="bg-app-bg py-1.5 px-3 text-text-muted flex items-center font-mono">Value</div>
-              <div className="py-1 px-2 bg-app-bg"></div>
-            </div>
+            {/* Standalone empty row removed; we use the trailing mapped row instead */}
           </div>
         </div>
       </div>

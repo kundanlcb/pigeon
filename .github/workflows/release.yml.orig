@@ -54,4 +54,3 @@ jobs:
             `xattr -cr /Applications/Pigeon.app`
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true

@@ -16,6 +16,28 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
   const updateEnvironment = useStore(state => state.updateEnvironment);
   const setActiveEnvironment = useStore(state => state.setActiveEnvironment);
   const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
+  const [keyColWidth, setKeyColWidth] = useState(250);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.pageX;
+    const startWidth = keyColWidth;
+    
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(100, Math.min(600, startWidth + (moveEvent.pageX - startX)));
+      setKeyColWidth(newWidth);
+    };
+    
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'default';
+    };
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+  };
   
   const selectedEnv = environments.find(e => e.id === environmentId);
 
@@ -93,16 +115,30 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
           </div>
           
           <div className="border border-border-strong rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[48px_1fr_1fr_64px_48px] gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong">
+            <div 
+              className="grid gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong shrink-0"
+              style={{ gridTemplateColumns: `48px ${keyColWidth}px 1fr 64px 48px` }}
+            >
               <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Use</div>
-              <div className="py-1.5 px-3 bg-surface-bg flex items-center">Variable</div>
+              <div className="py-1.5 px-3 bg-surface-bg flex items-center relative">
+                Variable
+                <div 
+                  onMouseDown={handleResizeStart}
+                  className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/50 z-10 translate-x-1/2"
+                  title="Resize Column"
+                />
+              </div>
               <div className="py-1.5 px-3 bg-surface-bg flex items-center">Initial Value</div>
               <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Secret</div>
               <div className="py-1.5 px-2 bg-surface-bg"></div>
             </div>
             
             {selectedEnv.variables.map((v) => (
-              <div key={v.id} className="grid grid-cols-[48px_1fr_1fr_64px_48px] gap-px bg-border-strong text-[13px] group border-b border-border-strong">
+              <div 
+                key={v.id} 
+                className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
+                style={{ gridTemplateColumns: `48px ${keyColWidth}px 1fr 64px 48px` }}
+              >
                 <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
                   <input 
                     type="checkbox" 

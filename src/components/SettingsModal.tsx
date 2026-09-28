@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ShieldAlert, Settings as SettingsIcon, Globe, Info, Monitor, Bird } from 'lucide-react';
 import { useStore } from '../store';
+import { getVersion } from '@tauri-apps/api/app';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,6 +16,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const toggleTheme = useStore(state => state.toggleTheme);
   
   const [activeTab, setActiveTab] = useState<'general' | 'network' | 'about'>('general');
+  const [appVersion, setAppVersion] = useState<string>('...');
+
+  useEffect(() => {
+    if ('__TAURI_INTERNALS__' in window) {
+      getVersion().then(setAppVersion).catch(() => setAppVersion('Unknown'));
+    } else {
+      setAppVersion('Web Mode');
+    }
+  }, []);
 
   if (!isOpen) return null;
 
@@ -165,7 +175,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
                 <div className="text-center space-y-1">
                   <h2 className="text-xl font-bold text-text-primary">Pigeon</h2>
-                  <p className="text-xs text-text-secondary font-mono tracking-widest uppercase">Version 1.0.10</p>
+                  <p className="text-xs text-text-secondary font-mono tracking-widest uppercase">Version {appVersion}</p>
                 </div>
                 <div className="text-xs text-text-muted flex items-center gap-1 mt-6">
                   Crafted with <span className="text-red-500 mx-1">❤️</span> by @kundanlcb

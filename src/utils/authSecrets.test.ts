@@ -50,14 +50,14 @@ describe('Keychain secret boundaries', () => {
     keychain.deleteSecret.mockClear();
   });
 
-  it('moves imported auth fields and literal Authorization headers out of the request JSON', async () => {
+  it('moves imported auth fields to the keychain but keeps Authorization as a normal header', async () => {
     const secured = await secureImportedCollection(collection);
     const securedRequest = secured.requests[0];
     expect(securedRequest.auth?.bearerToken).toBe('');
     expect(securedRequest.auth?.bearerTokenInKeychain).toBe(true);
-    expect(securedRequest.authorizationHeaderInKeychain).toBe(true);
-    expect(securedRequest.headers).toEqual({});
-    expect(keychain.values.size).toBe(2);
+    expect(securedRequest.authorizationHeaderInKeychain).toBeUndefined();
+    expect(securedRequest.headers).toEqual({ Authorization: 'Bearer header-secret' });
+    expect(keychain.values.size).toBe(1);
   });
 
   it('preserves environment references and rolls back partial imports after keychain failure', async () => {

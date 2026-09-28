@@ -7,7 +7,7 @@ import { Braces } from 'lucide-react';
 
 import { JsonEditor } from './JsonEditor';
 import { useStore } from '../store';
-import { createSecretReference, deleteSecret, setSecret } from '../utils/secrets';
+import { createSecretReference, deleteSecret, getSecret, setSecret } from '../utils/secrets';
 import { deleteUnusedRequestSecrets, requestSecretIsShared } from '../utils/authSecrets';
 import { getQueryParams, setQueryParams, COMMON_HEADERS } from '../utils/url';
 
@@ -48,27 +48,33 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
   const [keyColumnWidth, setKeyColumnWidth] = useState(250);
   const [authorizationDraftState, setAuthorizationDraftState] = useState({ requestId: activeRequest?.id || '', value: '' });
   const authorizationDraft = authorizationDraftState.requestId === activeRequest?.id ? authorizationDraftState.value : '';
-  const [isSavingAuthorization, setIsSavingAuthorization] = useState(false);
 
   const setAuthorizationDraft = (value: string, requestId = activeRequest?.id || '') => {
     setAuthorizationDraftState({ requestId, value });
   };
 
-  const saveAuthorizationHeader = async () => {
-    if (!activeRequest || !authorizationDraft) return;
+  const findRequest = (requestId: string) => useStore.getState().collections
+    .flatMap(collection => collection.requests)
+    .find(request => request.id === requestId);
+
+  const saveAuthorizationHeader = async (headerKey: string, value: string) => {
+    if (!activeRequest || headerKey.toLowerCase() !== 'authorization' || !value) return;
     const requestId = activeRequest.id;
-    const value = authorizationDraft;
-    setIsSavingAuthorization(true);
+    let createdReference: string | undefined;
     try {
-      const reference = createSecretReference();
+      const request = findRequest(requestId);
+      if (!request) throw new Error('Request was removed before the Authorization header could be saved.');
+      const previousReference = request.authorizationHeaderKeychainRef;
+      const shared = previousReference && requestSecretIsShared(useStore.getState().collections, requestId, previousReference);
+      const reference = previousReference && !shared ? previousReference : createSecretReference();
+      if (reference !== previousReference) createdReference = reference;
       await setSecret('request-auth', reference, value);
-      const request = useStore.getState().collections.flatMap(collection => collection.requests).find(item => item.id === requestId);
-      if (!request) {
-        await deleteSecret('request-auth', reference);
+      const latestRequest = findRequest(requestId);
+      if (!latestRequest) {
+        if (createdReference) await deleteSecret('request-auth', createdReference);
         throw new Error('Request was removed before the Authorization header could be attached.');
       }
-      const previousReference = request.authorizationHeaderKeychainRef;
-      const headers = Object.fromEntries(Object.entries(request.headers)
+      const headers = Object.fromEntries(Object.entries(latestRequest.headers)
         .filter(([key]) => key.toLowerCase() !== 'authorization'));
       updateRequest(requestId, {
         headers,
@@ -76,48 +82,92 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
         authorizationHeaderKeychainRef: reference
       });
       setAuthorizationDraft('', requestId);
-      if (previousReference) {
+      if (previousReference && previousReference !== reference) {
         await deleteUnusedRequestSecrets(useStore.getState().collections, [{
-          ...request,
+          ...latestRequest,
           authorizationHeaderKeychainRef: previousReference
         }]);
       }
       useStore.getState().showToast('Authorization header saved to the system keychain', 'success');
     } catch (error) {
       useStore.getState().showToast(`Failed to save Authorization header: ${String(error)}`, 'error');
-    } finally {
-      setIsSavingAuthorization(false);
     }
   };
 
-  const removeAuthorizationHeader = async () => {
+  const toggleAuthorizationSecret = async (headerKey: string, enabled: boolean, currentValue: string) => {
     if (!activeRequest) return;
     const requestId = activeRequest.id;
-    const previousReference = activeRequest.authorizationHeaderKeychainRef;
-    if (previousReference) {
-      try {
-        const state = useStore.getState();
-        if (!requestSecretIsShared(state.collections, requestId, previousReference)) {
-          await deleteSecret('request-auth', previousReference);
+    try {
+      const request = findRequest(requestId);
+      if (!request) return;
+      const previousReference = request.authorizationHeaderKeychainRef;
+      const headerName = Object.keys(request.headers).find(key => key.toLowerCase() === 'authorization') || headerKey || 'Authorization';
+
+      if (enabled) {
+        if (!currentValue) {
+          useStore.getState().showToast('Enter an Authorization value before saving it to the system keychain.', 'error');
+          return;
         }
-      } catch (error) {
-        useStore.getState().showToast(`Failed to remove Authorization header: ${String(error)}`, 'error');
+        const headers = Object.fromEntries(Object.entries(request.headers)
+          .filter(([key]) => key.toLowerCase() !== 'authorization'));
+        const reference = createSecretReference();
+        await setSecret('request-auth', reference, currentValue);
+        updateRequest(requestId, {
+          headers,
+          authorizationHeaderInKeychain: true,
+          authorizationHeaderKeychainRef: reference
+        });
+        if (previousReference) {
+          await deleteUnusedRequestSecrets(useStore.getState().collections, [{ ...request, authorizationHeaderKeychainRef: previousReference }]);
+        }
+        setAuthorizationDraft('', requestId);
         return;
       }
+
+      const pendingValue = authorizationDraftState.requestId === requestId ? authorizationDraftState.value : '';
+      const storedValue = pendingValue || (previousReference ? await getSecret('request-auth', previousReference) : '');
+      if (previousReference && storedValue === null) {
+        throw new Error('Authorization header is missing from the system keychain.');
+      }
+      const headers = { ...request.headers, [headerName]: storedValue || '' };
+      updateRequest(requestId, {
+        headers,
+        authorizationHeaderInKeychain: false,
+        authorizationHeaderKeychainRef: undefined
+      });
+      if (previousReference) {
+        await deleteUnusedRequestSecrets(useStore.getState().collections, [{ ...request, authorizationHeaderKeychainRef: previousReference }]);
+      }
+      setAuthorizationDraft('', requestId);
+    } catch (error) {
+      useStore.getState().showToast(`Failed to update Authorization header: ${String(error)}`, 'error');
     }
-    updateRequest(requestId, { authorizationHeaderInKeychain: false, authorizationHeaderKeychainRef: undefined });
-    useStore.getState().showToast('Authorization header removed', 'success');
+  };
+
+  const deleteAuthorizationSecret = async () => {
+    if (!activeRequest) return;
+    const requestId = activeRequest.id;
+    const request = findRequest(requestId);
+    if (!request) return;
+    const previousReference = request.authorizationHeaderKeychainRef;
+    const headers = Object.fromEntries(Object.entries(request.headers)
+      .filter(([key]) => key.toLowerCase() !== 'authorization'));
+    updateRequest(requestId, {
+      headers,
+      authorizationHeaderInKeychain: false,
+      authorizationHeaderKeychainRef: undefined
+    });
+    setAuthorizationDraft('', requestId);
+    if (previousReference) {
+      try {
+        await deleteUnusedRequestSecrets(useStore.getState().collections, [{ ...request, authorizationHeaderKeychainRef: previousReference }]);
+      } catch (error) {
+        useStore.getState().showToast(`Failed to remove Authorization header from keychain: ${String(error)}`, 'error');
+      }
+    }
   };
 
   const handleHeadersChange = (headers: Record<string, string>) => {
-    const authorizationKey = Object.keys(headers).find(key => key.toLowerCase() === 'authorization');
-    if (authorizationKey) {
-      const value = headers[authorizationKey];
-      if (value && !/^\{\{\s*[^{}]+\s*\}\}$/.test(value.trim())) {
-        delete headers[authorizationKey];
-        useStore.getState().showToast('Enter literal Authorization values in the secure field above.', 'error');
-      }
-    }
     if (activeRequest) updateRequest(activeRequest.id, { headers });
   };
 
@@ -242,51 +292,23 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
         )}
         {activeTab === 'req-headers' && (
           <div className="flex flex-col h-full min-h-0">
-            <div className="px-2 pt-2">
-              <div className="flex flex-wrap items-center gap-2 border border-border-subtle rounded-md px-3 py-1.5">
-                <div className="flex flex-1 min-w-[180px] items-center gap-2">
-                  <label className="shrink-0 text-[11px] font-semibold text-text-secondary">Authorization</label>
-                  <input
-                    type="password"
-                    value={authorizationDraft}
-                    onChange={event => setAuthorizationDraft(event.target.value)}
-                    onKeyDown={event => { if (event.key === 'Enter') void saveAuthorizationHeader(); }}
-                    placeholder={activeRequest?.authorizationHeaderInKeychain ? 'Replace stored value' : 'Enter a private header value'}
-                    className="min-w-0 flex-1 bg-transparent text-xs font-mono text-text-primary outline-none"
-                    autoComplete="new-password"
-                    spellCheck={false}
-                  />
-                </div>
-                {authorizationDraft && (
-                  <button
-                    type="button"
-                    disabled={isSavingAuthorization}
-                    onClick={() => void saveAuthorizationHeader()}
-                    className="px-2.5 py-1.5 bg-accent text-white rounded text-xs disabled:opacity-50"
-                  >
-                    {isSavingAuthorization ? 'Saving...' : 'Save to Keychain'}
-                  </button>
-                )}
-                {activeRequest?.authorizationHeaderInKeychain && (
-                  <>
-                    <span className="text-[11px] text-text-muted">Stored in system keychain</span>
-                    <button type="button" onClick={() => void removeAuthorizationHeader()} className="text-xs text-red-500 hover:text-red-400">Remove</button>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex-1 min-h-0">
-              <KeyValueEditor
-                items={activeRequest?.headers || {}}
-                onChange={handleHeadersChange}
-                disabledKeys={activeRequest?.disabledHeaders}
-                onDisabledKeysChange={disabledHeaders => updateActiveRequest({ disabledHeaders })}
-                keyColumnWidth={keyColumnWidth}
-                onKeyColumnWidthChange={setKeyColumnWidth}
-                keySuggestions={COMMON_HEADERS}
-                isBulk={isBulk}
-              />
-            </div>
+            <KeyValueEditor
+              items={activeRequest?.headers || {}}
+              onChange={handleHeadersChange}
+              disabledKeys={activeRequest?.disabledHeaders}
+              onDisabledKeysChange={disabledHeaders => updateActiveRequest({ disabledHeaders })}
+              keyColumnWidth={keyColumnWidth}
+              onKeyColumnWidthChange={setKeyColumnWidth}
+              keySuggestions={COMMON_HEADERS}
+              isBulk={isBulk}
+              secretKeys={activeRequest?.authorizationHeaderInKeychain ? ['Authorization'] : []}
+              secretValues={{ Authorization: authorizationDraft }}
+              secretPlaceholder={activeRequest?.authorizationHeaderKeychainRef ? 'Stored in system keychain' : 'Enter secret value'}
+              onSecretToggle={toggleAuthorizationSecret}
+              onSecretValueChange={(_key, value) => setAuthorizationDraft(value)}
+              onSecretSave={saveAuthorizationHeader}
+              onSecretDelete={deleteAuthorizationSecret}
+            />
           </div>
         )}
         {activeTab === 'req-body' && (

@@ -7,6 +7,7 @@ import { getMethodColor } from '../utils/styles';
 import { removeDisabledQueryParams, setQueryParams } from '../utils/url';
 import { getEnabledRequestHeaders } from '../utils/request';
 import { fetch } from '@tauri-apps/plugin-http';
+import { getSecret } from '../utils/secrets';
 
 export function RunnerView() {
   const runnerState = useStore(state => state.runnerState);
@@ -71,6 +72,13 @@ export function RunnerView() {
     if (req.preRequestScript) {
       runPreRequestScript(req.preRequestScript, context);
       finalUrl = context.request.url;
+    }
+
+    const authorizationDisabled = (req.disabledHeaders || []).some(key => key.toLowerCase() === 'authorization');
+    if (req.authorizationHeaderInKeychain && !authorizationDisabled) {
+      const authorization = await getSecret('request-auth', req.authorizationHeaderKeychainRef || '');
+      if (!authorization) throw new Error('Authorization header is missing from the system keychain. Re-enter it in the Headers tab.');
+      finalHeaders.Authorization = authorization;
     }
     
     if (req.auth) {

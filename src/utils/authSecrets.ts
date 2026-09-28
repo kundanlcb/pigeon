@@ -32,20 +32,7 @@ export async function secureImportedCollection(collection: Collection): Promise<
           };
         }
       }
-      let headers = request.headers;
-      let authorizationHeaderKeychainRef = request.authorizationHeaderKeychainRef;
-      let authorizationHeaderInKeychain = request.authorizationHeaderInKeychain;
-      const authorizationHeader = Object.keys(headers).find(key => key.toLowerCase() === 'authorization');
-      const authorizationValue = authorizationHeader ? headers[authorizationHeader] : undefined;
-      if (authorizationHeader && authorizationValue && !isEnvironmentReference(authorizationValue)) {
-        const reference = createSecretReference();
-        await setSecret('request-auth', reference, authorizationValue);
-        storedReferences.push(reference);
-        headers = Object.fromEntries(Object.entries(headers).filter(([key]) => key !== authorizationHeader));
-        authorizationHeaderKeychainRef = reference;
-        authorizationHeaderInKeychain = true;
-      }
-      requests.push({ ...request, headers, auth, authorizationHeaderInKeychain, authorizationHeaderKeychainRef });
+      requests.push({ ...request, auth });
     }
     return { ...collection, requests };
   } catch (error) {

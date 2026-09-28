@@ -23,6 +23,7 @@ import { getSecret, setSecret } from './utils/secrets';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { fetch } from '@tauri-apps/plugin-http';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { 
   Send, 
   Activity,
@@ -384,9 +385,13 @@ export default function App() {
 
         <Panel defaultSize={70} className="flex flex-col min-w-0 bg-app-bg z-0">
           {activeView === 'runner' ? (
-            <RunnerView />
+            <ErrorBoundary name="Collection Runner">
+              <RunnerView />
+            </ErrorBoundary>
           ) : activeView === 'automation' ? (
-            <AutomationView />
+            <ErrorBoundary name="Automation Builder">
+              <AutomationView />
+            </ErrorBoundary>
           ) : (
             <>
               <div className="flex items-end justify-between border-b border-border-subtle bg-panel-bg pr-4 pl-2 h-[44px]">
@@ -409,9 +414,12 @@ export default function App() {
           </div>
 
           {activeRequestId?.startsWith('env-') ? (
-            <EnvironmentEditor environmentId={activeRequestId} />
+            <ErrorBoundary name="Environment Editor">
+              <EnvironmentEditor environmentId={activeRequestId} />
+            </ErrorBoundary>
           ) : activeRequest ? (
 
+            <ErrorBoundary name="Request Editor">
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="px-4 py-3 border-b border-border-subtle flex justify-between items-center shrink-0">
                 <input 
@@ -493,6 +501,7 @@ export default function App() {
               <p>Select or create a request to get started</p>
             </div>
           )}
+          </ErrorBoundary>
             </>
           )}
         </Panel>

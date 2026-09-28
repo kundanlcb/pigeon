@@ -22,3 +22,10 @@ When writing, reviewing, or refactoring code for any project in this codebase, a
 ## 5. Documentation
 - **Self-Documenting Code:** Use clear, descriptive, and unambiguous names for variables, functions, and classes.
 - **Inline Documentation:** Provide concise comments for complex business logic, non-obvious workarounds, and comprehensive docstrings (e.g., JSDoc, Rustdoc) for all public functions and APIs.
+
+## 6. Pigeon-Specific Architecture & Rules (Tauri v2)
+* **Networking:** Use `@tauri-apps/plugin-http` with the `native-tls` feature (not `rustls`) to bypass CORS and properly handle corporate proxies via OS keychains.
+* **Auto-Updater:** `tauri.conf.json` MUST have `bundle.createUpdaterArtifacts: true` to generate `.tar.gz`/`.zip` patches and `.sig` files. GitHub Actions require `includeUpdaterJson: true` to upload `latest.json`.
+* **State & UI:** Use `Zustand` for global state. Avoid monolithic components (split them up like `SettingsModal`). Use React Portals (`createPortal(..., document.body)`) for overlays/modals to prevent z-index issues with Tauri native drag regions.
+* **Capabilities:** Explicitly whitelist required plugins (e.g., `updater:default`, `http:default`) in `src-tauri/capabilities/default.json` or `desktop.json` to adhere to Tauri v2's strict capability system.
+* **Security:** Never store sensitive keys in `localStorage`. Use custom IPC commands (like `secrets.rs`) to store them securely in the native OS keychain via the `keyring` crate.

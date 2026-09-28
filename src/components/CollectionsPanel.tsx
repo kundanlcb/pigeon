@@ -1,10 +1,21 @@
 import React from 'react';
+import { useSyncExternalStore } from 'react';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { Folder, Download, Plus, ChevronDown, ChevronRight, MoreVertical, Edit2, Copy, Trash2, Share } from 'lucide-react';
+import { AlertTriangle, CircleAlert, Folder, FolderPlus, Download, Plus, ChevronDown, ChevronRight, MoreVertical, Edit2, Copy, Trash2, Share, GitBranch, LoaderCircle } from 'lucide-react';
 import { useStore } from '../store';
-import { getMethodColor } from '../utils/styles';
 import { downloadAsFile } from '../utils/file';
-import type { RequestItem } from '../store';
+import type { Collection } from '../store';
+import { serializePortableEnvironment } from '../utils/collectionFormat';
+import { deleteSecret, getSecret, setSecret } from '../utils/secrets';
+import { CollectionTree } from './CollectionTree';
+import {
+  chooseFolderForCollection,
+  getCollectionStorageStatusSnapshot,
+  openCollectionFolder,
+  resolveStorageConflict,
+  subscribeCollectionStorageStatus,
+  switchToLocalStorage
+} from '../utils/collectionStorage';
 
 interface CollectionsPanelProps {
   onImportClick: (type: 'request' | 'collection' | 'environment', colId?: string) => void;
@@ -13,6 +24,11 @@ interface CollectionsPanelProps {
 }
 
 export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExportClick }: CollectionsPanelProps) {
+  const storageStatuses = useSyncExternalStore(
+    subscribeCollectionStorageStatus,
+    getCollectionStorageStatusSnapshot,
+    getCollectionStorageStatusSnapshot
+  );
   const collections = useStore(state => state.collections);
   const environments = useStore(state => state.environments);
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
@@ -20,19 +36,10 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   
   const activeRequestId = useStore(state => state.activeRequestId);
   const toggleCollection = useStore(state => state.toggleCollection);
-  const setActiveRequest = useStore(state => state.setActiveRequest);
-  const renameRequest = useStore(state => state.renameRequest);
-  const deleteRequest = useStore(state => state.deleteRequest);
-  const duplicateRequest = useStore(state => state.duplicateRequest);
   const addCollection = useStore(state => state.addCollection);
   const renameCollection = useStore(state => state.renameCollection);
   const deleteCollection = useStore(state => state.deleteCollection);
-  const addRequest = useStore(state => state.addRequest);
-
-  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [editName, setEditName] = React.useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
+  const addCollectionFolder = useStore(state => state.addCollectionFolder);
   
   const [openColMenuId, setOpenColMenuId] = React.useState<string | null>(null);
   const [editingColId, setEditingColId] = React.useState<string | null>(null);
@@ -41,6 +48,8 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
 
   const [isAddingCollection, setIsAddingCollection] = React.useState(false);
   const [newCollectionName, setNewCollectionName] = React.useState('');
+  const [newRootFolderCollectionId, setNewRootFolderCollectionId] = React.useState<string | null>(null);
+  const [newRootFolderName, setNewRootFolderName] = React.useState('');
   
   const [isEnvCollapsed, setIsEnvCollapsed] = React.useState(true);
   const [openEnvMenuId, setOpenEnvMenuId] = React.useState<string | null>(null);
@@ -52,7 +61,6 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
 
   React.useEffect(() => {
     const handleClickOutside = () => {
-      setOpenMenuId(null);
       setOpenColMenuId(null);
       setOpenEnvMenuId(null);
       setOpenTopMenu(null);
@@ -61,24 +69,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const handleAction = (e: React.MouseEvent, action: string, req: RequestItem) => {
-    e.stopPropagation();
-    setOpenMenuId(null);
-    if (action === 'rename') {
-      setEditingId(req.id);
-      setEditName(req.name);
-      setConfirmDeleteId(null);
-    } else if (action === 'duplicate') {
-      duplicateRequest(req.id);
-    } else if (action === 'delete') {
-      setConfirmDeleteId(req.id);
-      setEditingId(null);
-    } else if (action === 'share') {
-      onExportClick?.('request', req);
-    }
-  };
-
-  const handleColAction = (e: React.MouseEvent, action: string, col: any) => {
+  const handleColAction = (e: React.MouseEvent, action: string, col: Collection) => {
     e.stopPropagation();
     setOpenColMenuId(null);
     if (action === 'rename') {
@@ -89,7 +80,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
       setConfirmDeleteColId(col.id);
       setEditingColId(null);
     } else if (action === 'add-request') {
-      addRequest(col.id, { name: 'New Request', method: 'GET', url: '', headers: {} });
+      useStore.getState().addRequest(col.id, { name: 'New Request', method: 'GET', url: '', headers: {} });
       if (!col.isOpen) {
         toggleCollection(col.id);
       }
@@ -106,6 +97,65 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
     }
   };
 
+  const handleStorageMode = async (event: React.MouseEvent, collection: Collection) => {
+    event.stopPropagation();
+    setOpenColMenuId(null);
+    try {
+      if (collection.storageMode === 'folder') {
+        await switchToLocalStorage(collection.id);
+        useStore.getState().showToast('Collection now uses local storage. Folder files were kept.', 'success');
+      } else {
+        await chooseFolderForCollection(collection.id);
+        useStore.getState().showToast('Collection folder storage enabled.', 'success');
+      }
+    } catch (error) {
+      useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error');
+    }
+  };
+
+  const saveRootFolder = (collectionId: string) => {
+    const name = newRootFolderName.trim();
+    if (name) addCollectionFolder(collectionId, name, null);
+    setNewRootFolderCollectionId(null);
+    setNewRootFolderName('');
+  };
+
+  const handleResolveConflict = async (collectionId: string, path: string, choice: 'reload' | 'keep') => {
+    try {
+      await resolveStorageConflict(collectionId, path, choice);
+    } catch (error) {
+      useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error');
+    }
+  };
+
+  const handleDeleteEnvironment = async (environmentId: string) => {
+    const environment = useStore.getState().environments.find(item => item.id === environmentId);
+    if (!environment) return;
+    const deletedSecrets: Array<{ key: string; value: string | null }> = [];
+    try {
+      for (const variable of environment.variables) {
+        if (!variable.secret) continue;
+        const value = await getSecret(environment.id, variable.key);
+        await deleteSecret(environment.id, variable.key);
+        deletedSecrets.push({ key: variable.key, value });
+      }
+      useStore.getState().deleteEnvironment(environmentId);
+      setConfirmDeleteEnvId(null);
+    } catch (error) {
+      const rollbackErrors: string[] = [];
+      for (const secret of deletedSecrets.reverse()) {
+        if (secret.value === null) continue;
+        try {
+          await setSecret(environment.id, secret.key, secret.value);
+        } catch (rollbackError) {
+          rollbackErrors.push(String(rollbackError));
+        }
+      }
+      const rollbackMessage = rollbackErrors.length ? ` Keychain rollback also failed: ${rollbackErrors.join('; ')}` : '';
+      useStore.getState().showToast(`Could not delete environment secrets: ${String(error)}.${rollbackMessage}`, 'error');
+    }
+  };
+
   const toggleEnvPanel = () => {
     setIsEnvCollapsed(!isEnvCollapsed);
   };
@@ -119,7 +169,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
         <div className="flex items-center space-x-2">
           
           <div className="relative">
-            <button onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenMenuId(null); setOpenColMenuId(null); }} title="Import" className="p-1 rounded text-text-muted hover:text-text-primary transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenColMenuId(null); }} title="Import" className="p-1 rounded text-text-muted hover:text-text-primary transition-colors">
               <Download size={14} />
             </button>
             {openTopMenu === 'import' && (
@@ -133,12 +183,22 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                 <div onClick={() => { setOpenTopMenu(null); onImportClick('environment'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                   Import Environment
                 </div>
+                <div onClick={async () => {
+                  setOpenTopMenu(null);
+                  try {
+                    await openCollectionFolder();
+                  } catch (error) {
+                    useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error');
+                  }
+                }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                  Open Collection Folder
+                </div>
               </div>
             )}
           </div>
 
           <div className="relative">
-            <button onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'add' ? null : 'add'); setOpenMenuId(null); setOpenColMenuId(null); }} title="Add" className="p-1 rounded text-text-muted hover:text-text-primary transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'add' ? null : 'add'); setOpenColMenuId(null); }} title="Add" className="p-1 rounded text-text-muted hover:text-text-primary transition-colors">
               <Plus size={16} />
             </button>
             {openTopMenu === 'add' && (
@@ -236,13 +296,25 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                 <span className="text-[13px] select-none truncate flex-1">{col.name}</span>
               )}
 
+              {col.storageMode === 'folder' && (
+                <span
+                  className="ml-1 text-text-muted flex-shrink-0"
+                  title={storageStatuses[col.id]?.message || (storageStatuses[col.id]?.state === 'saving' ? 'Saving collection files' : 'Folder-backed collection')}
+                >
+                  {storageStatuses[col.id]?.state === 'saving' || storageStatuses[col.id]?.state === 'loading'
+                    ? <LoaderCircle size={13} className="animate-spin" />
+                    : storageStatuses[col.id]?.state === 'error' || storageStatuses[col.id]?.state === 'conflict'
+                      ? <CircleAlert size={13} className="text-red-500" />
+                      : <GitBranch size={13} />}
+                </span>
+              )}
+
               {confirmDeleteColId !== col.id && editingColId !== col.id && (
                 <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1">
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenColMenuId(openColMenuId === col.id ? null : col.id);
-                      setOpenMenuId(null);
                     }}
                     className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-hover"
                   >
@@ -255,8 +327,21 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                         <span className="mr-2 opacity-70 flex items-center justify-center w-3 h-3"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> Run
                       </div>
                       <div className="h-px bg-border-subtle my-1"></div>
+                      <div onClick={(e) => void handleStorageMode(e, col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                        {col.storageMode === 'folder' ? <Folder size={12} className="mr-2 opacity-70" /> : <GitBranch size={12} className="mr-2 opacity-70" />}
+                        {col.storageMode === 'folder' ? 'Use Local Storage' : 'Use Git Folder'}
+                      </div>
                       <div onClick={(e) => handleColAction(e, 'add-request', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                         <Plus size={12} className="mr-2 opacity-70" /> Add Request
+                      </div>
+                      <div onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenColMenuId(null);
+                        setNewRootFolderCollectionId(col.id);
+                        setNewRootFolderName('');
+                        if (!col.isOpen) toggleCollection(col.id);
+                      }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                        <FolderPlus size={12} className="mr-2 opacity-70" /> Add Folder
                       </div>
                       <div onClick={(e) => handleColAction(e, 'import-curl', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                         <Download size={12} className="mr-2 opacity-70" /> Import Request
@@ -278,95 +363,42 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
             </div>
             
             {col.isOpen && (
-              <div className="ml-6 mt-1 space-y-0.5">
-                {col.requests.map(req => {
-                  const isActive = req.id === activeRequestId;
-                  return (
-                    <div 
-                      key={req.id}
-                      onClick={() => setActiveRequest(req.id)}
-                      className="flex items-center px-2 py-1 cursor-pointer text-sm group transition-colors"
-                    >
-                      <span className={`text-[10px] font-bold w-10 ${getMethodColor(req.method)}`}>
-                        {req.method.substring(0, 4)}
-                      </span>
-                      
-                      {confirmDeleteId === req.id ? (
-                        <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>
-                          <span className="text-xs text-text-secondary flex-1 truncate">Delete?</span>
-                          <button 
-                            onClick={() => { deleteRequest(req.id); setConfirmDeleteId(null); }}
-                            className="px-2 py-0.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded text-xs transition-colors"
-                          >Yes</button>
-                          <button 
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-0.5 bg-surface-hover text-text-muted hover:text-text-primary rounded text-xs transition-colors"
-                          >No</button>
-                        </div>
-                      ) : editingId === req.id ? (
-                        <input 
-                          autoFocus
-                          className="flex-1 bg-surface-hover border border-border-strong rounded px-1.5 py-0.5 text-xs text-text-primary outline-none focus:border-accent mr-2"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onBlur={() => {
-                            if (editName.trim() && editName.trim() !== req.name) {
-                              renameRequest(req.id, editName.trim());
-                            }
-                            setEditingId(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              if (editName.trim() && editName.trim() !== req.name) {
-                                renameRequest(req.id, editName.trim());
-                              }
-                              setEditingId(null);
-                            } else if (e.key === 'Escape') {
-                              setEditingId(null);
-                            }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span className={`text-[13px] flex-1 truncate select-none ${isActive ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
-                          {req.name}
-                        </span>
-                      )}
-                      
-                      {confirmDeleteId !== req.id && editingId !== req.id && (
-                        <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(openMenuId === req.id ? null : req.id);
-                            }}
-                            className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-hover"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-                          
-                          {openMenuId === req.id && (
-                            <div className="absolute top-full right-0 mt-1 w-36 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1">
-                              <div onClick={(e) => handleAction(e, 'rename', req)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                                <Edit2 size={12} className="mr-2 opacity-70" /> Rename
-                              </div>
-                              <div onClick={(e) => handleAction(e, 'duplicate', req)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                                <Copy size={12} className="mr-2 opacity-70" /> Duplicate
-                              </div>
-                              <div onClick={(e) => handleAction(e, 'share', req)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                                <Share size={12} className="mr-2 opacity-70" /> Share as cURL
-                              </div>
-                              <div className="h-px bg-border-subtle my-1"></div>
-                              <div onClick={(e) => handleAction(e, 'delete', req)} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
-                                <Trash2 size={12} className="mr-2 opacity-70" /> Delete
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+              <div className="ml-6 mt-1 space-y-1">
+                {newRootFolderCollectionId === col.id && (
+                  <div className="px-2 py-1" onClick={event => event.stopPropagation()}>
+                    <input
+                      autoFocus
+                      value={newRootFolderName}
+                      onChange={event => setNewRootFolderName(event.target.value)}
+                      onBlur={() => saveRootFolder(col.id)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          event.currentTarget.blur();
+                        } else if (event.key === 'Escape') {
+                          setNewRootFolderCollectionId(null);
+                          setNewRootFolderName('');
+                        }
+                      }}
+                      placeholder="Folder name"
+                      className="w-full bg-surface-hover border border-border-strong rounded px-2 py-1 text-xs text-text-primary outline-none focus:border-accent"
+                    />
+                  </div>
+                )}
+                <CollectionTree collection={col} onExportRequest={request => onExportClick?.('request', request)} />
+                {storageStatuses[col.id]?.errors.map(fileError => (
+                  <div key={`${fileError.path}:${fileError.message}`} className="mx-2 flex items-center gap-1.5 text-[11px] text-red-500" title={fileError.message}>
+                    <AlertTriangle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{fileError.path}: {fileError.message}</span>
+                  </div>
+                ))}
+                {storageStatuses[col.id]?.conflicts.map(conflict => (
+                  <div key={conflict.path} className="mx-2 flex flex-wrap items-center gap-2 border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 rounded text-[11px]">
+                    <span className="flex-1 min-w-[130px] text-text-secondary truncate">{conflict.path} changed on disk and in Pigeon</span>
+                    <button onClick={() => void handleResolveConflict(col.id, conflict.path, 'reload')} className="text-text-primary hover:text-accent">Reload from disk</button>
+                    <button onClick={() => void handleResolveConflict(col.id, conflict.path, 'keep')} className="text-text-primary hover:text-accent">Keep my edits</button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -464,7 +496,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                       {confirmDeleteEnvId === env.id ? (
                         <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
                           <button 
-                            onClick={() => { useStore.getState().deleteEnvironment(env.id); setConfirmDeleteEnvId(null); }}
+                            onClick={() => void handleDeleteEnvironment(env.id)}
                             className="px-2 py-0.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded text-xs transition-colors"
                           >Yes</button>
                           <button 
@@ -478,7 +510,6 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                             onClick={(e) => {
                               e.stopPropagation();
                               setOpenEnvMenuId(openEnvMenuId === env.id ? null : env.id);
-                              setOpenMenuId(null);
                               setOpenColMenuId(null);
                             }}
                             className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-hover"
@@ -508,8 +539,8 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                                 e.stopPropagation();
                                 setOpenEnvMenuId(null);
                                 const filename = `${env.name.toLowerCase().replace(/\\s+/g, '_')}_env.json`;
-                                downloadAsFile(filename, JSON.stringify(env, null, 2));
-                                useStore.getState().showToast(`Exported ${filename}`, 'success');
+                                downloadAsFile(filename, serializePortableEnvironment(env));
+                                useStore.getState().showToast(`Exported ${filename}. Secret values are not included.`, 'success');
                               }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                                 <Share size={12} className="mr-2 opacity-70" /> Export
                               </div>

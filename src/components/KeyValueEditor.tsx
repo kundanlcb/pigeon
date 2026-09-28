@@ -14,16 +14,40 @@ interface KeyValueEditorProps {
   placeholderValue?: string;
   keySuggestions?: string[];
   isBulk?: boolean;
+  disabledKeys?: string[];
+  onDisabledKeysChange?: (disabledKeys: string[]) => void;
+  keyColumnWidth?: number;
+  onKeyColumnWidthChange?: (width: number) => void;
 }
 
-export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeholderValue = "Value", keySuggestions, isBulk = false }: KeyValueEditorProps) {
+export function KeyValueEditor({
+  items,
+  onChange,
+  placeholderKey = "Key",
+  placeholderValue = "Value",
+  keySuggestions,
+  isBulk = false,
+  disabledKeys = [],
+  onDisabledKeysChange,
+  keyColumnWidth,
+  onKeyColumnWidthChange
+}: KeyValueEditorProps) {
   const [pairs, setPairs] = useState<KeyValue[]>(() => {
     const initial = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
     initial.push({ key: '', value: '' });
     return initial;
   });
   const [focusedKeyIdx, setFocusedKeyIdx] = useState<number | null>(null);
-  const [keyColWidth, setKeyColWidth] = useState(250);
+  const [localKeyColWidth, setLocalKeyColWidth] = useState(250);
+  const keyColWidth = keyColumnWidth ?? localKeyColWidth;
+  const namedKeys = pairs.map(pair => pair.key.trim()).filter(Boolean);
+  const selectedCount = namedKeys.filter(key => !disabledKeys.includes(key)).length;
+  const allSelected = namedKeys.length > 0 && selectedCount === namedKeys.length;
+
+  const updateKeyColumnWidth = (width: number) => {
+    if (keyColumnWidth === undefined) setLocalKeyColWidth(width);
+    onKeyColumnWidthChange?.(width);
+  };
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,7 +56,7 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
     
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(100, Math.min(600, startWidth + (moveEvent.pageX - startX)));
-      setKeyColWidth(newWidth);
+      updateKeyColumnWidth(newWidth);
     };
     
     const onMouseUp = () => {
@@ -67,6 +91,20 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
       if (p.key.trim()) record[p.key.trim()] = p.value;
     });
     onChange(record);
+    const nextDisabledKeys = disabledKeys.filter(key => Object.hasOwn(record, key));
+    if (nextDisabledKeys.length !== disabledKeys.length) onDisabledKeysChange?.(nextDisabledKeys);
+  };
+
+  const toggleKey = (key: string) => {
+    if (!onDisabledKeysChange) return;
+    onDisabledKeysChange(disabledKeys.includes(key)
+      ? disabledKeys.filter(disabledKey => disabledKey !== key)
+      : [...disabledKeys, key]);
+  };
+
+  const toggleAllKeys = () => {
+    if (!onDisabledKeysChange) return;
+    onDisabledKeysChange(allSelected ? namedKeys : []);
   };
 
   const handleBulkChange = (text: string) => {
@@ -97,33 +135,54 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
   }
 
   return (
-    <div className="flex flex-col h-full relative p-4">
-      <div className="border border-border-strong rounded-lg overflow-hidden flex flex-col min-h-0">
-        <div 
-          className="grid gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong shrink-0"
-          style={{ gridTemplateColumns: `${keyColWidth}px 1fr 40px` }}
+    <div className="flex flex-col h-full min-h-0 relative p-2">
+      <div className="max-h-full min-h-0 border border-border-strong rounded-lg overflow-y-auto overflow-x-hidden no-scrollbar">
+        <div
+          className="sticky top-0 z-20 grid gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong"
+          style={{ gridTemplateColumns: `40px ${keyColWidth}px minmax(0, 1fr) 40px` }}
         >
+          <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">
+            <input
+              type="checkbox"
+              aria-label="Select all keys"
+              checked={allSelected}
+              onChange={toggleAllKeys}
+              className="accent-accent w-3.5 h-3.5 cursor-pointer"
+            />
+          </div>
           <div className="py-1.5 px-3 bg-surface-bg flex items-center relative">
             {placeholderKey}
-            <div 
+            <div
               onMouseDown={handleResizeStart}
-              className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/50 z-10 translate-x-1/2"
+              className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 group/resizer flex justify-center translate-x-1/2"
               title="Resize Column"
-            />
+            >
+              <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-accent transition-colors" />
+            </div>
           </div>
           <div className="py-1.5 px-3 bg-surface-bg flex items-center">{placeholderValue}</div>
           <div className="py-1.5 px-2 bg-surface-bg"></div>
         </div>
-        
-        <div className="flex-1 overflow-y-auto">
+
         {pairs.map((pair, idx) => {
           const filteredSuggestions = keySuggestions?.filter(s => s.toLowerCase().includes(pair.key.toLowerCase())) || [];
           return (
             <div 
               key={idx} 
               className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
-              style={{ gridTemplateColumns: `${keyColWidth}px 1fr 40px` }}
+              style={{ gridTemplateColumns: `40px ${keyColWidth}px minmax(0, 1fr) 40px` }}
             >
+              <div className="bg-app-bg flex items-center justify-center">
+                {pair.key.trim() && (
+                  <input
+                    type="checkbox"
+                    aria-label={`Use ${pair.key.trim()}`}
+                    checked={!disabledKeys.includes(pair.key.trim())}
+                    onChange={() => toggleKey(pair.key.trim())}
+                    className="accent-accent w-3.5 h-3.5 cursor-pointer"
+                  />
+                )}
+              </div>
               <div className="bg-app-bg relative h-[34px]">
                 <HighlightedInput 
                   className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
@@ -190,7 +249,6 @@ export function KeyValueEditor({ items, onChange, placeholderKey = "Key", placeh
             </div>
           );
         })}
-        </div>
       </div>
     </div>
   );

@@ -3,7 +3,8 @@ import { useStore } from '../store';
 import type { EnvironmentVariable } from '../store';
 import { Trash2, Share, Check } from 'lucide-react';
 import { downloadAsFile } from '../utils/file';
-import { setSecret, deleteSecret } from '../utils/secrets';
+import { getSecret, setSecret, deleteSecret } from '../utils/secrets';
+import { serializePortableEnvironment } from '../utils/collectionFormat';
 import { useState } from 'react';
 
 interface EnvironmentEditorProps {
@@ -16,6 +17,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
   const updateEnvironment = useStore(state => state.updateEnvironment);
   const setActiveEnvironment = useStore(state => state.setActiveEnvironment);
   const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
+  const [secretKeyDrafts, setSecretKeyDrafts] = useState<Record<string, string>>({});
   const [keyColWidth, setKeyColWidth] = useState(250);
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -64,13 +66,104 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
     });
   };
 
-  const handleDeleteVariable = (id: string) => {
+  const handleDeleteVariable = async (id: string) => {
     const v = selectedEnv.variables.find(v => v.id === id);
     if (v && v.secret) {
-      deleteSecret(environmentId, v.key).catch(console.error);
+      try {
+        await deleteSecret(environmentId, v.key);
+      } catch (error) {
+        useStore.getState().showToast(`Failed to delete secret: ${String(error)}`, 'error');
+        return;
+      }
     }
     updateEnvironment(environmentId, {
       variables: selectedEnv.variables.filter(v => v.id !== id)
+    });
+  };
+
+  const clearSecretDraft = (id: string) => {
+    setSecretDrafts(drafts => {
+      const next = { ...drafts };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const saveSecretDraft = async (variable: EnvironmentVariable) => {
+    const value = secretDrafts[variable.id];
+    if (value === undefined) return;
+    if (!value) {
+      clearSecretDraft(variable.id);
+      return;
+    }
+    try {
+      await setSecret(environmentId, variable.key, value);
+      handleUpdateVariable(variable.id, { secret: true, secretStored: true, value: '' });
+      clearSecretDraft(variable.id);
+      useStore.getState().showToast('Secret saved to keychain', 'success');
+    } catch (error) {
+      useStore.getState().showToast(`Failed to save secret: ${String(error)}`, 'error');
+    }
+  };
+
+  const updateSecretStatus = async (variable: EnvironmentVariable, makeSecret: boolean) => {
+    if (makeSecret) {
+      if (variable.value) {
+        try {
+          await setSecret(environmentId, variable.key, variable.value);
+          handleUpdateVariable(variable.id, { secret: true, secretStored: true, value: '' });
+        } catch (error) {
+          useStore.getState().showToast(`Failed to save secret: ${String(error)}`, 'error');
+        }
+      } else {
+        handleUpdateVariable(variable.id, { secret: true, secretStored: false, value: '' });
+      }
+      return;
+    }
+
+    if (!variable.secret) {
+      handleUpdateVariable(variable.id, { secret: false });
+      return;
+    }
+
+    try {
+      const value = await getSecret(environmentId, variable.key);
+      if (value === null) throw new Error('No value exists in the system keychain.');
+      await deleteSecret(environmentId, variable.key);
+      handleUpdateVariable(variable.id, { secret: false, value });
+    } catch (error) {
+      useStore.getState().showToast(`Failed to make variable non-secret: ${String(error)}`, 'error');
+    }
+  };
+
+  const renameVariableKey = async (variable: EnvironmentVariable) => {
+    const nextKey = secretKeyDrafts[variable.id]?.trim();
+    if (!nextKey || nextKey === variable.key) {
+      setSecretKeyDrafts(drafts => {
+        const next = { ...drafts };
+        delete next[variable.id];
+        return next;
+      });
+      return;
+    }
+
+    if (variable.secret) {
+      try {
+        const value = await getSecret(environmentId, variable.key);
+        if (value === null) throw new Error('The secret is missing from the system keychain.');
+        await setSecret(environmentId, nextKey, value);
+        await deleteSecret(environmentId, variable.key);
+      } catch (error) {
+        useStore.getState().showToast(`Failed to rename secret variable: ${String(error)}`, 'error');
+        return;
+      }
+    }
+
+    handleUpdateVariable(variable.id, { key: nextKey });
+    setSecretKeyDrafts(drafts => {
+      const next = { ...drafts };
+      delete next[variable.id];
+      return next;
     });
   };
 
@@ -89,7 +182,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
           <button 
             onClick={() => {
               const filename = `${selectedEnv.name.toLowerCase().replace(/\s+/g, '_')}_env.json`;
-              downloadAsFile(filename, JSON.stringify(selectedEnv, null, 2));
+              downloadAsFile(filename, serializePortableEnvironment(selectedEnv));
               useStore.getState().showToast(`Exported ${filename} to your Downloads folder`, 'success');
             }}
             className="px-3 py-1.5 bg-surface-hover text-text-secondary hover:text-text-primary rounded text-sm transition-colors flex items-center"
@@ -124,9 +217,11 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                 Variable
                 <div 
                   onMouseDown={handleResizeStart}
-                  className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/50 z-10 translate-x-1/2"
+                  className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 group/resizer flex justify-center translate-x-1/2"
                   title="Resize Column"
-                />
+                >
+                  <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-accent transition-colors" />
+                </div>
               </div>
               <div className="py-1.5 px-3 bg-surface-bg flex items-center">Initial Value</div>
               <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Secret</div>
@@ -150,9 +245,13 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                 <div className="bg-app-bg">
                   <input
                     type="text"
-                    value={v.key}
+                    value={v.secret ? (secretKeyDrafts[v.id] ?? v.key) : v.key}
                     onChange={(e) => {
                       const newKey = e.target.value;
+                      if (v.secret) {
+                        setSecretKeyDrafts(drafts => ({ ...drafts, [v.id]: newKey }));
+                        return;
+                      }
                       
                       const state = useStore.getState();
                       const currentEnv = state.environments.find(env => env.id === environmentId);
@@ -173,6 +272,9 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                       
                       updateEnvironment(environmentId, { variables: freshVars });
                     }}
+                    onBlur={() => {
+                      if (v.secret) void renameVariableKey(v);
+                    }}
                     placeholder="Add new variable"
                     className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
@@ -190,61 +292,21 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                        }
                     }}
                     onBlur={() => {
-                       if (v.secret && secretDrafts[v.id] !== undefined) {
-                         if (secretDrafts[v.id] !== '') {
-                           setSecret(selectedEnv.id, v.key, secretDrafts[v.id]).then(() => {
-                             useStore.getState().showToast('Secret saved to keychain', 'success');
-                           }).catch(err => {
-                             useStore.getState().showToast('Failed to save secret: ' + err, 'error');
-                           });
-                         }
-                         setSecretDrafts(prev => {
-                            const newDrafts = {...prev};
-                            delete newDrafts[v.id];
-                            return newDrafts;
-                         });
-                         handleUpdateVariable(v.id, { value: '' });
-                       }
+                       if (v.secret) void saveSecretDraft(v);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && v.secret && secretDrafts[v.id] !== undefined) {
-                         if (secretDrafts[v.id] !== '') {
-                           setSecret(selectedEnv.id, v.key, secretDrafts[v.id]).then(() => {
-                             useStore.getState().showToast('Secret saved to keychain', 'success');
-                           }).catch(err => {
-                             useStore.getState().showToast('Failed to save secret: ' + err, 'error');
-                           });
-                         }
-                         setSecretDrafts(prev => {
-                            const newDrafts = {...prev};
-                            delete newDrafts[v.id];
-                            return newDrafts;
-                         });
-                         handleUpdateVariable(v.id, { value: '' });
+                      if (e.key === 'Enter' && v.secret) {
+                         void saveSecretDraft(v);
                       }
                     }}
-                    placeholder={v.secret ? "••••••" : "Value"}
+                    placeholder={v.secret ? (v.secretStored === false ? 'Not stored in keychain' : '••••••') : "Value"}
                     className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
                   {v.secret && secretDrafts[v.id] !== undefined && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                         if (secretDrafts[v.id] !== '') {
-                           setSecret(selectedEnv.id, v.key, secretDrafts[v.id]).then(() => {
-                             useStore.getState().showToast('Secret saved to keychain', 'success');
-                           }).catch(err => {
-                             useStore.getState().showToast('Failed to save secret: ' + err, 'error');
-                           });
-                         }
-                         setSecretDrafts(prev => {
-                            const newDrafts = {...prev};
-                            delete newDrafts[v.id];
-                            return newDrafts;
-                         });
-                         handleUpdateVariable(v.id, { value: '' });
-                         const el = document.getElementById(`secret-input-${v.id}`);
-                         if (el) el.blur();
+                         void saveSecretDraft(v);
                       }}
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 bg-accent text-white rounded-md shadow hover:bg-accent-hover active:scale-95 transition-all z-10"
                       title="Save Secret"
@@ -257,21 +319,13 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                   <input 
                     type="checkbox" 
                     checked={v.secret || false}
-                    onChange={(e) => {
-                       const isSecret = e.target.checked;
-                       handleUpdateVariable(v.id, { secret: isSecret });
-                       if (isSecret && v.value) {
-                         setSecret(selectedEnv.id, v.key, v.value).then(() => {
-                           handleUpdateVariable(v.id, { value: '' });
-                         });
-                       }
-                    }}
+                    onChange={(e) => void updateSecretStatus(v, e.target.checked)}
                     className="accent-accent w-3.5 h-3.5 cursor-pointer rounded-sm"
                   />
                 </div>
                 <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
                   <button 
-                    onClick={() => handleDeleteVariable(v.id)}
+                    onClick={() => void handleDeleteVariable(v.id)}
                     className="text-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 size={14} />

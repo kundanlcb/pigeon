@@ -1,7 +1,8 @@
 import { useStore, type FlowNode, type FlowEdge, type RequestItem } from '../store';
 import { resolveEnvVariables } from './env';
 import { runPreRequestScript, runTestScript, type PigeonContext } from './sandbox';
-import { prepareRequestBody } from './request';
+import { getEnabledRequestHeaders, prepareRequestBody } from './request';
+import { removeDisabledQueryParams } from './url';
 import { fetch } from '@tauri-apps/plugin-http';
 
 export interface FlowRunResult {
@@ -99,9 +100,9 @@ export async function executeRequestNode(
         }
       },
       request: {
-        url: request.url,
+        url: removeDisabledQueryParams(request.url, request.disabledParams),
         method: request.method,
-        headers: { ...(request.headers || {}) },
+        headers: getEnabledRequestHeaders(request),
         body: request.body
       },
       response: undefined

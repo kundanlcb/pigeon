@@ -1,4 +1,6 @@
 import type { RequestItem, HttpMethod } from '../store';
+import { getEnabledRequestHeaders } from './request';
+import { removeDisabledQueryParams } from './url';
 
 export function parseCurl(curlCommand: string): Partial<RequestItem> {
   const result: Partial<RequestItem> = {
@@ -83,10 +85,11 @@ export function parseCurl(curlCommand: string): Partial<RequestItem> {
 }
 
 export function exportCurl(req: RequestItem): string {
-  let cmd = `curl -X ${req.method} '${req.url}'`;
+  const url = removeDisabledQueryParams(req.url, req.disabledParams);
+  let cmd = `curl -X ${req.method} '${url}'`;
   
   if (req.headers) {
-    for (const [k, v] of Object.entries(req.headers)) {
+    for (const [k, v] of Object.entries(getEnabledRequestHeaders(req))) {
       cmd += ` \\\n  -H '${k}: ${v}'`;
     }
   }

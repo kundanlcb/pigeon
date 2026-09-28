@@ -1,3 +1,5 @@
+import { secureImportedCollection } from './utils/authSecrets';
+import { serializePortableCollection } from './utils/collectionFormat';
 import { Dropdown } from "./components/Dropdown";
 import { Sidebar } from "./components/Sidebar";
 import { CollectionsPanel } from "./components/CollectionsPanel";
@@ -9,21 +11,23 @@ import { EnvironmentSelector } from "./components/EnvironmentSelector";
 import { EnvironmentManager } from "./components/EnvironmentManager";
 import { HighlightedInput } from "./components/HighlightedInput";
 import { getMethodColor } from "./utils/styles";
-import { setQueryParams } from "./utils/url";
+import { removeDisabledQueryParams, setQueryParams } from "./utils/url";
 import { resolveEnvVariables } from "./utils/env";
 import { downloadAsFile, openFilesAndRead } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
+import { secureImportedEnvironment } from './utils/authSecrets';
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
-import { prepareRequestBody } from "./utils/request";
+import { getEnabledRequestHeaders, prepareRequestBody } from "./utils/request";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
-import { getSecret, setSecret } from './utils/secrets';
+import { createSecretReference, getSecret, setSecret } from './utils/secrets';
 
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { fetch } from '@tauri-apps/plugin-http';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { startCollectionStorage } from './utils/collectionStorage';
 import { 
   Send, 
   Activity,
@@ -56,27 +60,32 @@ export default function App() {
       const authVars = new Set<string>();
       for (const col of state.collections) {
         for (const req of col.requests) {
-          if (req.auth) {
-            if (req.auth.bearerToken?.includes('{{')) {
-               const match = req.auth.bearerToken.match(/\{\{([^}]+)\}\}/);
-               if (match) authVars.add(match[1].trim());
-            }
-            if (req.auth.basicPassword?.includes('{{')) {
-               const match = req.auth.basicPassword.match(/\{\{([^}]+)\}\}/);
-               if (match) authVars.add(match[1].trim());
-            }
+          const authValues = [req.auth?.bearerToken, req.auth?.basicPassword, req.auth?.apiKeyValue];
+          for (const [header, value] of Object.entries(req.headers)) {
+            if (header.toLowerCase() === 'authorization') authValues.push(value);
+          }
+          for (const value of authValues) {
+            if (!value) continue;
+            for (const match of value.matchAll(/\{\{([^}]+)\}\}/g)) authVars.add(match[1].trim());
           }
         }
       }
 
       for (const env of state.environments) {
         let envChanged = false;
+        let migrationFailed = false;
         const newVars = [];
         for (const v of env.variables) {
            if ((v.secret || authVars.has(v.key) || v.key.toLowerCase().includes('token') || v.key.toLowerCase().includes('secret')) && v.value !== '') {
-              await setSecret(env.id, v.key, v.value).catch(() => {});
-              newVars.push({ ...v, secret: true, value: '' });
-              envChanged = true;
+            try {
+             await setSecret(env.id, v.key, v.value);
+             newVars.push({ ...v, secret: true, secretStored: true, value: '' });
+             envChanged = true;
+            } catch (error) {
+             migrationFailed = true;
+             newVars.push(v);
+             console.error(`Failed to migrate secret ${v.key} for environment ${env.name}`, error);
+            }
            } else {
               newVars.push(v);
            }
@@ -85,12 +94,95 @@ export default function App() {
            useStore.getState().updateEnvironment(env.id, { variables: newVars });
         } else if (env.variables.length === 0) {
            useStore.getState().updateEnvironment(env.id, { 
-             variables: [{ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true, secret: false }] 
+             variables: [{ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true, secret: false, secretStored: false }]
            });
         }
+        if (migrationFailed) {
+          useStore.getState().showToast(`Some secrets in ${env.name} could not be moved to the system keychain. Existing values were kept.`, 'error');
+        }
+      }
+
+      const secretFields = [
+        { valueKey: 'bearerToken', markerKey: 'bearerTokenInKeychain', refKey: 'bearerTokenKeychainRef' },
+        { valueKey: 'basicPassword', markerKey: 'basicPasswordInKeychain', refKey: 'basicPasswordKeychainRef' },
+        { valueKey: 'apiKeyValue', markerKey: 'apiKeyValueInKeychain', refKey: 'apiKeyValueKeychainRef' }
+      ] as const;
+      let authMigrationFailed = false;
+      for (const collection of state.collections) {
+        for (const request of collection.requests) {
+          let migratedAuth = request.auth ? { ...request.auth } : undefined;
+          let migratedHeaders = { ...request.headers };
+          let authorizationHeaderInKeychain = request.authorizationHeaderInKeychain;
+          let authorizationHeaderKeychainRef = request.authorizationHeaderKeychainRef;
+          let authChanged = false;
+          if (migratedAuth) {
+            for (const { valueKey, markerKey } of secretFields) {
+              const value = migratedAuth[valueKey];
+              if (!value || /^\{\{\s*[^{}]+\s*\}\}$/.test(value.trim())) continue;
+              try {
+                const reference = createSecretReference();
+                await setSecret('request-auth', reference, value);
+                migratedAuth = { ...migratedAuth, [valueKey]: '', [markerKey]: true, [
+                  { bearerToken: 'bearerTokenKeychainRef', basicPassword: 'basicPasswordKeychainRef', apiKeyValue: 'apiKeyValueKeychainRef' }[valueKey]
+                ]: reference };
+                authChanged = true;
+              } catch (error) {
+                authMigrationFailed = true;
+                console.error(`Failed to migrate auth secret for request ${request.name}`, error);
+              }
+            }
+          }
+          const authorizationHeader = Object.keys(migratedHeaders).find(key => key.toLowerCase() === 'authorization');
+          const authorizationValue = authorizationHeader ? migratedHeaders[authorizationHeader] : undefined;
+          if (authorizationHeader && authorizationValue && !/^\{\{\s*[^{}]+\s*\}\}$/.test(authorizationValue.trim())) {
+            try {
+              const reference = createSecretReference();
+              await setSecret('request-auth', reference, authorizationValue);
+              delete migratedHeaders[authorizationHeader];
+              authorizationHeaderInKeychain = true;
+              authorizationHeaderKeychainRef = reference;
+              authChanged = true;
+            } catch (error) {
+              authMigrationFailed = true;
+              console.error(`Failed to migrate Authorization header for request ${request.name}`, error);
+            }
+          }
+          if (authChanged) {
+            const current = useStore.getState();
+            useStore.setState({
+              collections: current.collections.map(currentCollection => currentCollection.id !== collection.id
+                ? currentCollection
+                : {
+                    ...currentCollection,
+                    requests: currentCollection.requests.map(currentRequest =>
+                      currentRequest.id === request.id ? {
+                        ...currentRequest,
+                        auth: migratedAuth,
+                        headers: migratedHeaders,
+                        authorizationHeaderInKeychain,
+                        authorizationHeaderKeychainRef
+                      } : currentRequest
+                    )
+                  })
+            });
+          }
+        }
+      }
+      if (authMigrationFailed) {
+        useStore.getState().showToast('Some request credentials could not be moved to the system keychain. Existing values were kept.', 'error');
       }
     };
-    migrateSecrets();
+    let cancelled = false;
+    let stopStorage: (() => void) | undefined;
+    void migrateSecrets().then(() => {
+      if (!cancelled) stopStorage = startCollectionStorage();
+    }).catch(error => {
+      useStore.getState().showToast(`Could not initialize secure storage: ${String(error)}`, 'error');
+    });
+    return () => {
+      cancelled = true;
+      stopStorage?.();
+    };
   }, []);
   
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
@@ -125,58 +217,107 @@ export default function App() {
 
     const startTime = performance.now();
     try {
-      const activeEnvironment = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
-      
+      const stateAtSend = useStore.getState();
+      const activeEnvironment = stateAtSend.environments.find(e => e.id === stateAtSend.activeEnvironmentId);
+      const scriptText = `${activeRequest?.preRequestScript || ''}\n${activeRequest?.testScript || ''}`;
+      const serializedRequest = JSON.stringify({ ...activeRequest, url: localUrl });
+      const referencedKeys = new Set<string>();
+      for (const match of serializedRequest.matchAll(/\{\{([^}]+)\}\}/g)) referencedKeys.add(match[1].trim());
+      for (const match of scriptText.matchAll(/pigeon\.env\.get\(\s*['"]([^'"]+)['"]\s*\)/g)) referencedKeys.add(match[1]);
+      const dynamicSecretLookup = /pigeon\.env\.get\(\s*[^'"]/.test(scriptText);
       const localVars: Record<string, string> = {};
+      const pendingSecretWrites = new Map<string, string>();
       if (activeEnvironment) {
         for (const v of activeEnvironment.variables) {
-          if (v.secret && v.enabled) {
+          if (v.secret && v.enabled && (referencedKeys.has(v.key) || dynamicSecretLookup)) {
             const val = await getSecret(activeEnvironment.id, v.key);
             if (val !== null && val !== undefined) {
               localVars[v.key] = val;
+              if (v.secretStored === false) {
+                useStore.getState().updateEnvironment(activeEnvironment.id, {
+                  variables: activeEnvironment.variables.map(variable => variable.id === v.id
+                    ? { ...variable, secretStored: true }
+                    : variable)
+                });
+              }
+            } else if (referencedKeys.has(v.key)) {
+              useStore.getState().updateEnvironment(activeEnvironment.id, {
+                variables: activeEnvironment.variables.map(variable => variable.id === v.id
+                  ? { ...variable, secretStored: false }
+                  : variable)
+              });
+              throw new Error(`Secret variable "${v.key}" is missing from the system keychain.`);
             }
           }
         }
+        const disabledSecret = activeEnvironment.variables.find(variable => variable.secret && !variable.enabled && referencedKeys.has(variable.key));
+        if (disabledSecret) throw new Error(`Secret variable "${disabledSecret.key}" is disabled.`);
       }
 
+      const flushSecretWrites = async () => {
+        if (!activeEnvironment) return;
+        for (const [key, value] of pendingSecretWrites) {
+          await setSecret(activeEnvironment.id, key, value);
+          localVars[key] = value;
+          pendingSecretWrites.delete(key);
+          const state = useStore.getState();
+          const environment = state.environments.find(item => item.id === activeEnvironment.id);
+          const variable = environment?.variables.find(item => item.key === key && item.secret);
+          if (environment && variable && variable.secretStored !== true) {
+            state.updateEnvironment(environment.id, {
+              variables: environment.variables.map(item => item.id === variable.id ? { ...item, secretStored: true } : item)
+            });
+          }
+        }
+      };
+
       const finalHeaders: Record<string, string> = {};
-      const baseHeaders = { ...(activeRequest?.headers || {}) };
+      const baseHeaders = activeRequest ? getEnabledRequestHeaders(activeRequest) : {};
       for (const [k, v] of Object.entries(baseHeaders)) {
         finalHeaders[resolveEnvVariables(k, activeEnvironment, localVars)] = resolveEnvVariables(v, activeEnvironment, localVars);
       }
       
-      let finalUrl = resolveEnvVariables(localUrl, activeEnvironment, localVars);
+      const requestUrl = removeDisabledQueryParams(localUrl, activeRequest?.disabledParams);
+      let finalUrl = resolveEnvVariables(requestUrl, activeEnvironment, localVars);
       const { body: finalBody, headers: bodyHeaders } = activeRequest ? prepareRequestBody({ ...activeRequest, method: localMethod }, activeEnvironment, localVars) : { body: undefined, headers: {} };
       for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
       
       const context: PigeonContext = {
         env: {
           get: (key: string) => {
-            const env = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
-            const v = env?.variables.find(v => v.key === key);
+            const v = activeEnvironment?.variables.find(variable => variable.key === key);
             if (v && v.secret) {
               return localVars[key];
             }
             return v ? v.value : undefined;
           },
           set: (key: string, value: string) => {
-            const envId = useStore.getState().activeEnvironmentId;
-            if (!envId) return;
-            const env = useStore.getState().environments.find(e => e.id === envId);
-            if (!env) return;
-            const existing = env.variables.find(v => v.key === key);
-            let newVars = [...env.variables];
+            if (!activeEnvironment) return;
+            const existing = activeEnvironment.variables.find(variable => variable.key === key);
             if (existing) {
               if (existing.secret) {
-                setSecret(envId, key, value).catch(console.error);
-                newVars = newVars.map(v => v.key === key ? { ...v, value: '' } : v);
+                localVars[key] = value;
+                pendingSecretWrites.set(key, value);
               } else {
-                newVars = newVars.map(v => v.key === key ? { ...v, value } : v);
+                const newVars = activeEnvironment.variables.map(variable => variable.key === key ? { ...variable, value } : variable);
+                useStore.getState().updateEnvironment(activeEnvironment.id, { variables: newVars });
               }
             } else {
-              newVars.push({ id: `var-${Date.now()}-${Math.random()}`, key, value, enabled: true });
+              const secret = /token|secret/i.test(key);
+              const newVars = [...activeEnvironment.variables, {
+                id: `var-${Date.now()}-${Math.random()}`,
+                key,
+                value: secret ? '' : value,
+                enabled: true,
+                secret,
+                secretStored: secret ? false : undefined
+              }];
+              if (secret) {
+                localVars[key] = value;
+                pendingSecretWrites.set(key, value);
+              }
+              useStore.getState().updateEnvironment(activeEnvironment.id, { variables: newVars });
             }
-            useStore.getState().updateEnvironment(envId, { variables: newVars });
           }
         },
         request: {
@@ -191,19 +332,41 @@ export default function App() {
         runPreRequestScript(activeRequest.preRequestScript, context);
         finalUrl = context.request.url;
       }
+      await flushSecretWrites();
 
+      if (activeRequest?.authorizationHeaderInKeychain) {
+        const authorization = await getSecret('request-auth', activeRequest.authorizationHeaderKeychainRef || '');
+        if (!authorization) throw new Error('Authorization header is missing from the system keychain. Re-enter it in the Headers tab.');
+        finalHeaders.Authorization = authorization;
+      }
       
       if (activeRequest?.auth) {
-        if (activeRequest.auth.type === 'bearer' && activeRequest.auth.bearerToken) {
-          finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(activeRequest.auth.bearerToken, activeEnvironment, localVars)}`;
-        } else if (activeRequest.auth.type === 'basic' && (activeRequest.auth.basicUsername || activeRequest.auth.basicPassword)) {
+        if (activeRequest.auth.type === 'bearer' && (activeRequest.auth.bearerToken || activeRequest.auth.bearerTokenInKeychain)) {
+          const token = activeRequest.auth.bearerTokenInKeychain
+            ? await getSecret('request-auth', activeRequest.auth.bearerTokenKeychainRef || '')
+            : activeRequest.auth.bearerToken;
+          if (!token) throw new Error('Bearer token is missing from the system keychain. Re-enter it in the Auth tab.');
+          finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(token, activeEnvironment, localVars)}`;
+        } else if (activeRequest.auth.type === 'basic' && (activeRequest.auth.basicUsername || activeRequest.auth.basicPassword || activeRequest.auth.basicPasswordInKeychain)) {
           const user = resolveEnvVariables(activeRequest.auth.basicUsername || '', activeEnvironment, localVars);
-          const pass = resolveEnvVariables(activeRequest.auth.basicPassword || '', activeEnvironment, localVars);
+          const storedPassword = activeRequest.auth.basicPasswordInKeychain
+            ? await getSecret('request-auth', activeRequest.auth.basicPasswordKeychainRef || '')
+            : activeRequest.auth.basicPassword || '';
+          if (activeRequest.auth.basicPasswordInKeychain && !storedPassword) {
+            throw new Error('Basic-auth password is missing from the system keychain. Re-enter it in the Auth tab.');
+          }
+          const pass = resolveEnvVariables(storedPassword || '', activeEnvironment, localVars);
           const creds = btoa(`${user}:${pass}`);
           finalHeaders['Authorization'] = `Basic ${creds}`;
         } else if (activeRequest.auth.type === 'api_key' && activeRequest.auth.apiKeyKey) {
           const key = resolveEnvVariables(activeRequest.auth.apiKeyKey, activeEnvironment, localVars);
-          const val = resolveEnvVariables(activeRequest.auth.apiKeyValue || '', activeEnvironment, localVars);
+          const storedValue = activeRequest.auth.apiKeyValueInKeychain
+            ? await getSecret('request-auth', activeRequest.auth.apiKeyValueKeychainRef || '')
+            : activeRequest.auth.apiKeyValue || '';
+          if (activeRequest.auth.apiKeyValueInKeychain && !storedValue) {
+            throw new Error('API key value is missing from the system keychain. Re-enter it in the Auth tab.');
+          }
+          const val = resolveEnvVariables(storedValue || '', activeEnvironment, localVars);
           if (activeRequest.auth.apiKeyIn === 'query') {
             finalUrl = setQueryParams(finalUrl, { [key]: val });
           } else {
@@ -258,6 +421,11 @@ export default function App() {
           headers: headersRecord
         };
         testResults = runTestScript(activeRequest.testScript, context);
+        try {
+          await flushSecretWrites();
+        } catch (error) {
+          useStore.getState().showToast(`Failed to save script secret: ${String(error)}`, 'error');
+        }
       }
 
       setResponse({
@@ -324,14 +492,15 @@ export default function App() {
                     col = parsed;
                   }
                   if (col) {
-                    useStore.getState().importCollection(col);
+                    const securedCollection = await secureImportedCollection(col);
+                    useStore.getState().importCollection(securedCollection);
                     successCount++;
                   }
                 }
                 if (successCount > 0) useStore.getState().showToast(`Successfully imported ${successCount} collection(s)`, 'success');
                 else useStore.getState().showToast('Invalid collection format(s)', 'error');
               } catch (err: any) {
-                if (err.message !== 'No file selected') useStore.getState().showToast('Failed to parse JSON', 'error');
+                if (err.message !== 'No file selected') useStore.getState().showToast(err.message || 'Failed to parse JSON', 'error');
               }
             } else if (type === 'environment') {
               try {
@@ -353,7 +522,8 @@ export default function App() {
                     };
                   }
                   if (env) {
-                    useStore.getState().importEnvironment(env);
+                    const securedEnvironment = await secureImportedEnvironment(env);
+                    useStore.getState().importEnvironment(securedEnvironment);
                     successCount++;
                   }
                 }
@@ -364,7 +534,7 @@ export default function App() {
                   useStore.getState().showToast('Invalid environment format(s)', 'error');
                 }
               } catch (err: any) {
-                if (err.message !== 'No file selected') useStore.getState().showToast('Failed to parse JSON', 'error');
+                if (err.message !== 'No file selected') useStore.getState().showToast(err.message || 'Failed to parse JSON', 'error');
               }
             }
           }}
@@ -375,8 +545,8 @@ export default function App() {
               setIsCurlModalOpen(true);
             } else if (type === 'collection') {
               const filename = `${item.name.toLowerCase().replace(/\s+/g, '_')}_collection.json`;
-              downloadAsFile(filename, JSON.stringify(item, null, 2));
-              useStore.getState().showToast(`Exported ${filename} to your Downloads folder`, 'success');
+              downloadAsFile(filename, serializePortableCollection(item));
+              useStore.getState().showToast(`Exported ${filename}. Keychain credentials are not included.`, 'success');
             }
           }}
         />
@@ -430,9 +600,9 @@ export default function App() {
                   placeholder="Request Name"
                 />
               </div>
-              <div className="px-4 h-[68px] flex items-center space-x-3 border-b border-border-subtle shrink-0">
-            <div className="flex-1 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
-              <div className="relative border-r border-border-strong flex items-center w-28 h-full">
+              <div className="px-4 h-[68px] flex items-center space-x-3 border-b border-border-subtle shrink-0 min-w-0">
+            <div className="flex-1 min-w-0 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
+              <div className="relative border-r border-border-strong flex items-center w-[84px] shrink-0 h-full">
                 <Dropdown 
                   value={localMethod}
                   onChange={(val) => {
@@ -446,17 +616,18 @@ export default function App() {
                     { value: 'PATCH', label: 'PATCH' },
                     { value: 'DELETE', label: 'DELETE' }
                   ]}
-                  className={`bg-transparent font-bold text-xs px-3 h-full w-full ${getMethodColor(localMethod)}`}
+                  className={`bg-transparent font-bold text-xs px-2 h-full w-full ${getMethodColor(localMethod)}`}
                 />
               </div>
               <HighlightedInput 
+                singleLineEllipsis
                 value={localUrl}
                 onChange={(e: any) => {
                   setLocalUrl(e.target.value);
                   updateActiveRequest({ url: e.target.value });
                 }}
                 onKeyDown={(e: any) => e.key === 'Enter' && handleSend()}
-                className="flex-1 text-sm font-mono placeholder-text-muted h-full"
+                className="flex-1 min-w-0 overflow-hidden text-sm font-mono placeholder-text-muted h-full"
                 placeholder="Enter request URL"
               />
               <button  
@@ -466,7 +637,7 @@ export default function App() {
                   setIsCurlModalOpen(true);
                 }}
                 title="Export as cURL"
-                className="flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-hover px-3 h-full transition-all active:scale-95 rounded-r-md"
+                className="flex shrink-0 items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-hover px-2 h-full transition-all active:scale-95 rounded-r-md"
               >
                 <Code2 size={16} />
               </button>
@@ -474,7 +645,7 @@ export default function App() {
             <button 
               onClick={handleSend}
               disabled={isLoading}
-              className="flex items-center justify-center space-x-1.5 bg-accent hover:bg-accent-hover text-white px-5 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex shrink-0 items-center justify-center space-x-1.5 bg-accent hover:bg-accent-hover text-white px-4 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? <Loader2 size={14} className="animate-spin" /> : (
                 <>

@@ -26,6 +26,9 @@ tauri-plugin-log = "2"
 tauri-plugin-http = { version = "=2.7.0", default-features = false, features = ["native-tls", "dangerous-settings", "cookies", "http2", "charset", "system-proxy", "gzip", "brotli", "deflate", "multipart"] }
 tauri-plugin-process = "2.4.0"
 keyring = "3.6.3"
+tauri-plugin-fs = { version = "2.6.0", features = ["watch"] }
+tauri-plugin-dialog = "2.8.0"
+tauri-plugin-persisted-scope = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2.13.0"

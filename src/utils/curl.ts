@@ -29,7 +29,7 @@ export function parseCurl(curlCommand: string): Partial<RequestItem> {
       } else {
         currentArg += char;
       }
-    } else if (char === ' ' && !inQuotes) {
+    } else if (/\s/.test(char) && !inQuotes) {
       if (currentArg) {
         args.push(currentArg);
         currentArg = '';
@@ -75,6 +75,18 @@ export function parseCurl(curlCommand: string): Partial<RequestItem> {
     } else if (arg === '-d' || arg === '--data' || arg === '--data-raw' || arg === '--data-binary' || arg === '--body') {
       result.body = args[i + 1] || '';
       if (result.method === 'GET') result.method = 'POST';
+      i++;
+    } else if (arg === '-b' || arg === '--cookie') {
+      const cookieArg = args[i + 1];
+      // A cookie arg without '=' names a cookie-jar file to read, not literal cookie text.
+      if (cookieArg && cookieArg.includes('=')) {
+        const existingKey = Object.keys(result.headers!).find(key => key.toLowerCase() === 'cookie');
+        const key = existingKey || 'Cookie';
+        result.headers![key] = existingKey ? `${result.headers![key]}; ${cookieArg}` : cookieArg;
+      }
+      i++;
+    } else if (arg === '--url') {
+      result.url = args[i + 1] || result.url;
       i++;
     } else if (!arg.startsWith('-') && !result.url) {
       result.url = arg;

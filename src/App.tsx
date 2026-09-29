@@ -3,6 +3,7 @@ import { serializePortableCollection } from './utils/collectionFormat';
 import { Dropdown } from "./components/Dropdown";
 import { Sidebar } from "./components/Sidebar";
 import { CollectionsPanel } from "./components/CollectionsPanel";
+import { FlowsPanel } from "./components/FlowsPanel";
 import { RequestTabs } from "./components/RequestTabs";
 import { RequestEditor } from "./components/RequestEditor";
 import { ResponseViewer } from "./components/ResponseViewer";
@@ -451,6 +452,9 @@ export default function App() {
 
       <Group orientation="horizontal" className="flex-1 min-w-0" >
         
+        {activeView === 'automation' ? (
+          <FlowsPanel />
+        ) : (
         <CollectionsPanel 
           onAddEnvironmentClick={() => setIsEnvManagerOpen(true)}
           onImportClick={async (type, colId?: string) => {
@@ -529,6 +533,7 @@ export default function App() {
             }
           }}
         />
+        )}
 
         <ResizeHandle />
 

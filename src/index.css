@@ -126,3 +126,17 @@ html, body { background-color: var(--color-app-bg); }
 .react-flow__controls-button svg {
   fill: var(--color-text-primary) !important;
 }
+
+/* Widen the default 1px resize edges so width/height can be dragged from any side, not just corners */
+.react-flow__resize-control.line.left,
+.react-flow__resize-control.line.right {
+  width: 10px !important;
+}
+.react-flow__resize-control.line.top,
+.react-flow__resize-control.line.bottom {
+  height: 10px !important;
+}
+/* Resize controls must win over the connection handle dot they visually overlap at top/bottom-center */
+.react-flow__resize-control {
+  z-index: 10;
+}

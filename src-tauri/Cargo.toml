@@ -23,7 +23,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.0", features = [] }
 tauri-plugin-log = "2"
-tauri-plugin-http = { version = "=2.7.0", default-features = false, features = ["native-tls", "dangerous-settings", "cookies", "http2", "charset", "system-proxy", "gzip", "brotli", "deflate", "multipart"] }
+tauri-plugin-http = { version = "=2.7.0", default-features = false, features = ["native-tls", "dangerous-settings", "unsafe-headers", "cookies", "http2", "charset", "system-proxy", "gzip", "brotli", "deflate", "multipart"] }
 tauri-plugin-process = "2.4.0"
 keyring = "3.6.3"
 tauri-plugin-fs = { version = "2.6.0", features = ["watch"] }

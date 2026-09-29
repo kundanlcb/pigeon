@@ -10,13 +10,14 @@ import {
   type Connection,
   Position,
   Handle,
+  NodeResizer,
   useReactFlow
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Play, Plus, Trash2, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Play, ArrowLeft, Loader2, CheckCircle2, XCircle, Plus, Workflow } from 'lucide-react';
 import { topologicalSort, executeRequestNode, type FlowRunResult } from '../utils/automation';
 
-function RequestNodeComponent({ data, id }: { data: any, id: string }) {
+function RequestNodeComponent({ data, id, selected }: { data: any, id: string, selected?: boolean }) {
   const collections = useStore(state => state.collections);
   const { updateNodeData } = useReactFlow();
   
@@ -33,10 +34,11 @@ function RequestNodeComponent({ data, id }: { data: any, id: string }) {
   };
 
   return (
-    <div className="bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 min-w-[240px] text-[13px]">
+    <div className="bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 w-full h-full flex flex-col text-[13px] overflow-auto">
+      <NodeResizer minWidth={180} minHeight={90} isVisible={selected} lineClassName="!border-accent" handleClassName="!bg-accent !border-panel-bg !w-2.5 !h-2.5 !rounded-sm" />
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-accent border-2 border-panel-bg" />
       
-      <div className="font-semibold text-text-primary mb-2 flex items-center justify-between">
+      <div className="font-semibold text-text-primary mb-2 flex items-center justify-between shrink-0">
         <span>Request Step</span>
         {request && (
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-bg text-accent">
@@ -46,7 +48,7 @@ function RequestNodeComponent({ data, id }: { data: any, id: string }) {
       </div>
       
       <select 
-        className="nodrag w-full bg-surface-bg text-text-primary border border-border-strong rounded px-2 py-1.5 mb-2 outline-none focus:border-accent"
+        className="nodrag w-full bg-surface-bg text-text-primary border border-border-strong rounded px-2 py-1.5 mb-2 outline-none focus:border-accent shrink-0"
         value={data.requestId || ''}
         onChange={(e) => handleRequestSelect(e.target.value)}
       >
@@ -74,8 +76,6 @@ const nodeTypes = {
 export function AutomationView() {
   const flows = useStore(state => state.flows);
   const activeFlowId = useStore(state => state.activeFlowId);
-  const addFlow = useStore(state => state.addFlow);
-  const deleteFlow = useStore(state => state.deleteFlow);
   const setActiveFlow = useStore(state => state.setActiveFlow);
   const updateFlow = useStore(state => state.updateFlow);
 
@@ -135,52 +135,27 @@ export function AutomationView() {
 
   if (!activeFlowId) {
     return (
-      <div className="flex-1 flex flex-col bg-app-bg p-8">
-        <div className="flex justify-between items-center mb-8 max-w-4xl mx-auto w-full">
-           <h2 className="text-2xl font-bold text-text-primary">API Automations</h2>
-           <button onClick={() => addFlow('New Flow')} className="flex items-center font-medium bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover transition-colors shadow-lg shadow-accent/20">
-              <Plus size={18} className="mr-2" /> Create Flow
-           </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto w-full">
-           {flows.length === 0 && (
-             <div className="col-span-full text-center py-12 bg-surface-bg border border-border-strong rounded-xl border-dashed">
-               <p className="text-text-muted text-lg mb-2">No workflows found</p>
-               <p className="text-text-secondary text-sm">Chain multiple requests together visually.</p>
-             </div>
-           )}
-           {flows.map(f => (
-             <div key={f.id} onClick={() => setActiveFlow(f.id)} className="p-5 bg-surface-bg border border-border-strong rounded-xl cursor-pointer hover:border-accent hover:shadow-lg transition-all group">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-semibold text-text-primary text-lg">{f.name}</h3>
-                  <button onClick={(e) => { e.stopPropagation(); deleteFlow(f.id); }} className="text-text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                <div className="text-sm text-text-secondary">
-                  {f.nodes.length} nodes • {f.edges.length} connections
-                </div>
-             </div>
-           ))}
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center text-text-muted bg-app-bg">
+        <Workflow size={48} className="mb-4 opacity-20" />
+        <p>Select or create a flow to get started</p>
       </div>
     );
   }
 
   return (
     <div className="flex-1 flex flex-col bg-app-bg relative">
-      <div className="h-14 border-b border-border-subtle flex items-center px-4 justify-between bg-surface-bg z-10 shrink-0">
-         <div className="flex items-center space-x-4">
-            <button onClick={() => setActiveFlow('')} className="p-2 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-lg transition-colors">
-              <ArrowLeft size={18} />
+      <div className="h-[44px] border-b border-border-subtle flex items-center px-4 justify-between bg-surface-bg z-10 shrink-0">
+         <div className="flex items-center space-x-3">
+            <button onClick={() => setActiveFlow('')} className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-lg transition-colors">
+              <ArrowLeft size={16} />
             </button>
             <input 
               value={activeFlow?.name || ''} 
               onChange={(e) => updateFlow(activeFlowId, { name: e.target.value })}
-              className="bg-transparent text-text-primary font-semibold text-lg outline-none focus:border-b-2 border-accent px-1"
+              className="bg-transparent text-text-primary font-semibold text-sm outline-none focus:border-b-2 border-accent px-1"
             />
          </div>
-         <div className="flex items-center space-x-3">
+         <div className="flex items-center space-x-2">
             <button onClick={() => {
               const id = `node-${Date.now()}`;
               const offset = (nodes.length % 5) * 20;
@@ -188,18 +163,20 @@ export function AutomationView() {
                 id,
                 type: 'requestNode',
                 position: { x: window.innerWidth / 2 - 100 + offset, y: window.innerHeight / 2 - 100 + offset },
+                width: 260,
+                height: 180,
                 data: { requestId: '' }
               };
               setNodes(nds => [...nds, newNode]);
-            }} className="flex items-center text-sm font-medium text-text-secondary hover:text-text-primary px-3 py-1.5 bg-panel-bg border border-border-strong rounded-lg hover:border-text-secondary transition-colors shadow-sm">
-              <Plus size={16} className="mr-1.5" /> Add Node
+            }} className="flex items-center text-xs font-medium text-text-secondary hover:text-text-primary px-2.5 py-1 bg-panel-bg border border-border-strong rounded-lg hover:border-text-secondary transition-colors shadow-sm">
+              <Plus size={14} className="mr-1.5" /> Add Node
             </button>
             <button 
               onClick={handleRunFlow}
               disabled={isRunning || !activeFlow?.nodes.length}
-              className="flex items-center text-sm font-medium bg-accent text-white px-4 py-1.5 rounded-lg hover:bg-accent-hover transition-colors shadow-lg shadow-accent/20 disabled:opacity-50"
+              className="flex items-center text-xs font-medium bg-accent text-white px-3 py-1 rounded-lg hover:bg-accent-hover transition-colors shadow-lg shadow-accent/20 disabled:opacity-50"
             >
-              {isRunning ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : <Play size={16} className="mr-1.5 fill-current" />}
+              {isRunning ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Play size={14} className="mr-1.5 fill-current" />}
               {isRunning ? 'Running...' : 'Run Flow'}
             </button>
          </div>

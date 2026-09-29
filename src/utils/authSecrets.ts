@@ -4,7 +4,8 @@ import { createSecretReference, deleteSecret, getSecret, setSecret } from './sec
 const SECRET_FIELDS = [
   { value: 'bearerToken', marker: 'bearerTokenInKeychain', reference: 'bearerTokenKeychainRef' },
   { value: 'basicPassword', marker: 'basicPasswordInKeychain', reference: 'basicPasswordKeychainRef' },
-  { value: 'apiKeyValue', marker: 'apiKeyValueInKeychain', reference: 'apiKeyValueKeychainRef' }
+  { value: 'apiKeyValue', marker: 'apiKeyValueInKeychain', reference: 'apiKeyValueKeychainRef' },
+  { value: 'clientSecret', marker: 'clientSecretInKeychain', reference: 'clientSecretKeychainRef' }
 ] as const;
 
 function isEnvironmentReference(value: string): boolean {
@@ -95,7 +96,12 @@ export async function deleteUnusedRequestSecrets(collections: Collection[], remo
   const collect = (request: RequestItem, target: Set<string>) => {
     const auth = request.auth;
     if (auth) {
-      for (const reference of [auth.bearerTokenKeychainRef, auth.basicPasswordKeychainRef, auth.apiKeyValueKeychainRef]) {
+      for (const reference of [
+        auth.bearerTokenKeychainRef,
+        auth.basicPasswordKeychainRef,
+        auth.apiKeyValueKeychainRef,
+        auth.clientSecretKeychainRef
+      ]) {
         if (reference) target.add(reference);
       }
     }
@@ -116,6 +122,7 @@ export function requestSecretIsShared(collections: Collection[], requestId: stri
     return auth?.bearerTokenKeychainRef === reference
       || auth?.basicPasswordKeychainRef === reference
       || auth?.apiKeyValueKeychainRef === reference
+      || auth?.clientSecretKeychainRef === reference
       || request.authorizationHeaderKeychainRef === reference;
   }));
 }

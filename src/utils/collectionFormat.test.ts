@@ -84,6 +84,30 @@ describe('collection file format', () => {
     }))).toThrow(/plaintext/i);
     expect(serializeRequest({ ...request, auth: { type: 'bearer', bearerToken: '{{api_token}}' } }))
       .toContain('{{api_token}}');
+
+    const safeOAuth = serializeRequest({
+      ...request,
+      auth: {
+        type: 'oauth2_client_credentials',
+        tokenUrl: 'https://auth.example.com/oauth/token',
+        clientId: 'my-app',
+        clientSecret: 'never-write-oauth-secret',
+        clientSecretInKeychain: true,
+        clientSecretKeychainRef: 'oauth-secret-ref'
+      }
+    });
+    expect(safeOAuth).not.toContain('never-write-oauth-secret');
+    expect(JSON.parse(safeOAuth).auth).not.toHaveProperty('clientSecret');
+    expect(JSON.parse(safeOAuth).auth.clientSecretKeychainRef).toBe('oauth-secret-ref');
+    expect(() => serializeRequest({
+      ...request,
+      auth: {
+        type: 'oauth2_client_credentials',
+        tokenUrl: 'https://auth.example.com/oauth/token',
+        clientId: 'my-app',
+        clientSecret: 'raw-secret'
+      }
+    })).toThrow(/system keychain/i);
   });
 
   it('validates request shape and normalizes missing folder metadata', () => {

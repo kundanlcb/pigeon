@@ -39,4 +39,30 @@ describe('parseCurl', () => {
     const request = parseCurl("curl 'https://api.example.com' --cookie cookies.txt");
     expect(request.headers).toEqual({});
   });
+
+  it('exports exportCurl with Bearer Authorization header when OAuth2 token is cached', async () => {
+    const { exportCurl } = await import('./curl');
+    const { setCachedOAuthToken, getOAuthCacheKey, clearOAuthTokenCache } = await import('./oauth');
+    
+    clearOAuthTokenCache();
+    const tokenUrl = 'https://auth.example.com/oauth/token';
+    const clientId = 'client-xyz';
+    const cacheKey = getOAuthCacheKey(tokenUrl, clientId);
+    setCachedOAuthToken(cacheKey, 'test-access-token-999', 3600);
+
+    const curlCmd = exportCurl({
+      id: 'req-1',
+      name: 'Get Protected Data',
+      method: 'GET',
+      url: 'https://api.example.com/data',
+      headers: {},
+      auth: {
+        type: 'oauth2_client_credentials',
+        tokenUrl,
+        clientId
+      }
+    });
+
+    expect(curlCmd).toContain("-H 'Authorization: Bearer test-access-token-999'");
+  });
 });

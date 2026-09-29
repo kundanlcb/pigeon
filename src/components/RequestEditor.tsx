@@ -228,7 +228,7 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           {activeTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
         </button>
 
-        {(activeTab === 'req-params' || activeTab === 'req-headers') && (
+        {(activeTab === 'req-params' || activeTab === 'req-headers' || (activeTab === 'req-body' && typeof activeRequest?.body === 'object' && (activeRequest?.body?.type === 'form-data' || activeRequest?.body?.type === 'x-www-form-urlencoded'))) && (
           <button 
             onClick={() => setIsBulk(!isBulk)}
             className={`ml-auto py-3 text-xs font-medium transition-colors ${isBulk ? 'text-accent hover:text-accent-hover' : 'text-text-secondary hover:text-text-primary'}`}
@@ -316,6 +316,9 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
             <BodyEditor 
               body={activeRequest?.body}
               onChange={(val) => updateActiveRequest({ body: val })}
+              isBulk={isBulk}
+              keyColumnWidth={keyColumnWidth}
+              onKeyColumnWidthChange={setKeyColumnWidth}
             />
           </div>
         )}

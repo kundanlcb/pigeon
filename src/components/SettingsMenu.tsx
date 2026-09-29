@@ -51,14 +51,15 @@ export function SettingsMenu() {
 
   return (
     <>
-    <div className="relative mt-auto" ref={containerRef}>
+    <div className="relative mt-auto w-full" ref={containerRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-bg cursor-pointer transition-colors outline-none"
+        className={`w-full h-12 flex items-center justify-center cursor-pointer transition-colors outline-none border-l-2 border-transparent ${isOpen ? 'text-white' : 'text-zinc-500 hover:text-zinc-200'}`}
+        title="Settings"
       >
-        <Settings size={20} strokeWidth={2.5} className={isOpen ? 'text-accent' : ''} />
+        <Settings size={21} strokeWidth={1.5} />
         {hasUpdate && (
-          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-app-bg" />
+          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-blue-500 rounded-full" />
         )}
       </button>
 

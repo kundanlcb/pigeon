@@ -6,6 +6,9 @@ import { deleteUnusedRequestSecrets, requestSecretIsShared } from '../utils/auth
 
 
 
+import { resolveEnvVariables } from '../utils/env';
+import { getOAuthCacheKey, invalidateOAuthToken, isOAuthTokenCached, resolveOAuth2ClientCredentials } from '../utils/oauth';
+
 import type { Auth } from '../store';
 
 interface AuthEditorProps {
@@ -13,7 +16,7 @@ interface AuthEditorProps {
   auth?: Auth;
 }
 
-type AuthSecretField = 'bearerToken' | 'basicPassword' | 'apiKeyValue';
+type AuthSecretField = 'bearerToken' | 'basicPassword' | 'apiKeyValue' | 'clientSecret';
 
 export function AuthEditor({ requestId, auth }: AuthEditorProps) {
   const currentAuth = auth || { type: 'none' };
@@ -23,8 +26,11 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
   }>({ requestId, values: {} });
   const secretDrafts = draftState.requestId === requestId ? draftState.values : {};
   const [savingField, setSavingField] = useState<AuthSecretField | null>(null);
+  const [fetchingToken, setFetchingToken] = useState(false);
+  const [tokenCacheNonce, setTokenCacheNonce] = useState(0);
   const showToast = useStore(state => state.showToast);
   const updateRequestAuth = useStore(state => state.updateRequestAuth);
+  const activeEnvironment = useStore(state => state.environments.find(e => e.id === state.activeEnvironmentId));
 
   const updateDraft = (field: AuthSecretField, value: string) => {
     setDraftState(previous => ({
@@ -120,7 +126,8 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
             { value: 'none', label: 'No Auth' },
             { value: 'api_key', label: 'API Key' },
             { value: 'bearer', label: 'Bearer Token' },
-            { value: 'basic', label: 'Basic Auth' }
+            { value: 'basic', label: 'Basic Auth' },
+            { value: 'oauth2_client_credentials', label: 'OAuth 2.0' }
           ]}
           className="w-full bg-surface-bg border border-border-strong rounded-lg px-3 py-2 text-[13px] text-text-primary"
         />
@@ -220,6 +227,129 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
             </div>
           </div>
         )}
+
+        {currentAuth.type === 'oauth2_client_credentials' && (() => {
+          const resolvedTokenUrl = currentAuth.tokenUrl ? resolveEnvVariables(currentAuth.tokenUrl, activeEnvironment) : '';
+          const resolvedClientId = currentAuth.clientId ? resolveEnvVariables(currentAuth.clientId, activeEnvironment) : '';
+          const resolvedScope = currentAuth.scope ? resolveEnvVariables(currentAuth.scope, activeEnvironment) : undefined;
+          const isCached = tokenCacheNonce >= 0 && resolvedTokenUrl && resolvedClientId
+            ? isOAuthTokenCached(resolvedTokenUrl, resolvedClientId, resolvedScope)
+            : false;
+
+          const handleFetchTokenNow = async () => {
+            setFetchingToken(true);
+            try {
+              await resolveOAuth2ClientCredentials({
+                auth: {
+                  ...currentAuth,
+                  clientSecret: secretDrafts.clientSecret ?? currentAuth.clientSecret
+                },
+                activeEnvironment,
+                forceFresh: true
+              });
+              setTokenCacheNonce(n => n + 1);
+              showToast('OAuth2 token retrieved and cached in memory', 'success');
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : String(err);
+              showToast(msg, 'error');
+            } finally {
+              setFetchingToken(false);
+            }
+          };
+
+          const handleClearCachedToken = () => {
+            if (resolvedTokenUrl && resolvedClientId) {
+              const cacheKey = getOAuthCacheKey(resolvedTokenUrl, resolvedClientId, resolvedScope);
+              invalidateOAuthToken(cacheKey);
+              setTokenCacheNonce(n => n + 1);
+              showToast('Cached OAuth token cleared', 'success');
+            }
+          };
+
+          return (
+            <div className="max-w-xl space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-text-primary mb-1.5 block">Token URL</label>
+                <input 
+                  type="text"
+                  className="w-full bg-surface-bg border border-border-strong rounded-lg px-3 py-2 text-[13px] font-mono text-text-primary outline-none focus:border-accent"
+                  placeholder="https://auth.example.com/oauth/token"
+                  value={currentAuth.tokenUrl || ''}
+                  onChange={(e) => updateAuth({ tokenUrl: e.target.value })}
+                  spellCheck={false}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-text-primary mb-1.5 block">Client ID</label>
+                <input 
+                  type="text"
+                  className="w-full bg-surface-bg border border-border-strong rounded-lg px-3 py-2 text-[13px] font-mono text-text-primary outline-none focus:border-accent"
+                  placeholder="Client ID"
+                  value={currentAuth.clientId || ''}
+                  onChange={(e) => updateAuth({ clientId: e.target.value })}
+                  spellCheck={false}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-text-primary mb-1.5 block">Client Secret</label>
+                <input 
+                  type="password"
+                  className="w-full bg-surface-bg border border-border-strong rounded-lg px-3 py-2 text-[13px] font-mono text-text-primary outline-none focus:border-accent"
+                  placeholder={currentAuth.clientSecretInKeychain ? 'Enter a replacement secret' : 'Client Secret'}
+                  value={secretDrafts.clientSecret ?? (currentAuth.clientSecretInKeychain ? '' : currentAuth.clientSecret || '')}
+                  onChange={(e) => updateDraft('clientSecret', e.target.value)}
+                  spellCheck={false}
+                />
+                {renderSecretActions('clientSecret', !!currentAuth.clientSecretInKeychain)}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-text-primary mb-1.5 block">
+                  Scope <span className="text-text-muted font-normal">(optional)</span>
+                </label>
+                <input 
+                  type="text"
+                  className="w-full bg-surface-bg border border-border-strong rounded-lg px-3 py-2 text-[13px] font-mono text-text-primary outline-none focus:border-accent"
+                  placeholder="e.g. read:users write:orders"
+                  value={currentAuth.scope || ''}
+                  onChange={(e) => updateAuth({ scope: e.target.value })}
+                  spellCheck={false}
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-between border-t border-border-subtle mt-6">
+                <div className="text-xs text-text-muted">
+                  {isCached ? (
+                    <span className="text-emerald-500 font-medium flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                      Access token cached in memory
+                    </span>
+                  ) : (
+                    <span>Pigeon fetches and caches the access token automatically on send.</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isCached && (
+                    <button
+                      type="button"
+                      onClick={handleClearCachedToken}
+                      className="px-2.5 py-1 text-xs text-text-muted hover:text-text-primary border border-border-subtle rounded hover:bg-surface-subtle transition-colors"
+                    >
+                      Clear Token
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={fetchingToken || !currentAuth.tokenUrl || !currentAuth.clientId}
+                    onClick={() => void handleFetchTokenNow()}
+                    className="px-3 py-1.5 bg-accent text-white rounded text-xs font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                  >
+                    {fetchingToken ? 'Fetching Token...' : 'Fetch Token Now'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

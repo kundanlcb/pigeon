@@ -8,6 +8,7 @@ import { removeDisabledQueryParams, setQueryParams } from '../utils/url';
 import { getEnabledRequestHeaders } from '../utils/request';
 import { fetch } from '@tauri-apps/plugin-http';
 import { getSecret } from '../utils/secrets';
+import { invalidateOAuthToken, resolveOAuth2ClientCredentials, type OAuthResolutionResult } from '../utils/oauth';
 
 export function RunnerView() {
   const runnerState = useStore(state => state.runnerState);
@@ -81,6 +82,12 @@ export function RunnerView() {
       finalHeaders.Authorization = authorization;
     }
     
+    const appSettings = useStore.getState().appSettings;
+    const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+
+    let usedCachedOAuth = false;
+    let oauthResolution: OAuthResolutionResult | null = null;
+    
     if (req.auth) {
       if (req.auth.type === 'bearer' && req.auth.bearerToken) {
         finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(req.auth.bearerToken, activeEnvironment)}`;
@@ -97,30 +104,56 @@ export function RunnerView() {
         } else {
           finalHeaders[key] = val;
         }
+      } else if (req.auth.type === 'oauth2_client_credentials') {
+        oauthResolution = await resolveOAuth2ClientCredentials({
+          auth: req.auth,
+          activeEnvironment,
+          fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
+          dangerOptions,
+          timeout: appSettings?.requestTimeout
+        });
+        finalHeaders['Authorization'] = `Bearer ${oauthResolution.accessToken}`;
+        usedCachedOAuth = oauthResolution.fromCache;
       }
     }
+    context.request.headers = { ...context.request.headers, ...finalHeaders };
 
     const reqBodyToUse = context.request.body;
 
-    const appSettings = useStore.getState().appSettings;
-    const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+    const doExecute = async () => {
+      if ('__TAURI_INTERNALS__' in window) {
+        return await fetch(finalUrl, {
+          method: context.request.method,
+          headers: context.request.headers,
+          body: reqBodyToUse,
+          connectTimeout: appSettings?.requestTimeout,
+          maxRedirections: appSettings?.maxRedirects,
+          ...(dangerOptions ? { danger: dangerOptions } : {})
+        });
+      } else {
+        return await window.fetch(finalUrl, {
+          method: context.request.method,
+          headers: context.request.headers,
+          body: reqBodyToUse
+        });
+      }
+    };
 
-    let res;
-    if ('__TAURI_INTERNALS__' in window) {
-      res = await fetch(finalUrl, {
-        method: context.request.method,
-        headers: context.request.headers,
-        body: reqBodyToUse,
-        connectTimeout: appSettings?.requestTimeout,
-        maxRedirections: appSettings?.maxRedirects,
-        ...(dangerOptions ? { danger: dangerOptions } : {})
+    let res = await doExecute();
+
+    if (res.status === 401 && usedCachedOAuth && oauthResolution && req.auth) {
+      invalidateOAuthToken(oauthResolution.cacheKey);
+      const freshResolution = await resolveOAuth2ClientCredentials({
+        auth: req.auth,
+        activeEnvironment,
+        fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
+        dangerOptions,
+        timeout: appSettings?.requestTimeout,
+        forceFresh: true
       });
-    } else {
-      res = await window.fetch(finalUrl, {
-        method: context.request.method,
-        headers: context.request.headers,
-        body: reqBodyToUse
-      });
+      context.request.headers['Authorization'] = `Bearer ${freshResolution.accessToken}`;
+      finalHeaders['Authorization'] = `Bearer ${freshResolution.accessToken}`;
+      res = await doExecute();
     }
 
     const text = await res.text();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Panel } from 'react-resizable-panels';
-import { ChevronRight, Edit2, MoreVertical, Play, Plus, Trash2, Workflow } from 'lucide-react';
+import { Edit2, MoreVertical, Play, Plus, Trash2, Workflow } from 'lucide-react';
 import { useStore } from '../store';
 
 export function FlowsPanel() {
@@ -32,23 +32,23 @@ export function FlowsPanel() {
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10">
-      <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0">
-        <span className="text-xs font-semibold tracking-wider text-text-secondary uppercase">Flows</span>
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none">
+      <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
+        <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Flows</span>
         <button
           onClick={() => { setIsAddingFlow(true); setNewFlowName(''); }}
           title="Add Flow"
-          className="p-1 rounded text-text-muted hover:text-text-primary transition-colors"
+          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
         >
-          <Plus size={16} />
+          <Plus size={14} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto py-1">
         {isAddingFlow && (
-          <div className="px-4 mb-2">
+          <div className="px-2 py-1">
             <input
               autoFocus
-              className="w-full bg-surface-hover border border-border-strong rounded px-2 py-1 text-sm text-text-primary outline-none focus:border-accent"
+              className="w-full bg-[#1e1e1e] border border-accent rounded-none px-2 py-0 text-xs h-[22px] text-text-primary outline-none"
               placeholder="Flow name..."
               value={newFlowName}
               onChange={e => setNewFlowName(e.target.value)}
@@ -66,13 +66,12 @@ export function FlowsPanel() {
         {flows.map(flow => {
           const isActive = flow.id === activeFlowId;
           return (
-            <div key={flow.id} className="px-2">
+            <div key={flow.id} className="w-full">
               <div
                 onClick={() => setActiveFlow(flow.id)}
-                className="flex items-center px-2 py-1.5 cursor-pointer text-text-secondary hover:text-text-primary transition-colors group relative"
+                className="w-full flex items-center h-[24px] px-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative select-none"
               >
-                <ChevronRight size={14} className="mr-1.5 opacity-0 flex-shrink-0" />
-                <Workflow size={14} className="mr-2 text-text-muted flex-shrink-0" />
+                <Workflow size={13} className="mr-2 text-zinc-400 group-hover:text-zinc-200 flex-shrink-0" />
 
                 {confirmDeleteFlowId === flow.id ? (
                   <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>
@@ -111,7 +110,7 @@ export function FlowsPanel() {
                     onClick={e => e.stopPropagation()}
                   />
                 ) : (
-                  <span className={`text-[13px] select-none truncate flex-1 ${isActive ? 'text-text-primary font-medium' : ''}`}>
+                  <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] select-none truncate flex-1 ${isActive ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
                     {flow.name}
                   </span>
                 )}

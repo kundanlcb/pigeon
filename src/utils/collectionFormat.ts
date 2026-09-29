@@ -117,7 +117,8 @@ export function serializeRequest(request: RequestItem): string {
     const secretFields = [
       ['bearerToken', 'bearerTokenInKeychain', 'bearerTokenKeychainRef'],
       ['basicPassword', 'basicPasswordInKeychain', 'basicPasswordKeychainRef'],
-      ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef']
+      ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef'],
+      ['clientSecret', 'clientSecretInKeychain', 'clientSecretKeychainRef']
     ] as const;
     for (const [valueField, markerField, referenceField] of secretFields) {
       const rawValue = auth[valueField];
@@ -141,7 +142,8 @@ export function serializePortableCollection(collection: Collection): string {
       const secretFields = [
         ['bearerToken', 'bearerTokenInKeychain', 'bearerTokenKeychainRef'],
         ['basicPassword', 'basicPasswordInKeychain', 'basicPasswordKeychainRef'],
-        ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef']
+        ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef'],
+        ['clientSecret', 'clientSecretInKeychain', 'clientSecretKeychainRef']
       ] as const;
       for (const [valueField, markerField, referenceField] of secretFields) {
         const value = auth[valueField];
@@ -202,7 +204,8 @@ export function parseRequest(text: string): RequestItem {
     const secretFields = [
       ['bearerToken', 'bearerTokenInKeychain', 'bearerTokenKeychainRef'],
       ['basicPassword', 'basicPasswordInKeychain', 'basicPasswordKeychainRef'],
-      ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef']
+      ['apiKeyValue', 'apiKeyValueInKeychain', 'apiKeyValueKeychainRef'],
+      ['clientSecret', 'clientSecretInKeychain', 'clientSecretKeychainRef']
     ] as const;
     for (const [valueField, markerField, referenceField] of secretFields) {
       const rawValue = value.auth[valueField];

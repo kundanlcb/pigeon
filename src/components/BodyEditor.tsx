@@ -6,9 +6,18 @@ import { ChevronDown } from 'lucide-react';
 interface BodyEditorProps {
   body?: RequestBody | string;
   onChange: (body: RequestBody) => void;
+  isBulk?: boolean;
+  keyColumnWidth?: number;
+  onKeyColumnWidthChange?: (width: number) => void;
 }
 
-export function BodyEditor({ body, onChange }: BodyEditorProps) {
+export function BodyEditor({
+  body,
+  onChange,
+  isBulk = false,
+  keyColumnWidth,
+  onKeyColumnWidthChange
+}: BodyEditorProps) {
   const normalizedBody: RequestBody = typeof body === 'string' 
     ? { type: 'raw', raw: body, rawLanguage: 'json' }
     : body || { type: 'none' };
@@ -80,6 +89,9 @@ export function BodyEditor({ body, onChange }: BodyEditorProps) {
             <KeyValPairEditor 
               items={normalizedBody.formData || []}
               onChange={(formData) => onChange({ ...normalizedBody, formData })}
+              isBulk={isBulk}
+              keyColumnWidth={keyColumnWidth}
+              onKeyColumnWidthChange={onKeyColumnWidthChange}
             />
           </div>
         )}
@@ -89,6 +101,9 @@ export function BodyEditor({ body, onChange }: BodyEditorProps) {
             <KeyValPairEditor 
               items={normalizedBody.urlencoded || []}
               onChange={(urlencoded) => onChange({ ...normalizedBody, urlencoded })}
+              isBulk={isBulk}
+              keyColumnWidth={keyColumnWidth}
+              onKeyColumnWidthChange={onKeyColumnWidthChange}
             />
           </div>
         )}

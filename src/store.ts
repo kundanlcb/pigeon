@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { deleteUnusedRequestSecrets, duplicateEnvironmentWithSecrets } from './utils/authSecrets';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-export type AuthType = 'none' | 'bearer' | 'basic' | 'api_key';
+export type AuthType = 'none' | 'bearer' | 'basic' | 'api_key' | 'oauth2_client_credentials';
 
 export interface Auth {
   type: AuthType;
@@ -19,6 +19,12 @@ export interface Auth {
   apiKeyValueInKeychain?: boolean;
   apiKeyValueKeychainRef?: string;
   apiKeyIn?: 'header' | 'query';
+  tokenUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  clientSecretInKeychain?: boolean;
+  clientSecretKeychainRef?: string;
+  scope?: string;
 }
 
 export interface EnvironmentVariable {
@@ -110,6 +116,9 @@ export interface Flow {
   name: string;
   nodes: FlowNode[];
   edges: FlowEdge[];
+  collectionId?: string;
+  continueOnError?: boolean;
+  parallelExecution?: boolean;
 }
 
 export interface Collection {
@@ -146,6 +155,9 @@ interface AppState {
   toggleCollection: (id: string) => void;
   setActiveRequest: (id: string) => void;
   closeRequest: (id: string) => void;
+  closeOtherRequests: (id: string) => void;
+  closeAllRequests: () => void;
+  closeRequestsToTheRight: (id: string) => void;
   getActiveRequest: () => RequestItem | undefined;
   updateActiveRequest: (updates: Partial<RequestItem>) => void;
   updateRequest: (id: string, updates: Partial<RequestItem>) => void;
@@ -291,6 +303,30 @@ export const useStore = create<AppState>()(
           } else {
             activeRequestId = null;
           }
+        }
+        return { openRequestIds, activeRequestId };
+      }),
+
+      closeOtherRequests: (id) => set((state) => {
+        const openRequestIds = state.openRequestIds.includes(id) ? [id] : [];
+        return {
+          openRequestIds,
+          activeRequestId: openRequestIds.length > 0 ? id : null
+        };
+      }),
+
+      closeAllRequests: () => set({
+        openRequestIds: [],
+        activeRequestId: null
+      }),
+
+      closeRequestsToTheRight: (id) => set((state) => {
+        const idx = state.openRequestIds.indexOf(id);
+        if (idx === -1) return state;
+        const openRequestIds = state.openRequestIds.slice(0, idx + 1);
+        let activeRequestId = state.activeRequestId;
+        if (!activeRequestId || !openRequestIds.includes(activeRequestId)) {
+          activeRequestId = id;
         }
         return { openRequestIds, activeRequestId };
       }),

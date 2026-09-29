@@ -1,7 +1,24 @@
 import React from 'react';
 import { useSyncExternalStore } from 'react';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { AlertTriangle, CircleAlert, Folder, FolderPlus, Download, Plus, ChevronDown, ChevronRight, MoreVertical, Edit2, Copy, Trash2, Share, GitBranch, LoaderCircle } from 'lucide-react';
+import { 
+  AlertTriangle, 
+  CircleAlert, 
+  FolderPlus, 
+  Download, 
+  Plus, 
+  ChevronDown, 
+  ChevronRight, 
+  MoreVertical, 
+  MoreHorizontal,
+  Edit2, 
+  Copy, 
+  Trash2, 
+  Share, 
+  GitBranch, 
+  LoaderCircle,
+  Play
+} from 'lucide-react';
 import { useStore } from '../store';
 import { downloadAsFile } from '../utils/file';
 import type { Collection } from '../store';
@@ -57,7 +74,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   const [editingEnvId, setEditingEnvId] = React.useState<string | null>(null);
   const [editEnvName, setEditEnvName] = React.useState('');
 
-  const [openTopMenu, setOpenTopMenu] = React.useState<'import' | 'add' | null>(null);
+  const [openTopMenu, setOpenTopMenu] = React.useState<'import' | 'more' | null>(null);
 
   React.useEffect(() => {
     const handleClickOutside = () => {
@@ -161,415 +178,470 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none">
       <Group orientation="vertical">
         <Panel defaultSize={70} minSize={20} className="flex flex-col">
-          <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0">
-        <span className="text-xs font-semibold tracking-wider text-text-secondary uppercase">Collections</span>
-        <div className="flex items-center space-x-2">
-          
-          <div className="relative">
-            <button onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenColMenuId(null); }} title="Import" className="p-1 rounded text-text-muted hover:text-text-primary transition-colors">
-              <Download size={14} />
-            </button>
-            {openTopMenu === 'import' && (
-              <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1">
-                <div onClick={() => { setOpenTopMenu(null); onImportClick('request'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  Import Request
-                </div>
-                <div onClick={() => { setOpenTopMenu(null); onImportClick('collection'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  Import Collection
-                </div>
-                <div onClick={() => { setOpenTopMenu(null); onImportClick('environment'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  Import Environment
-                </div>
-                <div onClick={async () => {
-                  setOpenTopMenu(null);
-                  try {
-                    await openCollectionFolder();
-                  } catch (error) {
-                    useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error');
-                  }
-                }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  Open Collection Folder
-                </div>
+          {/* Header matching request detail section height */}
+          <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
+            <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Explorer</span>
+            <div className="flex items-center space-x-0.5">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsAddingCollection(true); setNewCollectionName(''); setOpenTopMenu(null); }}
+                title="New Collection"
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+              >
+                <Plus size={14} />
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenColMenuId(null); }}
+                  title="Import"
+                  className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+                >
+                  <Download size={14} />
+                </button>
+                {openTopMenu === 'import' && (
+                  <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                    <div onClick={() => { setOpenTopMenu(null); onImportClick('request'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      Import Request
+                    </div>
+                    <div onClick={() => { setOpenTopMenu(null); onImportClick('collection'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      Import Collection
+                    </div>
+                    <div onClick={() => { setOpenTopMenu(null); onImportClick('environment'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      Import Environment
+                    </div>
+                    <div onClick={async () => {
+                      setOpenTopMenu(null);
+                      try {
+                        await openCollectionFolder();
+                      } catch (error) {
+                        useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error');
+                      }
+                    }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      Open Collection Folder
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'more' ? null : 'more'); setOpenColMenuId(null); }}
+                  title="More Actions..."
+                  className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+                {openTopMenu === 'more' && (
+                  <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                    <div onClick={() => { setOpenTopMenu(null); onAddEnvironmentClick(); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      New Environment
+                    </div>
+                    <div onClick={async () => {
+                      setOpenTopMenu(null);
+                      try {
+                        await openCollectionFolder();
+                      } catch (error) {
+                        useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error');
+                      }
+                    }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      Open Collection Folder
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="relative">
-            <button onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'add' ? null : 'add'); setOpenColMenuId(null); }} title="Add" className="p-1 rounded text-text-muted hover:text-text-primary transition-colors">
-              <Plus size={16} />
-            </button>
-            {openTopMenu === 'add' && (
-              <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1">
-                <div onClick={() => { setOpenTopMenu(null); setIsAddingCollection(true); setNewCollectionName(''); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  New Collection
-                </div>
-                <div onClick={() => { setOpenTopMenu(null); onAddEnvironmentClick(); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  New Environment
-                </div>
-              </div>
-            )}
-          </div>
-
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto py-2">
-        {isAddingCollection && (
-          <div className="px-4 mb-2">
-            <input
-              autoFocus
-              className="w-full bg-surface-hover border border-border-strong rounded px-2 py-1 text-sm text-text-primary outline-none focus:border-accent"
-              placeholder="Collection name..."
-              value={newCollectionName}
-              onChange={(e) => setNewCollectionName(e.target.value)}
-              onBlur={() => {
-                if (newCollectionName.trim()) {
-                  addCollection(newCollectionName.trim());
-                }
-                setIsAddingCollection(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  if (newCollectionName.trim()) {
-                    addCollection(newCollectionName.trim());
-                  }
-                  setIsAddingCollection(false);
-                } else if (e.key === 'Escape') {
-                  setIsAddingCollection(false);
-                }
-              }}
-            />
-          </div>
-        )}
-        {collections.map(col => (
-          <div key={col.id} className="px-2">
-            <div 
-              onClick={() => toggleCollection(col.id)}
-              className="flex items-center px-2 py-1.5 cursor-pointer text-text-secondary hover:text-text-primary transition-colors group relative"
-            >
-              {col.isOpen ? (
-                <ChevronDown size={14} className="mr-1.5 opacity-50 group-hover:opacity-100 flex-shrink-0" />
-              ) : (
-                <ChevronRight size={14} className="mr-1.5 opacity-50 group-hover:opacity-100 flex-shrink-0" />
-              )}
-              <Folder size={14} className="mr-2 text-text-muted flex-shrink-0" />
-              
-              {confirmDeleteColId === col.id ? (
-                <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>
-                  <span className="text-xs text-text-secondary flex-1 truncate">Delete?</span>
-                  <button 
-                    onClick={() => { deleteCollection(col.id); setConfirmDeleteColId(null); }}
-                    className="px-2 py-0.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded text-xs transition-colors"
-                  >Yes</button>
-                  <button 
-                    onClick={() => setConfirmDeleteColId(null)}
-                    className="px-2 py-0.5 bg-surface-hover text-text-muted hover:text-text-primary rounded text-xs transition-colors"
-                  >No</button>
-                </div>
-              ) : editingColId === col.id ? (
-                <input 
+          <div className="flex-1 overflow-y-auto py-1">
+            {isAddingCollection && (
+              <div className="px-2 py-1">
+                <input
                   autoFocus
-                  className="flex-1 bg-surface-hover border border-border-strong rounded px-1.5 py-0.5 text-xs text-text-primary outline-none focus:border-accent mr-2"
-                  value={editColName}
-                  onChange={(e) => setEditColName(e.target.value)}
+                  className="w-full bg-[#1e1e1e] border border-accent rounded-none px-2 py-0 text-xs h-[22px] text-text-primary outline-none"
+                  placeholder="Collection name..."
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
                   onBlur={() => {
-                    if (editColName.trim() && editColName.trim() !== col.name) {
-                      renameCollection(col.id, editColName.trim());
+                    if (newCollectionName.trim()) {
+                      addCollection(newCollectionName.trim());
                     }
-                    setEditingColId(null);
+                    setIsAddingCollection(false);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      if (editColName.trim() && editColName.trim() !== col.name) {
-                        renameCollection(col.id, editColName.trim());
+                      if (newCollectionName.trim()) {
+                        addCollection(newCollectionName.trim());
                       }
-                      setEditingColId(null);
+                      setIsAddingCollection(false);
                     } else if (e.key === 'Escape') {
-                      setEditingColId(null);
+                      setIsAddingCollection(false);
                     }
                   }}
-                  onClick={(e) => e.stopPropagation()}
                 />
-              ) : (
-                <span className="text-[13px] select-none truncate flex-1">{col.name}</span>
-              )}
+              </div>
+            )}
 
-              {col.storageMode === 'folder' && (
-                <span
-                  className="ml-1 text-text-muted flex-shrink-0"
-                  title={storageStatuses[col.id]?.message || (storageStatuses[col.id]?.state === 'saving' ? 'Saving collection files' : 'Folder-backed collection')}
+            {collections.map(col => (
+              <div key={col.id} className="w-full">
+                <div 
+                  onClick={() => toggleCollection(col.id)}
+                  className="w-full flex items-center h-[24px] px-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative select-none"
                 >
-                  {storageStatuses[col.id]?.state === 'saving' || storageStatuses[col.id]?.state === 'loading'
-                    ? <LoaderCircle size={13} className="animate-spin" />
-                    : storageStatuses[col.id]?.state === 'error' || storageStatuses[col.id]?.state === 'conflict'
-                      ? <CircleAlert size={13} className="text-red-500" />
-                      : <GitBranch size={13} />}
-                </span>
-              )}
-
-              {confirmDeleteColId !== col.id && editingColId !== col.id && (
-                <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenColMenuId(openColMenuId === col.id ? null : col.id);
-                    }}
-                    className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-hover"
-                  >
-                    <MoreVertical size={14} />
-                  </button>
+                  <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-200">
+                    {col.isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  </span>
                   
-                  {openColMenuId === col.id && (
-                    <div className="absolute top-full right-0 mt-1 w-36 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1">
-                      <div onClick={(e) => handleColAction(e, 'run-collection', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        <span className="mr-2 opacity-70 flex items-center justify-center w-3 h-3"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> Run
-                      </div>
-                      <div className="h-px bg-border-subtle my-1"></div>
-                      <div onClick={(e) => void handleStorageMode(e, col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        {col.storageMode === 'folder' ? <Folder size={12} className="mr-2 opacity-70" /> : <GitBranch size={12} className="mr-2 opacity-70" />}
-                        {col.storageMode === 'folder' ? 'Use Local Storage' : 'Use Git Folder'}
-                      </div>
-                      <div onClick={(e) => handleColAction(e, 'add-request', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        <Plus size={12} className="mr-2 opacity-70" /> Add Request
-                      </div>
-                      <div onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenColMenuId(null);
-                        setNewRootFolderCollectionId(col.id);
-                        setNewRootFolderName('');
-                        if (!col.isOpen) toggleCollection(col.id);
-                      }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        <FolderPlus size={12} className="mr-2 opacity-70" /> Add Folder
-                      </div>
-                      <div onClick={(e) => handleColAction(e, 'import-curl', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        <Download size={12} className="mr-2 opacity-70" /> Import Request
-                      </div>
-                      <div onClick={(e) => handleColAction(e, 'rename', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        <Edit2 size={12} className="mr-2 opacity-70" /> Rename
-                      </div>
-                      <div onClick={(e) => handleColAction(e, 'export', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                        <Share size={12} className="mr-2 opacity-70" /> Export
-                      </div>
-                      <div className="h-px bg-border-subtle my-1"></div>
-                      <div onClick={(e) => handleColAction(e, 'delete', col)} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
-                        <Trash2 size={12} className="mr-2 opacity-70" /> Delete
-                      </div>
+                  {confirmDeleteColId === col.id ? (
+                    <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>
+                      <span className="text-xs text-text-secondary flex-1 truncate">Delete?</span>
+                      <button 
+                        onClick={() => { deleteCollection(col.id); setConfirmDeleteColId(null); }}
+                        className="text-xs text-red-500 hover:underline"
+                      >Yes</button>
+                      <button 
+                        onClick={() => setConfirmDeleteColId(null)}
+                        className="text-xs text-text-muted hover:text-text-primary"
+                      >No</button>
+                    </div>
+                  ) : editingColId === col.id ? (
+                    <input 
+                      autoFocus
+                      className="flex-1 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none mr-2"
+                      value={editColName}
+                      onChange={(e) => setEditColName(e.target.value)}
+                      onBlur={() => {
+                        if (editColName.trim() && editColName.trim() !== col.name) {
+                          renameCollection(col.id, editColName.trim());
+                        }
+                        setEditingColId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          if (editColName.trim() && editColName.trim() !== col.name) {
+                            renameCollection(col.id, editColName.trim());
+                          }
+                          setEditingColId(null);
+                        } else if (e.key === 'Escape') {
+                          setEditingColId(null);
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="text-[12.5px] font-semibold tracking-[-0.01em] select-none truncate flex-1 text-zinc-300 group-hover:text-white">
+                      {col.name}
+                    </span>
+                  )}
+
+                  {col.storageMode === 'folder' && (
+                    <span
+                      className="ml-1 text-text-muted flex-shrink-0"
+                      title={storageStatuses[col.id]?.message || (storageStatuses[col.id]?.state === 'saving' ? 'Saving collection files' : 'Folder-backed collection')}
+                    >
+                      {storageStatuses[col.id]?.state === 'saving' || storageStatuses[col.id]?.state === 'loading'
+                        ? <LoaderCircle size={12} className="animate-spin" />
+                        : storageStatuses[col.id]?.state === 'error' || storageStatuses[col.id]?.state === 'conflict'
+                          ? <CircleAlert size={12} className="text-red-500" />
+                          : <GitBranch size={12} />}
+                    </span>
+                  )}
+
+                  {confirmDeleteColId !== col.id && editingColId !== col.id && (
+                    <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1 flex items-center">
+                      <button 
+                        onClick={(e) => handleColAction(e, 'run-collection', col)}
+                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+                        title="Run Collection"
+                      >
+                        <Play size={12} />
+                      </button>
+                      <button 
+                        onClick={(e) => handleColAction(e, 'add-request', col)}
+                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+                        title="Add Request"
+                      >
+                        <Plus size={13} />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenColMenuId(null);
+                          setNewRootFolderCollectionId(col.id);
+                          setNewRootFolderName('');
+                          if (!col.isOpen) toggleCollection(col.id);
+                        }}
+                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+                        title="Add Folder"
+                      >
+                        <FolderPlus size={13} />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenColMenuId(openColMenuId === col.id ? null : col.id);
+                        }}
+                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+                        title="More Actions"
+                      >
+                        <MoreVertical size={13} />
+                      </button>
+                      
+                      {openColMenuId === col.id && (
+                        <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                          <div onClick={(e) => handleColAction(e, 'run-collection', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <Play size={12} className="mr-2 opacity-70" /> Run
+                          </div>
+                          <div className="h-px bg-border-subtle my-1"></div>
+                          <div onClick={(e) => void handleStorageMode(e, col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <GitBranch size={12} className="mr-2 opacity-70" />
+                            {col.storageMode === 'folder' ? 'Use Local Storage' : 'Use Git Folder'}
+                          </div>
+                          <div onClick={(e) => handleColAction(e, 'add-request', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <Plus size={12} className="mr-2 opacity-70" /> Add Request
+                          </div>
+                          <div onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenColMenuId(null);
+                            setNewRootFolderCollectionId(col.id);
+                            setNewRootFolderName('');
+                            if (!col.isOpen) toggleCollection(col.id);
+                          }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <FolderPlus size={12} className="mr-2 opacity-70" /> Add Folder
+                          </div>
+                          <div onClick={(e) => handleColAction(e, 'import-curl', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <Download size={12} className="mr-2 opacity-70" /> Import Request
+                          </div>
+                          <div onClick={(e) => handleColAction(e, 'rename', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <Edit2 size={12} className="mr-2 opacity-70" /> Rename
+                          </div>
+                          <div onClick={(e) => handleColAction(e, 'export', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <Share size={12} className="mr-2 opacity-70" /> Export
+                          </div>
+                          <div className="h-px bg-border-subtle my-1"></div>
+                          <div onClick={(e) => handleColAction(e, 'delete', col)} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
+                            <Trash2 size={12} className="mr-2 opacity-70" /> Delete
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-            
-            {col.isOpen && (
-              <div className="ml-6 mt-1 space-y-1">
-                {newRootFolderCollectionId === col.id && (
-                  <div className="px-2 py-1" onClick={event => event.stopPropagation()}>
-                    <input
-                      autoFocus
-                      value={newRootFolderName}
-                      onChange={event => setNewRootFolderName(event.target.value)}
-                      onBlur={() => saveRootFolder(col.id)}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          event.currentTarget.blur();
-                        } else if (event.key === 'Escape') {
-                          setNewRootFolderCollectionId(null);
-                          setNewRootFolderName('');
-                        }
-                      }}
-                      placeholder="Folder name"
-                      className="w-full bg-surface-hover border border-border-strong rounded px-2 py-1 text-xs text-text-primary outline-none focus:border-accent"
-                    />
+                
+                {col.isOpen && (
+                  <div className="w-full space-y-0">
+                    {newRootFolderCollectionId === col.id && (
+                      <div className="w-full flex items-center h-[24px] pr-2 pl-[30px]" onClick={event => event.stopPropagation()}>
+                        <input
+                          autoFocus
+                          value={newRootFolderName}
+                          onChange={event => setNewRootFolderName(event.target.value)}
+                          onBlur={() => saveRootFolder(col.id)}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              event.currentTarget.blur();
+                            } else if (event.key === 'Escape') {
+                              setNewRootFolderCollectionId(null);
+                              setNewRootFolderName('');
+                            }
+                          }}
+                          placeholder="Folder name"
+                          className="w-full bg-[#1e1e1e] border border-accent rounded-none px-1.5 py-0 text-xs h-[20px] text-text-primary outline-none"
+                        />
+                      </div>
+                    )}
+                    <CollectionTree collection={col} onExportRequest={request => onExportClick?.('request', request)} />
+                    {storageStatuses[col.id]?.errors.map(fileError => (
+                      <div key={`${fileError.path}:${fileError.message}`} className="mx-4 my-1 flex items-center gap-1.5 text-[11px] text-red-500" title={fileError.message}>
+                        <AlertTriangle size={12} className="flex-shrink-0" />
+                        <span className="truncate">{fileError.path}: {fileError.message}</span>
+                      </div>
+                    ))}
+                    {storageStatuses[col.id]?.conflicts.map(conflict => (
+                      <div key={conflict.path} className="mx-4 my-1 flex flex-wrap items-center gap-2 border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 rounded text-[11px]">
+                        <span className="flex-1 min-w-[130px] text-text-secondary truncate">{conflict.path} changed on disk and in Pigeon</span>
+                        <button onClick={() => void handleResolveConflict(col.id, conflict.path, 'reload')} className="text-text-primary hover:text-accent">Reload from disk</button>
+                        <button onClick={() => void handleResolveConflict(col.id, conflict.path, 'keep')} className="text-text-primary hover:text-accent">Keep my edits</button>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <CollectionTree collection={col} onExportRequest={request => onExportClick?.('request', request)} />
-                {storageStatuses[col.id]?.errors.map(fileError => (
-                  <div key={`${fileError.path}:${fileError.message}`} className="mx-2 flex items-center gap-1.5 text-[11px] text-red-500" title={fileError.message}>
-                    <AlertTriangle size={12} className="flex-shrink-0" />
-                    <span className="truncate">{fileError.path}: {fileError.message}</span>
-                  </div>
-                ))}
-                {storageStatuses[col.id]?.conflicts.map(conflict => (
-                  <div key={conflict.path} className="mx-2 flex flex-wrap items-center gap-2 border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 rounded text-[11px]">
-                    <span className="flex-1 min-w-[130px] text-text-secondary truncate">{conflict.path} changed on disk and in Pigeon</span>
-                    <button onClick={() => void handleResolveConflict(col.id, conflict.path, 'reload')} className="text-text-primary hover:text-accent">Reload from disk</button>
-                    <button onClick={() => void handleResolveConflict(col.id, conflict.path, 'keep')} className="text-text-primary hover:text-accent">Keep my edits</button>
-                  </div>
-                ))}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
-      </Panel>
+        </Panel>
 
-      <Separator className="flex items-center justify-center h-[1px] bg-border-subtle hover:bg-accent cursor-row-resize transition-colors shrink-0 group relative z-50">
-        <div className="absolute w-full h-4 -top-1.5 bg-transparent" />
-        <div className="w-8 h-[2px] bg-text-muted/40 rounded-full group-hover:bg-white/50 transition-colors" />
-      </Separator>
+        <Separator className="flex items-center justify-center h-[1px] bg-border-subtle hover:bg-accent cursor-row-resize transition-colors shrink-0 group relative z-50">
+          <div className="absolute w-full h-4 -top-1.5 bg-transparent" />
+          <div className="w-8 h-[2px] bg-text-muted/40 rounded-full group-hover:bg-white/50 transition-colors" />
+        </Separator>
 
-      <Panel 
-        defaultSize={isEnvCollapsed ? 0 : 30} 
-        minSize={15}
-        className={`flex flex-col bg-panel-bg ${isEnvCollapsed ? 'min-h-[44px]' : ''}`}
-      >
-        <div 
-          onClick={toggleEnvPanel}
-          className="h-[44px] px-4 flex items-center justify-between border-b border-transparent shrink-0 cursor-pointer hover:bg-surface-hover/30 transition-colors"
+        <Panel 
+          defaultSize={isEnvCollapsed ? 0 : 30} 
+          minSize={15}
+          className={`flex flex-col bg-panel-bg ${isEnvCollapsed ? 'min-h-[24px]' : ''}`}
         >
-          <div className="flex items-center">
-            {isEnvCollapsed ? (
-              <ChevronRight size={14} className="mr-1.5 opacity-50" />
-            ) : (
-              <ChevronDown size={14} className="mr-1.5 opacity-50" />
-            )}
-            <span className="text-xs font-semibold tracking-wider text-text-secondary uppercase">Environments</span>
-          </div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              const newEnvName = `Environment ${environments.length + 1}`;
-              useStore.getState().addEnvironment(newEnvName);
-              setIsEnvCollapsed(false);
-            }}
-            title="Add Environment" 
-            className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+          <div 
+            onClick={toggleEnvPanel}
+            className="h-[24px] px-2 flex items-center justify-between border-t border-border-subtle shrink-0 cursor-pointer hover:bg-[#2a2d2e] transition-colors select-none"
           >
-            <Plus size={14} />
-          </button>
-        </div>
-        
-        {!isEnvCollapsed && (
-          <div className="overflow-y-auto pb-[140px]">
-            {environments.map(env => {
-              const isActive = env.id === activeEnvironmentId;
-              return (
-                <div key={env.id} className="px-2">
-                  <div 
-                    onClick={() => openEnvironmentTab(env.id)}
-                    className="flex items-center px-2 py-1 cursor-pointer text-sm group transition-colors"
-                  >
-                    <Folder size={14} className="mr-2 text-text-muted flex-shrink-0" />
-                    
-                    {editingEnvId === env.id ? (
-                      <input
-                        autoFocus
-                        value={editEnvName}
-                        onChange={(e) => setEditEnvName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.stopPropagation();
+            <div className="flex items-center">
+              <span className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-zinc-400">
+                {isEnvCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+              </span>
+              <span className="text-[11px] font-bold tracking-wider text-text-secondary uppercase">Environments</span>
+            </div>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                const newEnvName = `Environment ${environments.length + 1}`;
+                useStore.getState().addEnvironment(newEnvName);
+                setIsEnvCollapsed(false);
+              }}
+              title="Add Environment" 
+              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+          
+          {!isEnvCollapsed && (
+            <div className="overflow-y-auto pb-4">
+              {environments.map(env => {
+                const isActive = env.id === activeEnvironmentId;
+                return (
+                  <div key={env.id} className="w-full">
+                    <div 
+                      onClick={() => openEnvironmentTab(env.id)}
+                      className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] group transition-colors relative select-none"
+                    >
+                      <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
+                        {isActive ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                        )}
+                      </span>
+                      
+                      {editingEnvId === env.id ? (
+                        <input
+                          autoFocus
+                          value={editEnvName}
+                          onChange={(e) => setEditEnvName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.stopPropagation();
+                              if (editEnvName.trim()) {
+                                useStore.getState().updateEnvironment(env.id, { name: editEnvName.trim() });
+                              }
+                              setEditingEnvId(null);
+                            } else if (e.key === 'Escape') {
+                              e.stopPropagation();
+                              setEditingEnvId(null);
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onBlur={() => {
                             if (editEnvName.trim()) {
                               useStore.getState().updateEnvironment(env.id, { name: editEnvName.trim() });
                             }
                             setEditingEnvId(null);
-                          } else if (e.key === 'Escape') {
-                            e.stopPropagation();
-                            setEditingEnvId(null);
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onBlur={() => {
-                          if (editEnvName.trim()) {
-                            useStore.getState().updateEnvironment(env.id, { name: editEnvName.trim() });
-                          }
-                          setEditingEnvId(null);
-                        }}
-                        className="flex-1 bg-surface-bg border border-accent rounded px-1 text-[13px] text-text-primary outline-none"
-                      />
-                    ) : (
-                      <span className={`text-[13px] flex-1 truncate select-none ${activeRequestId === env.id ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
-                        {env.name}
-                      </span>
-                    )}
-
-                    {isActive && !editingEnvId && (
-                      <span className="text-[10px] uppercase bg-accent/20 text-accent px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
-                        Active
-                      </span>
-                    )}
-                    
-                    <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1">
-                      {confirmDeleteEnvId === env.id ? (
-                        <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
-                          <button 
-                            onClick={() => void handleDeleteEnvironment(env.id)}
-                            className="px-2 py-0.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded text-xs transition-colors"
-                          >Yes</button>
-                          <button 
-                            onClick={() => setConfirmDeleteEnvId(null)}
-                            className="px-2 py-0.5 bg-surface-hover text-text-muted hover:text-text-primary rounded text-xs transition-colors"
-                          >No</button>
-                        </div>
+                          }}
+                          className="flex-1 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
+                        />
                       ) : (
-                        <>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenEnvMenuId(openEnvMenuId === env.id ? null : env.id);
-                              setOpenColMenuId(null);
-                            }}
-                            className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-hover"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-                          
-                          {openEnvMenuId === env.id && (
-                            <div className="absolute top-full right-0 mt-1 w-36 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1">
-                              <div onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenEnvMenuId(null);
-                                setEditingEnvId(env.id);
-                                setEditEnvName(env.name);
-                              }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                                <Edit2 size={12} className="mr-2 opacity-70" /> Rename
-                              </div>
-                              <div onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenEnvMenuId(null);
-                                useStore.getState().duplicateEnvironment(env.id);
-                              }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                                <Copy size={12} className="mr-2 opacity-70" /> Duplicate
-                              </div>
-                              <div className="h-px bg-border-subtle my-1"></div>
-                              <div onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenEnvMenuId(null);
-                                const filename = `${env.name.toLowerCase().replace(/\\s+/g, '_')}_env.json`;
-                                downloadAsFile(filename, serializePortableEnvironment(env));
-                                useStore.getState().showToast(`Exported ${filename}. Secret values are not included.`, 'success');
-                              }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                                <Share size={12} className="mr-2 opacity-70" /> Export
-                              </div>
-                              <div className="h-px bg-border-subtle my-1"></div>
-                              <div onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenEnvMenuId(null);
-                                setConfirmDeleteEnvId(env.id);
-                              }} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
-                                <Trash2 size={12} className="mr-2 opacity-70" /> Delete
-                              </div>
-                            </div>
-                          )}
-                        </>
+                        <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${activeRequestId === env.id ? 'text-white font-medium' : 'text-[#cccccc] group-hover:text-white'}`}>
+                          {env.name}
+                        </span>
                       )}
+
+                      {isActive && !editingEnvId && (
+                        <span className="text-[9.5px] uppercase font-mono text-emerald-400 mr-1 flex-shrink-0">
+                          active
+                        </span>
+                      )}
+                      
+                      <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1">
+                        {confirmDeleteEnvId === env.id ? (
+                          <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
+                            <button 
+                              onClick={() => void handleDeleteEnvironment(env.id)}
+                              className="text-xs text-red-500 hover:underline"
+                            >Yes</button>
+                            <button 
+                              onClick={() => setConfirmDeleteEnvId(null)}
+                              className="text-xs text-text-muted hover:text-text-primary"
+                            >No</button>
+                          </div>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenEnvMenuId(openEnvMenuId === env.id ? null : env.id);
+                                setOpenColMenuId(null);
+                              }}
+                              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+                            >
+                              <MoreVertical size={13} />
+                            </button>
+                            
+                            {openEnvMenuId === env.id && (
+                              <div className="absolute top-full right-0 mt-1 w-40 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                                <div onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenEnvMenuId(null);
+                                  setEditingEnvId(env.id);
+                                  setEditEnvName(env.name);
+                                }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                                  <Edit2 size={12} className="mr-2 opacity-70" /> Rename
+                                </div>
+                                <div onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenEnvMenuId(null);
+                                  useStore.getState().duplicateEnvironment(env.id);
+                                }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                                  <Copy size={12} className="mr-2 opacity-70" /> Duplicate
+                                </div>
+                                <div className="h-px bg-border-subtle my-1"></div>
+                                <div onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenEnvMenuId(null);
+                                  const filename = `${env.name.toLowerCase().replace(/\s+/g, '_')}_env.json`;
+                                  downloadAsFile(filename, serializePortableEnvironment(env));
+                                  useStore.getState().showToast(`Exported ${filename}. Secret values are not included.`, 'success');
+                                }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                                  <Share size={12} className="mr-2 opacity-70" /> Export
+                                </div>
+                                <div className="h-px bg-border-subtle my-1"></div>
+                                <div onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenEnvMenuId(null);
+                                  setConfirmDeleteEnvId(env.id);
+                                }} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
+                                  <Trash2 size={12} className="mr-2 opacity-70" /> Delete
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
+                );
+              })}
+              
+              {environments.length === 0 && (
+                <div className="px-6 py-2 text-xs text-text-muted italic">
+                  No environments yet
                 </div>
-              );
-            })}
-            
-            {environments.length === 0 && (
-              <div className="px-6 py-2 text-xs text-text-muted italic">
-                No environments yet
-              </div>
-            )}
-          </div>
-        )}
-      </Panel>
+              )}
+            </div>
+          )}
+        </Panel>
       </Group>
     </Panel>
   );

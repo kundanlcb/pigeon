@@ -23,6 +23,7 @@ import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
 import { createSecretReference, getSecret, setSecret } from './utils/secrets';
+import { invalidateOAuthToken, resolveOAuth2ClientCredentials, type OAuthResolutionResult } from './utils/oauth';
 
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { fetch } from '@tauri-apps/plugin-http';
@@ -61,7 +62,7 @@ export default function App() {
       const authVars = new Set<string>();
       for (const col of state.collections) {
         for (const req of col.requests) {
-          const authValues = [req.auth?.bearerToken, req.auth?.basicPassword, req.auth?.apiKeyValue];
+          const authValues = [req.auth?.bearerToken, req.auth?.basicPassword, req.auth?.apiKeyValue, req.auth?.clientSecret];
           for (const [header, value] of Object.entries(req.headers)) {
             if (header.toLowerCase() === 'authorization') authValues.push(value);
           }
@@ -106,7 +107,8 @@ export default function App() {
       const secretFields = [
         { valueKey: 'bearerToken', markerKey: 'bearerTokenInKeychain', refKey: 'bearerTokenKeychainRef' },
         { valueKey: 'basicPassword', markerKey: 'basicPasswordInKeychain', refKey: 'basicPasswordKeychainRef' },
-        { valueKey: 'apiKeyValue', markerKey: 'apiKeyValueInKeychain', refKey: 'apiKeyValueKeychainRef' }
+        { valueKey: 'apiKeyValue', markerKey: 'apiKeyValueInKeychain', refKey: 'apiKeyValueKeychainRef' },
+        { valueKey: 'clientSecret', markerKey: 'clientSecretInKeychain', refKey: 'clientSecretKeychainRef' }
       ] as const;
       let authMigrationFailed = false;
       for (const collection of state.collections) {
@@ -121,7 +123,7 @@ export default function App() {
                 const reference = createSecretReference();
                 await setSecret('request-auth', reference, value);
                 migratedAuth = { ...migratedAuth, [valueKey]: '', [markerKey]: true, [
-                  { bearerToken: 'bearerTokenKeychainRef', basicPassword: 'basicPasswordKeychainRef', apiKeyValue: 'apiKeyValueKeychainRef' }[valueKey]
+                  { bearerToken: 'bearerTokenKeychainRef', basicPassword: 'basicPasswordKeychainRef', apiKeyValue: 'apiKeyValueKeychainRef', clientSecret: 'clientSecretKeychainRef' }[valueKey]
                 ]: reference };
                 authChanged = true;
               } catch (error) {
@@ -320,6 +322,12 @@ export default function App() {
         finalHeaders.Authorization = authorization;
       }
       
+      const appSettings = useStore.getState().appSettings;
+      const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+
+      let usedCachedOAuth = false;
+      let oauthResolution: OAuthResolutionResult | null = null;
+
       if (activeRequest?.auth) {
         if (activeRequest.auth.type === 'bearer' && (activeRequest.auth.bearerToken || activeRequest.auth.bearerTokenInKeychain)) {
           const token = activeRequest.auth.bearerTokenInKeychain
@@ -352,30 +360,58 @@ export default function App() {
           } else {
             finalHeaders[key] = val;
           }
+        } else if (activeRequest.auth.type === 'oauth2_client_credentials') {
+          oauthResolution = await resolveOAuth2ClientCredentials({
+            auth: activeRequest.auth,
+            activeEnvironment,
+            localVars,
+            fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
+            dangerOptions,
+            timeout: appSettings?.requestTimeout
+          });
+          finalHeaders['Authorization'] = `Bearer ${oauthResolution.accessToken}`;
+          usedCachedOAuth = oauthResolution.fromCache;
         }
       }
+      context.request.headers = { ...context.request.headers, ...finalHeaders };
       // the body is already computed into finalBody and context.request.body could have been modified by script
       const reqBodyToUse = context.request.body;
 
-      const appSettings = useStore.getState().appSettings;
-      const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
+      const doSendHttp = async () => {
+        if ('__TAURI_INTERNALS__' in window) {
+          return await fetch(finalUrl, {
+            method: context.request.method,
+            headers: context.request.headers,
+            body: reqBodyToUse,
+            connectTimeout: appSettings?.requestTimeout,
+            maxRedirections: appSettings?.maxRedirects,
+            ...(dangerOptions ? { danger: dangerOptions } : {})
+          });
+        } else {
+          return await window.fetch(finalUrl, {
+            method: context.request.method,
+            headers: context.request.headers,
+            body: reqBodyToUse
+          });
+        }
+      };
 
-      let res;
-      if ('__TAURI_INTERNALS__' in window) {
-        res = await fetch(finalUrl, {
-          method: context.request.method,
-          headers: context.request.headers,
-          body: reqBodyToUse,
-          connectTimeout: appSettings?.requestTimeout,
-          maxRedirections: appSettings?.maxRedirects,
-          ...(dangerOptions ? { danger: dangerOptions } : {})
+      let res = await doSendHttp();
+
+      if (res.status === 401 && usedCachedOAuth && oauthResolution && activeRequest?.auth) {
+        invalidateOAuthToken(oauthResolution.cacheKey);
+        const freshResolution = await resolveOAuth2ClientCredentials({
+          auth: activeRequest.auth,
+          activeEnvironment,
+          localVars,
+          fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
+          dangerOptions,
+          timeout: appSettings?.requestTimeout,
+          forceFresh: true
         });
-      } else {
-        res = await window.fetch(finalUrl, {
-          method: context.request.method,
-          headers: context.request.headers,
-          body: reqBodyToUse
-        });
+        context.request.headers['Authorization'] = `Bearer ${freshResolution.accessToken}`;
+        finalHeaders['Authorization'] = `Bearer ${freshResolution.accessToken}`;
+        res = await doSendHttp();
       }
 
       const endTime = performance.now();

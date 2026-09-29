@@ -1,6 +1,7 @@
 import type { RequestItem, HttpMethod } from '../store';
 import { getEnabledRequestHeaders } from './request';
 import { removeDisabledQueryParams } from './url';
+import { getCachedOAuthToken, getOAuthCacheKey } from './oauth';
 
 export function parseCurl(curlCommand: string): Partial<RequestItem> {
   const result: Partial<RequestItem> = {
@@ -114,6 +115,14 @@ export function exportCurl(req: RequestItem): string {
       cmd += ` \\\n  -H 'Authorization: Basic ${creds}'`;
     } else if (req.auth.type === 'api_key' && req.auth.apiKeyKey && req.auth.apiKeyIn === 'header') {
       cmd += ` \\\n  -H '${req.auth.apiKeyKey}: ${req.auth.apiKeyValue}'`;
+    } else if (req.auth.type === 'oauth2_client_credentials') {
+      if (req.auth.tokenUrl && req.auth.clientId) {
+        const cacheKey = getOAuthCacheKey(req.auth.tokenUrl, req.auth.clientId, req.auth.scope);
+        const token = getCachedOAuthToken(cacheKey);
+        if (token) {
+          cmd += ` \\\n  -H 'Authorization: Bearer ${token}'`;
+        }
+      }
     }
   }
 

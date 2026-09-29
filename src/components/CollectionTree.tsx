@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Copy, Edit2, Folder, FolderPlus, MoreVertical, Plus, Share, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Edit2, FolderPlus, MoreVertical, Plus, Share, Trash2 } from 'lucide-react';
 import type { Collection, CollectionFolder, RequestItem } from '../store';
 import { useStore } from '../store';
-import { getMethodColor } from '../utils/styles';
+import { MethodIcon } from './MethodIcon';
 
 interface CollectionTreeProps {
   collection: Collection;
@@ -43,6 +43,8 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
       ...allFolders(folder.id, depth + 1)
     ]);
 
+  const getPaddingLeft = (depth: number) => 30 + depth * 18;
+
   const saveNewFolder = () => {
     const name = newFolderName.trim();
     if (name) addFolder(collection.id, name, newFolderParentId ?? null);
@@ -50,8 +52,8 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
     setNewFolderName('');
   };
 
-  const renderFolderInput = (parentId: string | null) => newFolderParentId === parentId ? (
-    <div className="px-2 py-1" style={{ paddingLeft: `${12 + (parentId ? 20 : 0)}px` }}>
+  const renderFolderInput = (parentId: string | null, depth: number) => newFolderParentId === parentId ? (
+    <div className="w-full flex items-center h-[24px] pr-2" style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}>
       <input
         autoFocus
         value={newFolderName}
@@ -65,7 +67,7 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
             setNewFolderParentId(undefined);
           }
         }}
-        className="w-full bg-surface-hover border border-border-strong rounded px-2 py-1 text-xs text-text-primary outline-none focus:border-accent"
+        className="w-full bg-[#1e1e1e] border border-accent rounded-none px-1.5 py-0 text-xs h-[20px] text-text-primary outline-none"
         placeholder="Folder name"
       />
     </div>
@@ -74,85 +76,86 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
   const renderRequest = (request: RequestItem, depth: number) => {
     const isActive = request.id === activeRequestId;
     return (
-      <div key={request.id} className="px-2" style={{ paddingLeft: `${8 + depth * 16}px` }}>
-        <div
-          onClick={() => setActiveRequest(request.id)}
-          className="flex items-center px-2 py-1 cursor-pointer text-sm group transition-colors"
-        >
-          <span className={`text-[10px] font-bold w-10 flex-shrink-0 ${getMethodColor(request.method)}`}>
-            {request.method.substring(0, 4)}
+      <div
+        key={request.id}
+        onClick={() => setActiveRequest(request.id)}
+        className="w-full flex items-center h-[24px] cursor-pointer hover:bg-[#2a2d2e] transition-colors group relative pr-2 select-none"
+        style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
+      >
+        <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
+          <MethodIcon method={request.method} size={13} />
+        </span>
+        {confirmDeleteRequestId === request.id ? (
+          <div className="flex items-center gap-2 flex-1" onClick={event => event.stopPropagation()}>
+            <span className="text-xs text-text-secondary flex-1 truncate">Delete?</span>
+            <button onClick={() => { deleteRequest(request.id); setConfirmDeleteRequestId(null); }} className="text-xs text-red-500 hover:underline">Yes</button>
+            <button onClick={() => setConfirmDeleteRequestId(null)} className="text-xs text-text-muted hover:text-text-primary">No</button>
+          </div>
+        ) : editingRequestId === request.id ? (
+          <input
+            autoFocus
+            value={editingRequestName}
+            onChange={event => setEditingRequestName(event.target.value)}
+            onBlur={() => {
+              if (editingRequestName.trim()) renameRequest(request.id, editingRequestName.trim());
+              setEditingRequestId(null);
+            }}
+            onKeyDown={event => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+              if (event.key === 'Escape') setEditingRequestId(null);
+            }}
+            onClick={event => event.stopPropagation()}
+            className="flex-1 min-w-0 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
+          />
+        ) : (
+          <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${isActive ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+            {request.name}
           </span>
-          {confirmDeleteRequestId === request.id ? (
-            <div className="flex items-center gap-2 flex-1" onClick={event => event.stopPropagation()}>
-              <span className="text-xs text-text-secondary flex-1 truncate">Delete request?</span>
-              <button onClick={() => { deleteRequest(request.id); setConfirmDeleteRequestId(null); }} className="text-xs text-red-500">Yes</button>
-              <button onClick={() => setConfirmDeleteRequestId(null)} className="text-xs text-text-muted">No</button>
-            </div>
-          ) : editingRequestId === request.id ? (
-            <input
-              autoFocus
-              value={editingRequestName}
-              onChange={event => setEditingRequestName(event.target.value)}
-              onBlur={() => {
-                if (editingRequestName.trim()) renameRequest(request.id, editingRequestName.trim());
-                setEditingRequestId(null);
+        )}
+        {confirmDeleteRequestId !== request.id && editingRequestId !== request.id && (
+          <div className="relative ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100">
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                setMenuId(menuId === request.id ? null : request.id);
               }}
-              onKeyDown={event => {
-                if (event.key === 'Enter') event.currentTarget.blur();
-                if (event.key === 'Escape') setEditingRequestId(null);
-              }}
-              onClick={event => event.stopPropagation()}
-              className="flex-1 min-w-0 bg-surface-hover border border-border-strong rounded px-1.5 py-0.5 text-xs text-text-primary outline-none"
-            />
-          ) : (
-            <span className={`text-[13px] flex-1 truncate select-none ${isActive ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
-              {request.name}
-            </span>
-          )}
-          {confirmDeleteRequestId !== request.id && editingRequestId !== request.id && (
-            <div className="relative ml-1 flex-shrink-0">
-              <button
-                onClick={event => {
-                  event.stopPropagation();
-                  setMenuId(menuId === request.id ? null : request.id);
-                }}
-                className="p-1 rounded text-text-muted opacity-0 group-hover:opacity-100 hover:text-text-primary hover:bg-surface-hover"
-                title="Request actions"
-              >
-                <MoreVertical size={14} />
-              </button>
-              {menuId === request.id && (
-                <div onClick={event => event.stopPropagation()} className="absolute top-full right-0 mt-1 w-48 bg-panel-bg border border-border-strong rounded-lg shadow-xl z-50 py-1">
-                  <button onClick={() => { setEditingRequestId(request.id); setEditingRequestName(request.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
-                    <Edit2 size={12} className="mr-2" /> Rename
-                  </button>
-                  <button onClick={() => { duplicateRequest(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
-                    <Copy size={12} className="mr-2" /> Duplicate
-                  </button>
-                  <label className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
-                    <span>Move to</span>
-                    <select
-                      value={request.folderId || ''}
-                      onChange={event => { moveRequestToFolder(request.id, event.target.value || null); setMenuId(null); }}
-                      className="min-w-0 flex-1 bg-panel-bg text-text-primary outline-none"
-                    >
-                      <option value="">Collection root</option>
-                      {allFolders().map(({ folder, depth }) => (
-                        <option key={folder.id} value={folder.id}>{`${'  '.repeat(depth)}${folder.name}`}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button onClick={() => { onExportRequest?.(request); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
-                    <Share size={12} className="mr-2" /> Export as cURL
-                  </button>
-                  <button onClick={() => { setConfirmDeleteRequestId(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
-                    <Trash2 size={12} className="mr-2" /> Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+              title="Request actions"
+            >
+              <MoreVertical size={13} />
+            </button>
+            {menuId === request.id && (
+              <div onClick={event => event.stopPropagation()} className="absolute top-full right-0 mt-1 w-48 bg-panel-bg border border-border-strong rounded shadow-2xl z-50 py-1">
+                <button onClick={() => { setEditingRequestId(request.id); setEditingRequestName(request.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
+                  <Edit2 size={12} className="mr-2" /> Rename
+                </button>
+                <button onClick={() => { duplicateRequest(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
+                  <Copy size={12} className="mr-2" /> Duplicate
+                </button>
+                <label className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                  <span>Move to</span>
+                  <select
+                    value={request.folderId || ''}
+                    onChange={event => { moveRequestToFolder(request.id, event.target.value || null); setMenuId(null); }}
+                    className="min-w-0 flex-1 bg-panel-bg text-text-primary outline-none"
+                  >
+                    <option value="">Collection root</option>
+                    {allFolders().map(({ folder, depth: fDepth }) => (
+                      <option key={folder.id} value={folder.id}>{`${'  '.repeat(fDepth)}${folder.name}`}</option>
+                    ))}
+                  </select>
+                </label>
+                <button onClick={() => { onExportRequest?.(request); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
+                  <Share size={12} className="mr-2" /> Export as cURL
+                </button>
+                <div className="h-px bg-border-subtle my-1" />
+                <button onClick={() => { setConfirmDeleteRequestId(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
+                  <Trash2 size={12} className="mr-2" /> Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -162,29 +165,28 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
     const children = sortByOrder(folders.filter(child => child.parentId === folder.id));
     const requests = sortByOrder(collection.requests.filter(request => request.folderId === folder.id));
     return (
-      <div key={folder.id}>
+      <div key={folder.id} className="w-full">
         <div
-          className="flex items-center px-2 py-1.5 cursor-pointer text-text-secondary hover:text-text-primary transition-colors group relative"
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
+          onClick={() => setCollapsedFolders(current => {
+            const next = new Set(current);
+            if (next.has(folder.id)) next.delete(folder.id);
+            else next.add(folder.id);
+            return next;
+          })}
+          className="w-full flex items-center h-[24px] cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative pr-2 select-none"
+          style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
         >
-          <button
-            onClick={() => setCollapsedFolders(current => {
-              const next = new Set(current);
-              if (next.has(folder.id)) next.delete(folder.id);
-              else next.add(folder.id);
-              return next;
-            })}
-            className="mr-1.5 flex-shrink-0 opacity-60 hover:opacity-100"
+          <span
+            className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-200"
             title={isCollapsed ? 'Expand folder' : 'Collapse folder'}
           >
             {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-          </button>
-          <Folder size={13} className="mr-2 text-text-muted flex-shrink-0" />
+          </span>
           {confirmDeleteFolderId === folder.id ? (
             <div className="flex items-center gap-2 flex-1" onClick={event => event.stopPropagation()}>
-              <span className="text-xs text-text-secondary flex-1 truncate">Delete folder and contents?</span>
-              <button onClick={() => { deleteFolder(collection.id, folder.id); setConfirmDeleteFolderId(null); }} className="text-xs text-red-500">Yes</button>
-              <button onClick={() => setConfirmDeleteFolderId(null)} className="text-xs text-text-muted">No</button>
+              <span className="text-xs text-text-secondary flex-1 truncate">Delete folder?</span>
+              <button onClick={() => { deleteFolder(collection.id, folder.id); setConfirmDeleteFolderId(null); }} className="text-xs text-red-500 hover:underline">Yes</button>
+              <button onClick={() => setConfirmDeleteFolderId(null)} className="text-xs text-text-muted hover:text-text-primary">No</button>
             </div>
           ) : editingFolderId === folder.id ? (
             <input
@@ -200,21 +202,57 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
                 if (event.key === 'Escape') setEditingFolderId(null);
               }}
               onClick={event => event.stopPropagation()}
-              className="flex-1 min-w-0 bg-surface-hover border border-border-strong rounded px-1.5 py-0.5 text-xs text-text-primary outline-none"
+              className="flex-1 min-w-0 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
             />
           ) : (
-            <span className="text-[13px] select-none truncate flex-1">{folder.name}</span>
+            <span className="text-[12.5px] leading-[24px] tracking-[-0.01em] select-none truncate flex-1 text-[#cccccc] group-hover:text-white">
+              {folder.name}
+            </span>
           )}
-          <div className="relative ml-1">
+          <div className="relative ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 flex items-center">
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                addRequest(collection.id, { name: 'New Request', method: 'GET', url: '', headers: {}, folderId: folder.id });
+                if (isCollapsed) {
+                  setCollapsedFolders(current => {
+                    const next = new Set(current);
+                    next.delete(folder.id);
+                    return next;
+                  });
+                }
+              }}
+              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+              title="Add Request"
+            >
+              <Plus size={13} />
+            </button>
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                setNewFolderParentId(folder.id);
+                setNewFolderName('');
+                setMenuId(null);
+                setCollapsedFolders(current => {
+                  const next = new Set(current);
+                  next.delete(folder.id);
+                  return next;
+                });
+              }}
+              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+              title="Add Subfolder"
+            >
+              <FolderPlus size={13} />
+            </button>
             <button
               onClick={event => { event.stopPropagation(); setMenuId(menuId === folder.id ? null : folder.id); }}
-              className="p-1 rounded text-text-muted opacity-0 group-hover:opacity-100 hover:text-text-primary hover:bg-surface-hover"
+              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
               title="Folder actions"
             >
-              <MoreVertical size={14} />
+              <MoreVertical size={13} />
             </button>
             {menuId === folder.id && (
-              <div onClick={event => event.stopPropagation()} className="absolute top-full right-0 mt-1 w-40 bg-panel-bg border border-border-strong rounded-lg shadow-xl z-50 py-1">
+              <div onClick={event => event.stopPropagation()} className="absolute top-full right-0 mt-1 w-40 bg-panel-bg border border-border-strong rounded shadow-2xl z-50 py-1">
                 <button onClick={() => { addRequest(collection.id, { name: 'New Request', method: 'GET', url: '', headers: {}, folderId: folder.id }); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Plus size={12} className="mr-2" /> Add Request
                 </button>
@@ -224,6 +262,7 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
                 <button onClick={() => { setEditingFolderId(folder.id); setEditingFolderName(folder.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Edit2 size={12} className="mr-2" /> Rename
                 </button>
+                <div className="h-px bg-border-subtle my-1" />
                 <button onClick={() => { setConfirmDeleteFolderId(folder.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
                   <Trash2 size={12} className="mr-2" /> Delete
                 </button>
@@ -232,8 +271,8 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
           </div>
         </div>
         {!isCollapsed && (
-          <div>
-            {renderFolderInput(folder.id)}
+          <div className="w-full space-y-0">
+            {renderFolderInput(folder.id, depth + 1)}
             {children.map(child => renderFolder(child, depth + 1))}
             {requests.map(request => renderRequest(request, depth + 1))}
           </div>
@@ -246,7 +285,7 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
   const rootRequests = sortByOrder(collection.requests.filter(request => !request.folderId || !folders.some(folder => folder.id === request.folderId)));
 
   return (
-    <div className="ml-6 mt-1 space-y-0.5">
+    <div className="w-full space-y-0">
       {rootFolders.map(folder => renderFolder(folder, 0))}
       {rootRequests.map(request => renderRequest(request, 0))}
     </div>

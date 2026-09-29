@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Copy, Edit2, FolderPlus, MoreVertical, Plus, Share, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Edit2, FolderPlus, MoreVertical, Plus, Share, Trash2, Download } from 'lucide-react';
 import type { Collection, CollectionFolder, RequestItem } from '../store';
 import { useStore } from '../store';
 import { MethodIcon } from './MethodIcon';
@@ -7,13 +7,14 @@ import { MethodIcon } from './MethodIcon';
 interface CollectionTreeProps {
   collection: Collection;
   onExportRequest?: (request: RequestItem) => void;
+  onImportRequest?: (folderId: string) => void;
 }
 
 function sortByOrder<T extends { order?: number; id: string }>(items: T[]): T[] {
   return [...items].sort((left, right) => (left.order ?? 0) - (right.order ?? 0) || left.id.localeCompare(right.id));
 }
 
-export function CollectionTree({ collection, onExportRequest }: CollectionTreeProps) {
+export function CollectionTree({ collection, onExportRequest, onImportRequest }: CollectionTreeProps) {
   const folders = collection.folders || [];
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -85,13 +86,7 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
         <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
           <MethodIcon method={request.method} size={13} />
         </span>
-        {confirmDeleteRequestId === request.id ? (
-          <div className="flex items-center gap-2 flex-1" onClick={event => event.stopPropagation()}>
-            <span className="text-xs text-text-secondary flex-1 truncate">Delete?</span>
-            <button onClick={() => { deleteRequest(request.id); setConfirmDeleteRequestId(null); }} className="text-xs text-red-500 hover:underline">Yes</button>
-            <button onClick={() => setConfirmDeleteRequestId(null)} className="text-xs text-text-muted hover:text-text-primary">No</button>
-          </div>
-        ) : editingRequestId === request.id ? (
+        {editingRequestId === request.id ? (
           <input
             autoFocus
             value={editingRequestName}
@@ -112,7 +107,7 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
             {request.name}
           </span>
         )}
-        {confirmDeleteRequestId !== request.id && editingRequestId !== request.id && (
+        {editingRequestId !== request.id && (
           <div className="relative ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100">
             <button
               onClick={event => {
@@ -132,24 +127,11 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
                 <button onClick={() => { duplicateRequest(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Copy size={12} className="mr-2" /> Duplicate
                 </button>
-                <label className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                  <span>Move to</span>
-                  <select
-                    value={request.folderId || ''}
-                    onChange={event => { moveRequestToFolder(request.id, event.target.value || null); setMenuId(null); }}
-                    className="min-w-0 flex-1 bg-panel-bg text-text-primary outline-none"
-                  >
-                    <option value="">Collection root</option>
-                    {allFolders().map(({ folder, depth: fDepth }) => (
-                      <option key={folder.id} value={folder.id}>{`${'  '.repeat(fDepth)}${folder.name}`}</option>
-                    ))}
-                  </select>
-                </label>
                 <button onClick={() => { onExportRequest?.(request); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
-                  <Share size={12} className="mr-2" /> Export as cURL
+                  <Share size={12} className="mr-2" /> Export Request
                 </button>
                 <div className="h-px bg-border-subtle my-1" />
-                <button onClick={() => { setConfirmDeleteRequestId(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
+                <button onClick={() => { deleteRequest(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
                   <Trash2 size={12} className="mr-2" /> Delete
                 </button>
               </div>
@@ -182,13 +164,7 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
           >
             {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
           </span>
-          {confirmDeleteFolderId === folder.id ? (
-            <div className="flex items-center gap-2 flex-1" onClick={event => event.stopPropagation()}>
-              <span className="text-xs text-text-secondary flex-1 truncate">Delete folder?</span>
-              <button onClick={() => { deleteFolder(collection.id, folder.id); setConfirmDeleteFolderId(null); }} className="text-xs text-red-500 hover:underline">Yes</button>
-              <button onClick={() => setConfirmDeleteFolderId(null)} className="text-xs text-text-muted hover:text-text-primary">No</button>
-            </div>
-          ) : editingFolderId === folder.id ? (
+          {editingFolderId === folder.id ? (
             <input
               autoFocus
               value={editingFolderName}
@@ -262,8 +238,11 @@ export function CollectionTree({ collection, onExportRequest }: CollectionTreePr
                 <button onClick={() => { setEditingFolderId(folder.id); setEditingFolderName(folder.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Edit2 size={12} className="mr-2" /> Rename
                 </button>
+                <button onClick={() => { onImportRequest?.(folder.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
+                  <Download size={12} className="mr-2" /> Import Request
+                </button>
                 <div className="h-px bg-border-subtle my-1" />
-                <button onClick={() => { setConfirmDeleteFolderId(folder.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
+                <button onClick={() => { deleteFolder(collection.id, folder.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
                   <Trash2 size={12} className="mr-2" /> Delete
                 </button>
               </div>

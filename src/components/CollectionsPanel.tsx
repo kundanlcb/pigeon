@@ -1,21 +1,21 @@
 import React from 'react';
 import { useSyncExternalStore } from 'react';
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { 
-  AlertTriangle, 
-  CircleAlert, 
-  FolderPlus, 
-  Download, 
-  Plus, 
-  ChevronDown, 
-  ChevronRight, 
-  MoreVertical, 
+import {
+  AlertTriangle,
+  CircleAlert,
+  FolderPlus,
+  Download,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  MoreVertical,
   MoreHorizontal,
-  Edit2, 
-  Copy, 
-  Trash2, 
-  Share, 
-  GitBranch, 
+  Edit2,
+  Copy,
+  Trash2,
+  Share,
+  GitBranch,
   LoaderCircle,
   Play
 } from 'lucide-react';
@@ -35,7 +35,7 @@ import {
 } from '../utils/collectionStorage';
 
 interface CollectionsPanelProps {
-  onImportClick: (type: 'request' | 'collection' | 'environment', colId?: string) => void;
+  onImportClick: (type: 'request' | 'collection' | 'environment', colId?: string, folderId?: string) => void;
   onAddEnvironmentClick: () => void;
   onExportClick?: (type: 'request' | 'collection', item: any) => void;
 }
@@ -50,14 +50,14 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   const environments = useStore(state => state.environments);
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const openEnvironmentTab = useStore(state => state.openEnvironmentTab);
-  
+
   const activeRequestId = useStore(state => state.activeRequestId);
   const toggleCollection = useStore(state => state.toggleCollection);
   const addCollection = useStore(state => state.addCollection);
   const renameCollection = useStore(state => state.renameCollection);
   const deleteCollection = useStore(state => state.deleteCollection);
   const addCollectionFolder = useStore(state => state.addCollectionFolder);
-  
+
   const [openColMenuId, setOpenColMenuId] = React.useState<string | null>(null);
   const [editingColId, setEditingColId] = React.useState<string | null>(null);
   const [editColName, setEditColName] = React.useState('');
@@ -67,7 +67,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   const [newCollectionName, setNewCollectionName] = React.useState('');
   const [newRootFolderCollectionId, setNewRootFolderCollectionId] = React.useState<string | null>(null);
   const [newRootFolderName, setNewRootFolderName] = React.useState('');
-  
+
   const [isEnvCollapsed, setIsEnvCollapsed] = React.useState(true);
   const [openEnvMenuId, setOpenEnvMenuId] = React.useState<string | null>(null);
   const [confirmDeleteEnvId, setConfirmDeleteEnvId] = React.useState<string | null>(null);
@@ -178,7 +178,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none">
+    <Panel defaultSize={30} minSize={15} className="bg-[#161618] flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <Group orientation="vertical">
         <Panel defaultSize={70} minSize={20} className="flex flex-col">
           {/* Header matching request detail section height */}
@@ -255,7 +255,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-1">
+          <div className="flex-1 overflow-y-auto pt-3 pb-2">
             {isAddingCollection && (
               <div className="px-2 py-1">
                 <input
@@ -286,28 +286,28 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
 
             {collections.map(col => (
               <div key={col.id} className="w-full">
-                <div 
+                <div
                   onClick={() => toggleCollection(col.id)}
                   className="w-full flex items-center h-[24px] px-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative select-none"
                 >
                   <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-200">
                     {col.isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   </span>
-                  
+
                   {confirmDeleteColId === col.id ? (
                     <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>
                       <span className="text-xs text-text-secondary flex-1 truncate">Delete?</span>
-                      <button 
+                      <button
                         onClick={() => { deleteCollection(col.id); setConfirmDeleteColId(null); }}
                         className="text-xs text-red-500 hover:underline"
                       >Yes</button>
-                      <button 
+                      <button
                         onClick={() => setConfirmDeleteColId(null)}
                         className="text-xs text-text-muted hover:text-text-primary"
                       >No</button>
                     </div>
                   ) : editingColId === col.id ? (
-                    <input 
+                    <input
                       autoFocus
                       className="flex-1 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none mr-2"
                       value={editColName}
@@ -351,21 +351,21 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
 
                   {confirmDeleteColId !== col.id && editingColId !== col.id && (
                     <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1 flex items-center">
-                      <button 
+                      <button
                         onClick={(e) => handleColAction(e, 'run-collection', col)}
                         className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
                         title="Run Collection"
                       >
                         <Play size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => handleColAction(e, 'add-request', col)}
                         className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
                         title="Add Request"
                       >
                         <Plus size={13} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenColMenuId(null);
@@ -378,7 +378,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                       >
                         <FolderPlus size={13} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenColMenuId(openColMenuId === col.id ? null : col.id);
@@ -388,7 +388,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                       >
                         <MoreVertical size={13} />
                       </button>
-                      
+
                       {openColMenuId === col.id && (
                         <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
                           <div onClick={(e) => handleColAction(e, 'run-collection', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
@@ -429,7 +429,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                     </div>
                   )}
                 </div>
-                
+
                 {col.isOpen && (
                   <div className="w-full space-y-0">
                     {newRootFolderCollectionId === col.id && (
@@ -453,7 +453,11 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                         />
                       </div>
                     )}
-                    <CollectionTree collection={col} onExportRequest={request => onExportClick?.('request', request)} />
+                    <CollectionTree 
+                      collection={col} 
+                      onExportRequest={request => onExportClick?.('request', request)}
+                      onImportRequest={folderId => onImportClick('request', col.id, folderId)}
+                    />
                     {storageStatuses[col.id]?.errors.map(fileError => (
                       <div key={`${fileError.path}:${fileError.message}`} className="mx-4 my-1 flex items-center gap-1.5 text-[11px] text-red-500" title={fileError.message}>
                         <AlertTriangle size={12} className="flex-shrink-0" />
@@ -479,12 +483,12 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
           <div className="w-8 h-[2px] bg-text-muted/40 rounded-full group-hover:bg-white/50 transition-colors" />
         </Separator>
 
-        <Panel 
-          defaultSize={isEnvCollapsed ? 0 : 30} 
+        <Panel
+          defaultSize={isEnvCollapsed ? 0 : 30}
           minSize={15}
           className={`flex flex-col bg-panel-bg ${isEnvCollapsed ? 'min-h-[24px]' : ''}`}
         >
-          <div 
+          <div
             onClick={toggleEnvPanel}
             className="h-[24px] px-2 flex items-center justify-between border-t border-border-subtle shrink-0 cursor-pointer hover:bg-[#2a2d2e] transition-colors select-none"
           >
@@ -494,27 +498,27 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
               </span>
               <span className="text-[11px] font-bold tracking-wider text-text-secondary uppercase">Environments</span>
             </div>
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 const newEnvName = `Environment ${environments.length + 1}`;
                 useStore.getState().addEnvironment(newEnvName);
                 setIsEnvCollapsed(false);
               }}
-              title="Add Environment" 
+              title="Add Environment"
               className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
             >
               <Plus size={13} />
             </button>
           </div>
-          
+
           {!isEnvCollapsed && (
             <div className="overflow-y-auto pb-4">
               {environments.map(env => {
                 const isActive = env.id === activeEnvironmentId;
                 return (
                   <div key={env.id} className="w-full">
-                    <div 
+                    <div
                       onClick={() => openEnvironmentTab(env.id)}
                       className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] group transition-colors relative select-none"
                     >
@@ -525,7 +529,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
                         )}
                       </span>
-                      
+
                       {editingEnvId === env.id ? (
                         <input
                           autoFocus
@@ -563,22 +567,22 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           active
                         </span>
                       )}
-                      
+
                       <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1">
                         {confirmDeleteEnvId === env.id ? (
                           <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
-                            <button 
+                            <button
                               onClick={() => void handleDeleteEnvironment(env.id)}
                               className="text-xs text-red-500 hover:underline"
                             >Yes</button>
-                            <button 
+                            <button
                               onClick={() => setConfirmDeleteEnvId(null)}
                               className="text-xs text-text-muted hover:text-text-primary"
                             >No</button>
                           </div>
                         ) : (
                           <>
-                            <button 
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenEnvMenuId(openEnvMenuId === env.id ? null : env.id);
@@ -588,7 +592,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                             >
                               <MoreVertical size={13} />
                             </button>
-                            
+
                             {openEnvMenuId === env.id && (
                               <div className="absolute top-full right-0 mt-1 w-40 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
                                 <div onClick={(e) => {
@@ -633,7 +637,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   </div>
                 );
               })}
-              
+
               {environments.length === 0 && (
                 <div className="px-6 py-2 text-xs text-text-muted italic">
                   No environments yet

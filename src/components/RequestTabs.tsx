@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Plus, X, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../store';
 import { getMethodColor } from '../utils/styles';
+import { MethodIcon } from './MethodIcon';
 
 interface ContextMenuState {
   x: number;
@@ -64,6 +65,11 @@ export function RequestTabs() {
       const req = col.requests.find(r => r.id === id);
       if (req) return req;
     }
+    const history = useStore.getState().history;
+    if (history) {
+      const histReq = history.find(h => h.id === id);
+      if (histReq) return histReq.request;
+    }
     return undefined;
   };
 
@@ -74,7 +80,7 @@ export function RequestTabs() {
   return (
     <div
       id="request-tabs-container"
-      className="flex h-full overflow-x-auto no-scrollbar gap-0.5 items-end px-2 scroll-smooth"
+      className="flex h-full overflow-x-auto no-scrollbar gap-0 items-end px-0 scroll-smooth"
       onContextMenu={(e) => {
         if (e.target === e.currentTarget && openRequestIds.length > 0) {
           e.preventDefault();
@@ -101,12 +107,12 @@ export function RequestTabs() {
                 closeRequest(id);
               }
             }}
-            className={`flex items-center min-w-[140px] max-w-[240px] px-3 h-[40px] cursor-pointer relative group transition-colors duration-150 rounded-t-lg select-none ${isActive ? 'bg-app-bg text-text-primary z-10 before:content-[""] before:absolute before:bottom-0 before:left-[-8px] before:w-2 before:h-2 before:bg-transparent before:rounded-br-lg before:shadow-[4px_4px_0_4px_var(--color-app-bg)] after:content-[""] after:absolute after:bottom-0 after:right-[-8px] after:w-2 after:h-2 after:bg-transparent after:rounded-bl-lg after:shadow-[-4px_4px_0_4px_var(--color-app-bg)]' : 'bg-transparent hover:bg-surface-hover/60 text-text-secondary'}`}
+            className={`flex items-center min-w-[140px] max-w-[240px] px-3 h-full cursor-pointer relative group select-none ${isActive ? 'bg-app-bg text-text-primary z-10 rounded-t-lg' : 'bg-transparent text-text-secondary hover:bg-[#1e1e20]'}`}
           >
             {isEnv ? (
               <span className="text-[10px] font-bold mr-2 text-accent">ENV</span>
             ) : (
-              <span className={`text-[10px] font-bold mr-2 ${getMethodColor((item as any).method)}`}>{(item as any).method}</span>
+              <MethodIcon method={(item as any).method} size={12} className="mr-2 shrink-0" />
             )}
             <span className="text-[13px] font-medium truncate flex-1">{item.name}</span>
             <div 
@@ -117,10 +123,6 @@ export function RequestTabs() {
               <X size={13} />
             </div>
             
-            {/* Inactive tab separator */}
-            {!isActive && !isNextActive && (
-              <div className="absolute right-[-1px] top-1/2 -translate-y-1/2 w-px h-4 bg-border-strong group-hover:bg-transparent transition-colors z-20"></div>
-            )}
           </div>
         );
       })}
@@ -131,7 +133,7 @@ export function RequestTabs() {
           onClick={createRequest}
           title="New Request"
           aria-label="New Request"
-          className="flex shrink-0 items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+          className="flex shrink-0 items-center justify-center w-8 h-8 ml-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
         >
           <Plus size={16} />
         </button>

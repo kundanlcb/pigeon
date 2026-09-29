@@ -81,6 +81,13 @@ export interface RequestItem {
   testScript?: string;
 }
 
+export interface HistoryItem {
+  id: string;
+  requestId?: string;
+  request: RequestItem;
+  timestamp: number;
+}
+
 export interface RunnerResult {
   requestId: string;
   requestName: string;
@@ -181,8 +188,8 @@ interface AppState {
   openEnvironmentTab: (id: string) => void;
   importCollection: (collection: Collection) => void;
   importEnvironment: (env: Environment) => void;
-  activeView: 'editor' | 'runner' | 'automation';
-  setActiveView: (view: 'editor' | 'runner' | 'automation') => void;
+  activeView: 'editor' | 'runner' | 'automation' | 'history';
+  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history') => void;
   flows: Flow[];
   activeFlowId: string | null;
   addFlow: (name: string) => void;
@@ -196,6 +203,10 @@ interface AppState {
   hideToast: () => void;
   appSettings: AppSettings;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
+  history: HistoryItem[];
+  addHistoryItem: (request: RequestItem) => void;
+  removeHistoryItem: (id: string) => void;
+  clearHistory: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -207,6 +218,7 @@ export const useStore = create<AppState>()(
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
       activeRequestId: 'req-1',
       openRequestIds: ['req-1'],
+      history: [],
       flows: [],
       activeFlowId: null,
       environments: [
@@ -339,6 +351,8 @@ export const useStore = create<AppState>()(
           const req = col.requests.find(r => r.id === state.activeRequestId);
           if (req) return req;
         }
+        const histReq = state.history.find(h => h.id === state.activeRequestId);
+        if (histReq) return histReq.request;
         return undefined;
       },
 
@@ -350,7 +364,10 @@ export const useStore = create<AppState>()(
             requests: col.requests.map(req => 
               req.id === state.activeRequestId ? { ...req, ...updates } : req
             )
-          }))
+          })),
+          history: state.history.map(h => 
+            h.id === state.activeRequestId ? { ...h, request: { ...h.request, ...updates } } : h
+          )
         };
       }),
       updateRequest: (id, updates) => set((state) => ({
@@ -647,7 +664,27 @@ export const useStore = create<AppState>()(
         }, 3000);
       },
       hideToast: () => set({ toast: null }),
-      updateAppSettings: (settings) => set((state) => ({ appSettings: { ...state.appSettings, ...settings } }))
+      updateAppSettings: (settings) => set((state) => ({ appSettings: { ...state.appSettings, ...settings } })),
+      addHistoryItem: (request) => set((state) => {
+        const now = Date.now();
+        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+        const id = `hist-${crypto.randomUUID()}`;
+        const newHistoryItem: HistoryItem = {
+          id,
+          requestId: request.id,
+          request: { ...request, id },
+          timestamp: now
+        };
+        const currentHistory = state.history || [];
+        const filteredHistory = currentHistory.filter(h => h.timestamp > thirtyDaysAgo);
+        return {
+          history: [newHistoryItem, ...filteredHistory]
+        };
+      }),
+      removeHistoryItem: (id) => set((state) => ({
+        history: (state.history || []).filter(h => h.id !== id)
+      })),
+      clearHistory: () => set({ history: [] })
     }),
     {
       name: 'pigeon-store',
@@ -656,6 +693,7 @@ export const useStore = create<AppState>()(
         const state = persistedState as AppState;
         return {
           ...state,
+          history: state.history || [],
           collections: (state.collections || []).map(collection => ({
             ...collection,
             storageMode: collection.storageMode || 'local',

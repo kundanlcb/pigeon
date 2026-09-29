@@ -73,18 +73,18 @@ export function KeyValueEditor({
     e.preventDefault();
     const startX = e.pageX;
     const startWidth = keyColWidth;
-    
+
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(100, Math.min(600, startWidth + (moveEvent.pageX - startX)));
       updateKeyColumnWidth(newWidth);
     };
-    
+
     const onMouseUp = () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = 'default';
     };
-    
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
     document.body.style.cursor = 'col-resize';
@@ -140,7 +140,7 @@ export function KeyValueEditor({
       if (idx === -1) return { key: line.trim(), value: '' };
       return { key: line.substring(0, idx).trim(), value: line.substring(idx + 1).trim() };
     }).filter(p => p.key || p.value);
-    
+
     updateStore(newPairs);
   };
 
@@ -151,7 +151,7 @@ export function KeyValueEditor({
   if (isBulk) {
     return (
       <div className="flex flex-col h-full w-full relative">
-        <HighlightedInput 
+        <HighlightedInput
           isTextArea={true}
           className="flex-1 text-text-primary font-mono text-[13px] leading-relaxed"
           value={bulkText}
@@ -199,8 +199,8 @@ export function KeyValueEditor({
           const filteredSuggestions = isSecret ? [] : keySuggestions?.filter(s => s.toLowerCase().includes(pair.key.toLowerCase())) || [];
           const secretDraft = secretValues[pair.key] ?? secretValues.Authorization ?? '';
           return (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
               style={{ gridTemplateColumns }}
             >
@@ -216,7 +216,7 @@ export function KeyValueEditor({
                 )}
               </div>
               <div className="bg-app-bg relative h-[34px]">
-                <HighlightedInput 
+                <HighlightedInput
                   className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
                   value={pair.key}
                   placeholder={placeholderKey}
@@ -234,8 +234,8 @@ export function KeyValueEditor({
                 {focusedKeyIdx === idx && filteredSuggestions.length > 0 && (
                   <div className="absolute top-[100%] left-0 mt-1 w-[200%] max-w-sm max-h-48 overflow-y-auto bg-panel-bg border border-border-strong rounded-lg shadow-xl z-[9999] py-1">
                     {filteredSuggestions.map(s => (
-                      <div 
-                        key={s} 
+                      <div
+                        key={s}
                         className="px-3 py-1.5 text-[13px] font-mono text-text-primary hover:bg-surface-hover cursor-pointer"
                         onMouseDown={(e) => {
                           e.preventDefault(); // prevent blur

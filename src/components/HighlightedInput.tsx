@@ -250,13 +250,21 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       
       if (varName && varName !== hoveredVar?.name) {
         const elRect = el.getBoundingClientRect();
+        let top = elRect.bottom + 8;
+        if (top + 100 > window.innerHeight && elRect.top > 100) {
+          top = elRect.top - 90;
+        }
+        let left = elRect.left;
+        if (left + 400 > window.innerWidth) {
+          left = Math.max(8, window.innerWidth - 420);
+        }
         setHoveredVar({
           name: varName,
           id: varId || '',
           value: varSecret ? '' : varVal || '',
           secret: varSecret,
-          top: Math.max(8, elRect.top - 78),
-          left: Math.max(8, Math.min(elRect.left, window.innerWidth - 272)),
+          top,
+          left,
         });
         setEditVarValue(varSecret ? '' : varVal || '');
       }
@@ -344,7 +352,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       {/* Variable Hover Popover */}
       {hoveredVar && createPortal(
         <div
-          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 w-64 flex flex-col gap-2"
+          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-auto min-w-[256px] max-w-[400px]"
           style={{ top: hoveredVar.top, left: hoveredVar.left }}
           onMouseEnter={() => {
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);

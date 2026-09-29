@@ -32,7 +32,7 @@ export function FlowsPanel() {
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none">
+    <Panel defaultSize={30} minSize={15} className="bg-[#161618] flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Flows</span>
         <button
@@ -43,7 +43,7 @@ export function FlowsPanel() {
           <Plus size={14} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-1 overflow-y-auto pt-3 pb-2">
         {isAddingFlow && (
           <div className="px-2 py-1">
             <input

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, AlertTriangle, Terminal } from 'lucide-react';
 import { parseCurl, exportCurl } from '../utils/curl';
 import { useStore } from '../store';
 import type { RequestItem } from '../store';
+import { MethodIcon } from './MethodIcon';
 
 interface CurlModalProps {
   isOpen: boolean;
@@ -18,15 +19,43 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
   const collections = useStore(state => state.collections);
   const addRequest = useStore(state => state.addRequest);
 
+  const [format, setFormat] = useState<'curl' | 'postman' | 'bruno'>('curl');
+  const [parsedPreview, setParsedPreview] = useState<{ method?: string, url?: string, headersCount?: number, hasBody?: boolean } | null>(null);
+
   // When modal opens in export mode, generate the curl string
   React.useEffect(() => {
     if (isOpen && mode === 'export' && request) {
-      setCurlText(exportCurl(request));
+      if (format === 'curl') {
+        setCurlText(exportCurl(request));
+      } else if (format === 'postman') {
+        setCurlText('{\n  "info": { "name": "Postman Export (Coming soon)" }\n}');
+      } else {
+        setCurlText('meta {\n  name: Bruno Export (Coming soon)\n}');
+      }
       setCopied(false);
     } else if (isOpen && mode === 'import') {
       setCurlText('');
+      setParsedPreview(null);
     }
-  }, [isOpen, mode, request]);
+  }, [isOpen, mode, request, format]);
+
+  React.useEffect(() => {
+    if (mode === 'import' && curlText.trim()) {
+      try {
+        const parsed = parseCurl(curlText);
+        setParsedPreview({
+          method: parsed.method || 'GET',
+          url: parsed.url,
+          headersCount: Object.keys(parsed.headers || {}).length,
+          hasBody: !!parsed.body
+        });
+      } catch {
+        setParsedPreview(null);
+      }
+    } else {
+      setParsedPreview(null);
+    }
+  }, [curlText, mode]);
 
   if (!isOpen) return null;
 
@@ -68,56 +97,98 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
       <div className="bg-panel-bg border border-border-strong rounded-xl w-[600px] max-w-[90vw] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-surface-bg">
-          <h2 className="text-lg font-semibold text-text-primary">
-            {mode === 'import' ? 'Import Request' : 'Export cURL'}
-          </h2>
-          <button 
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
-          >
-            <X size={18} />
-          </button>
+        <div className="flex flex-col border-b border-border-subtle bg-[#141416]">
+          <div className="flex items-center justify-between px-5 py-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
+                <Terminal size={14} className="text-accent" />
+              </div>
+              <h2 className="text-[13px] font-semibold text-text-primary tracking-wide">
+                {mode === 'import' ? 'Import Request' : 'Export Request'}
+              </h2>
+            </div>
+            <button 
+              onClick={onClose}
+              className="p-1 rounded-md text-text-muted hover:text-white hover:bg-[#2a2d2e] transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          
+          {/* Format Tabs */}
+          <div className="flex items-center px-5 gap-4">
+            {(['curl', 'postman', 'bruno'] as const).map(fmt => (
+              <button
+                key={fmt}
+                onClick={() => setFormat(fmt)}
+                className={`py-2 text-[12px] font-medium transition-colors border-b-2 relative top-[1px] ${
+                  format === fmt 
+                    ? 'text-accent border-accent' 
+                    : 'text-text-muted border-transparent hover:text-text-secondary hover:border-text-secondary/30'
+                }`}
+              >
+                {fmt === 'curl' ? 'cURL' : fmt === 'postman' ? 'Postman' : 'Bruno'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Body */}
-        <div className="p-6 flex-1">
-          {mode === 'import' ? (
-            <p className="text-sm text-text-secondary mb-4">
-              Paste your Postman snippet or cURL command below to create a new request in your collection.
-            </p>
-          ) : (
-            <p className="text-sm text-text-secondary mb-4">
-              Here is the cURL command for your current request:
-            </p>
-          )}
-
+        <div className="p-4 flex-1 bg-app-bg">
           <div className="relative group">
             <textarea 
               value={curlText}
               onChange={(e) => setCurlText(e.target.value)}
-              readOnly={mode === 'export'}
-              placeholder="curl -X GET 'https://api.example.com'"
-              className="w-full h-48 bg-surface-bg border border-border-strong rounded-lg p-4 font-mono text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none transition-all leading-relaxed"
+              readOnly={mode === 'export' || format !== 'curl'}
+              placeholder={format === 'curl' ? "curl -X GET 'https://api.example.com'" : `${format} import coming soon...`}
+              className={`w-full ${mode === 'export' ? 'h-40' : 'h-32'} bg-[#0d0d0e] border border-border-strong rounded-lg p-3 font-mono text-[12px] text-zinc-300 outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none transition-all leading-relaxed shadow-inner scrollbar-hide`}
               spellCheck={false}
             />
             {mode === 'export' && (
               <button 
                 onClick={handleCopy}
-                className="absolute top-3 right-3 p-2 bg-panel-bg border border-border-strong rounded-md shadow-sm text-text-secondary hover:text-text-primary hover:border-border-subtle transition-all active:scale-95"
+                className="absolute top-2 right-2 p-1.5 bg-[#2a2d2e] border border-border-strong rounded shadow-sm text-zinc-300 hover:text-white hover:border-text-muted transition-all active:scale-95"
                 title="Copy to clipboard"
               >
-                {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
               </button>
             )}
           </div>
+
+          {mode === 'import' && (
+            <div className="mt-3">
+              {parsedPreview && parsedPreview.url ? (
+                <div className="p-2.5 bg-[#141416] border border-border-strong rounded-lg flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <MethodIcon method={parsedPreview.method || 'GET'} size={12} />
+                    <span className="text-[11.5px] font-mono text-zinc-200 truncate" title={parsedPreview.url}>
+                      {parsedPreview.url}
+                    </span>
+                  </div>
+                  <div className="flex gap-1.5 text-[10px] font-mono text-zinc-400 shrink-0 ml-3">
+                    {parsedPreview.headersCount ? <span className="bg-[#1e1e1e] px-1.5 py-0.5 rounded border border-border-subtle">{parsedPreview.headersCount} Headers</span> : null}
+                    {parsedPreview.hasBody ? <span className="bg-[#1e1e1e] px-1.5 py-0.5 rounded border border-border-subtle">Body</span> : null}
+                  </div>
+                </div>
+              ) : curlText.trim() ? (
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[11px] flex items-center shadow-sm">
+                  <AlertTriangle size={12} className="mr-2" />
+                  Invalid or unsupported cURL format
+                </div>
+              ) : (
+                <div className="p-2.5 border border-dashed border-border-strong rounded-lg text-text-muted text-[11px] flex items-center justify-center bg-surface-bg/50">
+                  Paste a valid cURL command above to see preview
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-surface-bg border-t border-border-subtle flex justify-end space-x-3">
+        <div className="px-4 py-3 bg-[#141416] border-t border-border-subtle flex justify-end space-x-2">
           <button 
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
+            className="px-3 py-1.5 rounded-md text-[12px] font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
           >
             {mode === 'export' ? 'Close' : 'Cancel'}
           </button>
@@ -125,10 +196,11 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
           {mode === 'import' && (
             <button 
               onClick={handleImport}
-              className="px-6 py-2 rounded-lg text-sm font-medium bg-accent hover:bg-accent-hover text-white transition-all shadow-md active:scale-95 disabled:opacity-50"
-              disabled={!curlText.trim()}
+              className="px-4 py-1.5 rounded-md text-[12px] font-medium bg-accent hover:bg-accent-hover text-white transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center gap-1.5"
+              disabled={!parsedPreview?.url}
             >
-              Import
+              <Terminal size={12} />
+              Import Request
             </button>
           )}
         </div>

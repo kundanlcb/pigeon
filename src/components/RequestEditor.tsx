@@ -173,7 +173,7 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
 
   return (
     <Panel defaultSize={50} minSize={20} className="flex flex-col min-h-0 bg-app-bg">
-      <div className="flex px-4 space-x-6 border-b border-border-subtle text-sm">
+      <div className="flex px-5 space-x-6 border-b border-border-subtle text-sm">
         <button 
           onClick={() => setActiveTab('req-params')}
           className={`py-3 font-medium transition-colors relative ${activeTab === 'req-params' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}

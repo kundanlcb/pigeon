@@ -705,6 +705,7 @@ export function AutomationView() {
             }}
             onPaneClick={() => setContextMenu(null)}
             fitView
+            fitViewOptions={{ maxZoom: 1 }}
             className="bg-app-bg"
           >
             <Background color="#52525b" gap={16} />

@@ -28,7 +28,7 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
 
   return (
     <Panel defaultSize={50} minSize={20} className="flex flex-col bg-panel-bg min-h-0">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle bg-panel-bg">
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-border-subtle bg-panel-bg">
         <div className="flex items-center space-x-6 text-sm">
           <div className="flex items-center space-x-2">
             <span className="text-text-muted">Status</span>
@@ -59,7 +59,7 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
         </div>
       </div>
       
-      <div className="flex px-4 space-x-6 border-b border-border-subtle text-sm bg-panel-bg">
+      <div className="flex px-5 space-x-6 border-b border-border-subtle text-sm bg-panel-bg">
         <button 
           onClick={() => setActiveResponseTab('preview')}
           className={`py-2.5 font-medium relative ${activeResponseTab === 'preview' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}

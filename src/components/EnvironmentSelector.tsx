@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
-import { ChevronDown, Settings, Check } from 'lucide-react';
+import { ChevronDown, Settings, Check, Globe } from 'lucide-react';
 
 interface EnvironmentSelectorProps {
   onManageClick: () => void;
@@ -27,10 +27,11 @@ export function EnvironmentSelector({ onManageClick }: EnvironmentSelectorProps)
     <div className="relative">
       <div 
         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-        className="flex items-center space-x-2 px-3 py-1 rounded-md cursor-pointer text-xs font-medium text-accent border border-accent/40 bg-accent/5 hover:bg-accent/10 hover:border-accent transition-all"
+        className="flex items-center space-x-1.5 px-2 py-1 rounded-md cursor-pointer text-xs font-medium text-accent border border-accent/40 bg-accent/5 hover:bg-accent/10 hover:border-accent transition-all"
       >
-        <span className="truncate max-w-32">{activeEnv ? activeEnv.name : 'No Environment'}</span>
-        <ChevronDown size={14} />
+        <Globe size={13} className={activeEnvironmentId ? 'text-emerald-400' : 'text-accent'} />
+        <span className="truncate max-w-[110px]">{activeEnv ? activeEnv.name : 'No Environment'}</span>
+        <ChevronDown size={11} className="shrink-0" />
       </div>
       
       {isOpen && (

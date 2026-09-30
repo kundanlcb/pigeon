@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, X, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../store';
-import { getMethodColor } from '../utils/styles';
+
 import { MethodIcon } from './MethodIcon';
 
 interface ContextMenuState {
@@ -88,13 +88,13 @@ export function RequestTabs() {
         }
       }}
     >
-      {openRequestIds.map((id, index) => {
+      {openRequestIds.map((id) => {
         const item = getTabItem(id);
         if (!item) return null;
         
         const isEnv = id.startsWith('env-');
         const isActive = id === activeRequestId;
-        const isNextActive = openRequestIds[index + 1] === activeRequestId;
+
         return (
           <div 
             key={id}

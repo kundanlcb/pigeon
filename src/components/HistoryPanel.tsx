@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Panel, Group } from 'react-resizable-panels';
 import { Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useStore, type HistoryItem } from '../store';
-import { getMethodColor } from '../utils/styles';
+
 import { MethodIcon } from './MethodIcon';
 
 const isToday = (date: Date) => {

@@ -17,8 +17,12 @@ import {
   Share,
   GitBranch,
   LoaderCircle,
-  Play
+  Play,
+  FileUp,
+  FileDown
 } from 'lucide-react';
+import { save, open } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { useStore } from '../store';
 import { downloadAsFile } from '../utils/file';
 import type { Collection } from '../store';
@@ -35,7 +39,7 @@ import {
 } from '../utils/collectionStorage';
 
 interface CollectionsPanelProps {
-  onImportClick: (type: 'request' | 'collection' | 'environment', colId?: string, folderId?: string) => void;
+  onImportClick: (type: 'request' | 'collection' | 'environment' | 'openapi', colId?: string, folderId?: string) => void;
   onAddEnvironmentClick: () => void;
   onExportClick?: (type: 'request' | 'collection', item: any) => void;
 }
@@ -85,6 +89,46 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const handleExportWorkspace = async () => {
+    try {
+      const filePath = await save({
+        filters: [{ name: 'Pigeon Workspace', extensions: ['json'] }],
+        defaultPath: 'pigeon-workspace.json'
+      });
+      if (filePath) {
+        const flows = useStore.getState().flows;
+        const workspaceData = { collections, environments, flows };
+        await writeTextFile(filePath, JSON.stringify(workspaceData, null, 2));
+        useStore.getState().showToast('Workspace exported successfully!', 'success');
+      }
+    } catch (e: any) {
+      useStore.getState().showToast('Error exporting workspace: ' + String(e), 'error');
+    }
+    setOpenTopMenu(null);
+  };
+
+  const handleImportWorkspace = async () => {
+    try {
+      const selected = await open({
+        filters: [{ name: 'Pigeon Workspace', extensions: ['json'] }],
+        multiple: false
+      });
+      if (selected && typeof selected === 'string') {
+        const contents = await readTextFile(selected);
+        const data = JSON.parse(contents);
+        if (data && data.collections) {
+          useStore.getState().importWorkspace(data);
+          useStore.getState().showToast('Workspace imported successfully!', 'success');
+        } else {
+          useStore.getState().showToast('Invalid workspace file format.', 'error');
+        }
+      }
+    } catch (e: any) {
+      useStore.getState().showToast('Error importing workspace: ' + String(e), 'error');
+    }
+    setOpenTopMenu(null);
+  };
 
   const handleColAction = (e: React.MouseEvent, action: string, col: Collection) => {
     e.stopPropagation();
@@ -209,6 +253,9 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                     <div onClick={() => { setOpenTopMenu(null); onImportClick('collection'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       Import Collection
                     </div>
+                    <div onClick={() => { setOpenTopMenu(null); onImportClick('openapi'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      Import OpenAPI
+                    </div>
                     <div onClick={() => { setOpenTopMenu(null); onImportClick('environment'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       Import Environment
                     </div>
@@ -235,7 +282,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   <MoreHorizontal size={14} />
                 </button>
                 {openTopMenu === 'more' && (
-                  <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                  <div className="absolute top-full right-0 mt-1 w-48 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
                     <div onClick={() => { setOpenTopMenu(null); onAddEnvironmentClick(); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       New Environment
                     </div>
@@ -248,6 +295,13 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                       }
                     }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       Open Collection Folder
+                    </div>
+                    <div className="h-px bg-border-subtle my-1"></div>
+                    <div onClick={handleExportWorkspace} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      <FileUp size={12} className="mr-2 opacity-70" /> Export Workspace
+                    </div>
+                    <div onClick={handleImportWorkspace} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                      <FileDown size={12} className="mr-2 opacity-70" /> Import Workspace
                     </div>
                   </div>
                 )}

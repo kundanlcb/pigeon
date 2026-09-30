@@ -1,4 +1,4 @@
-import { Files, Workflow, History } from 'lucide-react';
+import { Files, Workflow, History, GitBranch } from 'lucide-react';
 import { SettingsMenu } from './SettingsMenu';
 import { useStore } from '../store';
 
@@ -41,6 +41,17 @@ export function Sidebar() {
           title="API Automation"
         >
           <Workflow size={19} strokeWidth={1.5} />
+        </button>
+        <button 
+          onClick={() => setActiveView('source-control')}
+          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+            activeView === 'source-control' 
+              ? 'bg-white/10 text-white' 
+              : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/5'
+          }`}
+          title="Source Control"
+        >
+          <GitBranch size={19} strokeWidth={1.5} />
         </button>
       </div>
       <SettingsMenu />

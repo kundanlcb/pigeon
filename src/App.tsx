@@ -5,6 +5,7 @@ import { Sidebar } from "./components/Sidebar";
 import { CollectionsPanel } from "./components/CollectionsPanel";
 import { FlowsPanel } from "./components/FlowsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { SourceControlPanel } from "./components/SourceControlPanel";
 import { RequestTabs } from "./components/RequestTabs";
 import { RequestEditor } from "./components/RequestEditor";
 import { ResponseViewer } from "./components/ResponseViewer";
@@ -15,8 +16,9 @@ import { HighlightedInput } from "./components/HighlightedInput";
 import { getMethodColor } from "./utils/styles";
 import { removeDisabledQueryParams, setQueryParams } from "./utils/url";
 import { resolveEnvVariables } from "./utils/env";
-import { downloadAsFile, openFilesAndRead } from "./utils/file";
+import { downloadAsFile, openFilesAndRead, openFilesWithNames } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
+import { parseOpenAPI } from "./utils/openapi";
 import { secureImportedEnvironment } from './utils/authSecrets';
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
 import { formatRequestError, getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
@@ -519,6 +521,8 @@ export default function App() {
           <HistoryPanel />
         ) : activeView === 'automation' ? (
           <FlowsPanel />
+        ) : activeView === 'source-control' ? (
+          <SourceControlPanel />
         ) : (
           <CollectionsPanel
             onAddEnvironmentClick={() => setIsEnvManagerOpen(true)}
@@ -583,6 +587,30 @@ export default function App() {
                   }
                 } catch (err: any) {
                   if (err.message !== 'No file selected') useStore.getState().showToast(err.message || 'Failed to parse JSON', 'error');
+                }
+              } else if (type === 'openapi') {
+                try {
+                  const files = await openFilesWithNames('.json,.yaml,.yml');
+                  let successCount = 0;
+                  for (const { name, content } of files) {
+                    try {
+                      const col = parseOpenAPI(content, name);
+                      if (col) {
+                        const securedCollection = await secureImportedCollection(col);
+                        useStore.getState().importCollection(securedCollection);
+                        successCount++;
+                      }
+                    } catch (e: any) {
+                      console.error("OpenAPI parse error:", e);
+                    }
+                  }
+                  if (successCount > 0) {
+                    useStore.getState().showToast(`Successfully imported ${successCount} OpenAPI spec(s)`, 'success');
+                  } else {
+                    useStore.getState().showToast('Invalid OpenAPI format(s) or no valid files', 'error');
+                  }
+                } catch (err: any) {
+                  if (err.message !== 'No file selected') useStore.getState().showToast(err.message || 'Failed to parse OpenAPI', 'error');
                 }
               }
             }}

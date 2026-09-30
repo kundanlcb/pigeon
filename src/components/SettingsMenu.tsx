@@ -47,8 +47,6 @@ export function SettingsMenu() {
     }
   };
 
-
-
   return (
     <>
     <div className="relative mt-auto w-full" ref={containerRef}>

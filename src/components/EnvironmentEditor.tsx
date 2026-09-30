@@ -170,12 +170,12 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
 
   return (
     <div className="flex-1 flex flex-col bg-app-bg min-w-0 h-full overflow-hidden">
-      <div className="px-4 h-[68px] border-b border-border-subtle flex justify-between items-center shrink-0">
+      <div className="px-4 h-[44px] border-b border-border-subtle flex justify-between items-center shrink-0">
         <input 
           type="text"
           value={selectedEnv.name}
           onChange={(e) => handleUpdateEnvName(e.target.value)}
-          className="bg-transparent text-xl font-bold text-text-primary outline-none focus:border-accent border-b border-transparent w-1/2"
+          className="bg-transparent text-base font-bold text-text-primary outline-none focus:border-accent border-b border-transparent w-1/2"
           placeholder="Environment Name"
         />
         

@@ -97,7 +97,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
       <div className="bg-panel-bg border border-border-strong rounded-xl w-[600px] max-w-[90vw] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex flex-col border-b border-border-subtle bg-[#141416]">
+        <div className="flex flex-col border-b border-border-subtle bg-panel-bg">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
@@ -109,7 +109,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
             </div>
             <button 
               onClick={onClose}
-              className="p-1 rounded-md text-text-muted hover:text-white hover:bg-[#2a2d2e] transition-colors"
+              className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
             >
               <X size={14} />
             </button>
@@ -141,13 +141,13 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
               onChange={(e) => setCurlText(e.target.value)}
               readOnly={mode === 'export' || format !== 'curl'}
               placeholder={format === 'curl' ? "curl -X GET 'https://api.example.com'" : `${format} import coming soon...`}
-              className={`w-full ${mode === 'export' ? 'h-40' : 'h-32'} bg-[#0d0d0e] border border-border-strong rounded-lg p-3 font-mono text-[12px] text-zinc-300 outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none transition-all leading-relaxed shadow-inner scrollbar-hide`}
+              className={`w-full ${mode === 'export' ? 'h-40' : 'h-32'} bg-app-bg border border-border-strong rounded-lg p-3 font-mono text-[12px] text-text-secondary outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none transition-all leading-relaxed shadow-inner scrollbar-hide`}
               spellCheck={false}
             />
             {mode === 'export' && (
               <button 
                 onClick={handleCopy}
-                className="absolute top-2 right-2 p-1.5 bg-[#2a2d2e] border border-border-strong rounded shadow-sm text-zinc-300 hover:text-white hover:border-text-muted transition-all active:scale-95"
+                className="absolute top-2 right-2 p-1.5 bg-surface-hover border border-border-strong rounded shadow-sm text-text-secondary hover:text-text-primary hover:border-text-muted transition-all active:scale-95"
                 title="Copy to clipboard"
               >
                 {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
@@ -158,16 +158,16 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
           {mode === 'import' && (
             <div className="mt-3">
               {parsedPreview && parsedPreview.url ? (
-                <div className="p-2.5 bg-[#141416] border border-border-strong rounded-lg flex items-center justify-between shadow-sm">
+                <div className="p-2.5 bg-panel-bg border border-border-strong rounded-lg flex items-center justify-between shadow-sm">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <MethodIcon method={parsedPreview.method || 'GET'} size={12} />
                     <span className="text-[11.5px] font-mono text-zinc-200 truncate" title={parsedPreview.url}>
                       {parsedPreview.url}
                     </span>
                   </div>
-                  <div className="flex gap-1.5 text-[10px] font-mono text-zinc-400 shrink-0 ml-3">
-                    {parsedPreview.headersCount ? <span className="bg-[#1e1e1e] px-1.5 py-0.5 rounded border border-border-subtle">{parsedPreview.headersCount} Headers</span> : null}
-                    {parsedPreview.hasBody ? <span className="bg-[#1e1e1e] px-1.5 py-0.5 rounded border border-border-subtle">Body</span> : null}
+                  <div className="flex gap-1.5 text-[10px] font-mono text-text-secondary shrink-0 ml-3">
+                    {parsedPreview.headersCount ? <span className="bg-surface-bg px-1.5 py-0.5 rounded border border-border-subtle">{parsedPreview.headersCount} Headers</span> : null}
+                    {parsedPreview.hasBody ? <span className="bg-surface-bg px-1.5 py-0.5 rounded border border-border-subtle">Body</span> : null}
                   </div>
                 </div>
               ) : curlText.trim() ? (
@@ -185,7 +185,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 bg-[#141416] border-t border-border-subtle flex justify-end space-x-2">
+        <div className="px-4 py-3 bg-panel-bg border-t border-border-subtle flex justify-end space-x-2">
           <button 
             onClick={onClose}
             className="px-3 py-1.5 rounded-md text-[12px] font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"

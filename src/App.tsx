@@ -638,7 +638,7 @@ export default function App() {
 
         <ResizeHandle />
 
-        <Panel defaultSize={70} className="flex flex-col min-w-0 bg-[#161618] z-0 rounded-tl-xl border-l border-t border-border-strong overflow-hidden shadow-2xl relative">
+        <Panel defaultSize={70} className="flex flex-col min-w-0 bg-panel-bg z-0 rounded-tl-xl border-l border-t border-border-strong overflow-hidden shadow-2xl relative">
           {activeView === 'runner' ? (
             <ErrorBoundary name="Collection Runner">
               <RunnerView />
@@ -649,7 +649,7 @@ export default function App() {
             </ErrorBoundary>
           ) : (
             <>
-              <div data-tauri-drag-region className="flex items-end justify-between bg-[#161618] pr-4 pl-0 h-[44px] border-b border-[#2a2d2e]">
+              <div data-tauri-drag-region className="flex items-end justify-between bg-panel-bg pr-4 pl-0 h-[44px] border-b border-border-strong">
                 <div className="flex-1 overflow-hidden h-full">
                   <RequestTabs />
                 </div>

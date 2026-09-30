@@ -61,12 +61,12 @@ export function SourceControlPanel() {
   const data = activeColId ? gitData[activeColId] : null;
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-[#161618] flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Source Control</span>
         {activeCol && (
           <div className="flex space-x-1">
-            <button onClick={() => fetchGitStatus(activeCol.id, activeCol.folderPath!)} disabled={actionLoading} title="Refresh" className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 disabled:opacity-50">
+            <button onClick={() => fetchGitStatus(activeCol.id, activeCol.folderPath!)} disabled={actionLoading} title="Refresh" className="p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover disabled:opacity-50">
               <RefreshCw size={14} />
             </button>
           </div>
@@ -86,7 +86,7 @@ export function SourceControlPanel() {
               <select
                 value={activeColId || ''}
                 onChange={e => setActiveColId(e.target.value)}
-                className="w-full bg-[#1e1e1e] border border-border-strong rounded px-2 py-1.5 text-xs text-text-primary outline-none focus:border-accent"
+                className="w-full bg-surface-bg border border-border-strong rounded px-2 py-1.5 text-xs text-text-primary outline-none focus:border-accent"
               >
                 {collections.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -122,7 +122,7 @@ export function SourceControlPanel() {
                     </div>
 
                     <div className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                      Changes {(data?.status?.length || 0) > 0 && <span className="bg-white/10 text-white rounded-full px-1.5 py-0.5 ml-1">{data.status.length}</span>}
+                      Changes {(data?.status?.length || 0) > 0 && <span className="bg-border-strong text-text-primary rounded-full px-1.5 py-0.5 ml-1">{data.status.length}</span>}
                     </div>
 
                     {data.loading ? (

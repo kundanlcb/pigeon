@@ -719,12 +719,15 @@ export const useStore = create<AppState>()(
           }))
         };
       },
-      partialize: (state) => ({
-        ...state,
-        collections: state.collections.map(collection => collection.storageMode === 'folder'
-          ? { ...collection, requests: [] }
-          : collection)
-      }),
+      partialize: (state) => {
+        const { toast, ...rest } = state;
+        return {
+          ...rest,
+          collections: rest.collections.map(collection => collection.storageMode === 'folder'
+            ? { ...collection, requests: [] }
+            : collection)
+        } as unknown as AppState;
+      },
     }
   )
 );

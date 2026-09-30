@@ -41,6 +41,7 @@
     "fs:allow-watch",
     "fs:allow-unwatch",
     "process:default",
-    "core:window:allow-set-theme"
+    "core:window:allow-set-theme",
+    "core:window:allow-start-dragging"
   ]
 }

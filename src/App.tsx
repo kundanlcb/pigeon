@@ -613,7 +613,7 @@ export default function App() {
             </ErrorBoundary>
           ) : (
             <>
-              <div className="flex items-end justify-between bg-[#161618] pr-4 pl-0 h-[44px] border-b border-[#2a2d2e]">
+              <div data-tauri-drag-region className="flex items-end justify-between bg-[#161618] pr-4 pl-0 h-[44px] border-b border-[#2a2d2e]">
                 <div className="flex-1 overflow-hidden h-full">
                   <RequestTabs />
                 </div>
@@ -640,16 +640,7 @@ export default function App() {
 
                 <ErrorBoundary name="Request Editor">
                   <div className="flex-1 min-h-0 flex flex-col">
-                    <div className="px-5 py-1.5 border-b border-border-subtle flex justify-between items-center shrink-0">
-                      <input
-                        type="text"
-                        value={activeRequest.name}
-                        onChange={(e) => updateActiveRequest({ name: e.target.value })}
-                        className="bg-transparent text-sm font-semibold text-text-primary outline-none focus:border-accent border-b border-transparent w-full"
-                        placeholder="Request Name"
-                      />
-                    </div>
-                    <div className="px-5 h-[54px] flex items-center space-x-3 border-b border-border-subtle shrink-0 min-w-0">
+                    <div className="pl-3 pr-4 h-[54px] flex items-center space-x-3 border-b border-border-subtle shrink-0 min-w-0">
                       <div className="flex-1 min-w-0 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
                         <div className="relative border-r border-border-strong flex items-center w-[100px] shrink-0 h-full">
                           <Dropdown

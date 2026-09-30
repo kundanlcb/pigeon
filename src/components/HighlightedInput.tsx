@@ -30,6 +30,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
   const [suggestionFilter, setSuggestionFilter] = useState('');
   const [cursorPos, setCursorPos] = useState<{ top: number; left: number } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
 
   const [hoveredVar, setHoveredVar] = useState<{name: string, id: string, value: string, secret: boolean, top: number, left: number} | null>(null);
   const [isPopoverPinned, setIsPopoverPinned] = useState(false);
@@ -288,6 +289,20 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     return () => document.removeEventListener('mousemove', listener);
   }, []);
 
+  // Sync textarea horizontal scroll → pre so arrow-key navigation
+  // actually reveals the full URL in the highlighted display layer.
+  useEffect(() => {
+    if (!singleLineEllipsis) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
+    const pre = container.querySelector<HTMLElement>('pre');
+    if (!textarea || !pre) return;
+    const onScroll = () => { pre.scrollLeft = textarea.scrollLeft; };
+    textarea.addEventListener('scroll', onScroll);
+    return () => textarea.removeEventListener('scroll', onScroll);
+  }, [singleLineEllipsis]);
+
   return (
     <div 
       className={`relative flex items-center ${className} editor-container`} 
@@ -310,11 +325,15 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         onKeyUp={getCaretCoordinates}
         onClick={getCaretCoordinates}
         className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${isTextArea ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'}`}
-        textareaClassName={`outline-none focus:outline-none ${isTextArea ? '' : `!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar ${singleLineEllipsis ? '!text-ellipsis' : ''}`}`}
-        preClassName={`!bg-transparent ${isTextArea ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
+        textareaClassName={`outline-none focus:outline-none ${isTextArea ? '' : `!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar`}`}
+        preClassName={`!bg-transparent ${isTextArea ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis && !isFocused ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
         placeholder={placeholder}
-        onFocus={onFocus}
+        onFocus={() => {
+          setIsFocused(true);
+          onFocus?.();
+        }}
         onBlur={() => {
+          setIsFocused(false);
           // Delay hiding suggestions to allow clicks
           setTimeout(() => setShowSuggestions(false), 200);
           onBlur?.();

@@ -165,7 +165,15 @@ export async function executeRequestNode(
     };
 
     if (request.preRequestScript) {
-      runPreRequestScript(request.preRequestScript, context);
+      const allVars: Record<string, string> = {};
+      const envId = useStore.getState().activeEnvironmentId;
+      const envObj = useStore.getState().environments.find(e => e.id === envId);
+      if (envObj) {
+        for (const v of envObj.variables) {
+          allVars[v.key] = v.secret ? (await import('./secrets').then(m => m.getSecret(envId!, v.key)) || '') : v.value;
+        }
+      }
+      await runPreRequestScript(request.preRequestScript, context, allVars);
       onLog(`[Pre-request] Executed script successfully`);
     }
 
@@ -241,7 +249,13 @@ export async function executeRequestNode(
 
     let testError = '';
     if (request.testScript) {
-      const results = runTestScript(request.testScript, context);
+      const allVars: Record<string, string> = {};
+      const envId = useStore.getState().activeEnvironmentId;
+      const envObj = useStore.getState().environments.find(e => e.id === envId);
+      envObj?.variables.forEach(v => {
+        allVars[v.key] = v.value; // Secrets shouldn't strictly be needed after response, but we might need them. Let's keep it simple for tests or load via promise if needed.
+      });
+      const results = await runTestScript(request.testScript, context, allVars);
       onLog(`[Test] Ran ${results.length} tests`);
       const failed = results.filter((r: any) => !r.passed);
       if (failed.length > 0) {

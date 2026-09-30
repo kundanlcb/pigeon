@@ -71,7 +71,11 @@ export function RunnerView() {
     };
 
     if (req.preRequestScript) {
-      runPreRequestScript(req.preRequestScript, context);
+      const allVars: Record<string, string> = {};
+      for (const v of activeEnvironment?.variables || []) {
+        allVars[v.key] = v.secret ? (await getSecret(activeEnvironment!.id, v.key) || '') : v.value;
+      }
+      await runPreRequestScript(req.preRequestScript, context, allVars);
       finalUrl = context.request.url;
     }
 
@@ -175,7 +179,11 @@ export function RunnerView() {
         text: () => text,
         headers: headersRecord
       };
-      testResults = runTestScript(req.testScript, context);
+      const allVars: Record<string, string> = {};
+      for (const v of activeEnvironment?.variables || []) {
+        allVars[v.key] = v.secret ? (await getSecret(activeEnvironment!.id, v.key) || '') : v.value;
+      }
+      testResults = await runTestScript(req.testScript, context, allVars);
     }
     
     return {

@@ -319,7 +319,11 @@ export default function App() {
       };
 
       if (activeRequest?.preRequestScript) {
-        runPreRequestScript(activeRequest.preRequestScript, context);
+        const allVars: Record<string, string> = {};
+        activeEnvironment?.variables.forEach(v => {
+          allVars[v.key] = v.secret ? (localVars[v.key] || '') : v.value;
+        });
+        await runPreRequestScript(activeRequest.preRequestScript, context, allVars);
         finalUrl = context.request.url;
       }
       await flushSecretWrites();
@@ -444,7 +448,11 @@ export default function App() {
           text: () => text,
           headers: headersRecord
         };
-        testResults = runTestScript(activeRequest.testScript, context);
+        const allVars: Record<string, string> = {};
+        activeEnvironment?.variables.forEach(v => {
+          allVars[v.key] = v.secret ? (localVars[v.key] || '') : v.value;
+        });
+        testResults = await runTestScript(activeRequest.testScript, context, allVars);
         try {
           await flushSecretWrites();
         } catch (error) {

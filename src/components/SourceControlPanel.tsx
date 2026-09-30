@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Panel, Group } from 'react-resizable-panels';
+import { useState, useEffect } from 'react';
+import { Panel } from 'react-resizable-panels';
 import { useStore } from '../store';
 import { getGitStatus, gitBranch, isGitRepo, gitInit } from '../utils/git';
 import { GitBranch, RefreshCw, FolderGit2, Loader2 } from 'lucide-react';

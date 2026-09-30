@@ -19,6 +19,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
   const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
   const [secretKeyDrafts, setSecretKeyDrafts] = useState<Record<string, string>>({});
   const [keyColWidth, setKeyColWidth] = useState(250);
+  const [activeTab, setActiveTab] = useState<'variables' | 'secrets'>('variables');
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -203,8 +204,19 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-semibold text-text-secondary">Variables</h3>
+          <div className="flex items-center space-x-6 border-b border-border-strong mb-4">
+            <button
+              className={`pb-2 text-sm font-semibold transition-colors ${activeTab === 'variables' ? 'text-accent border-b-2 border-accent' : 'text-text-secondary hover:text-text-primary border-b-2 border-transparent'}`}
+              onClick={() => setActiveTab('variables')}
+            >
+              Variables
+            </button>
+            <button
+              className={`pb-2 text-sm font-semibold transition-colors ${activeTab === 'secrets' ? 'text-accent border-b-2 border-accent' : 'text-text-secondary hover:text-text-primary border-b-2 border-transparent'}`}
+              onClick={() => setActiveTab('secrets')}
+            >
+              Secrets
+            </button>
           </div>
           
           <div className="border border-border-strong rounded-lg overflow-hidden">
@@ -228,7 +240,14 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
               <div className="py-1.5 px-2 bg-surface-bg"></div>
             </div>
             
-            {selectedEnv.variables.map((v) => (
+            {(() => {
+              let displayedVars = selectedEnv.variables.filter(v => activeTab === 'secrets' ? v.secret : !v.secret);
+              if (displayedVars.length === 0 || displayedVars[displayedVars.length - 1].key.trim() !== '') {
+                displayedVars = [...displayedVars, { id: `var-empty-${Date.now()}`, key: '', value: '', enabled: true, secret: activeTab === 'secrets' }];
+              }
+              return displayedVars.map((v) => {
+                const isPlaceholder = v.id.startsWith('var-empty-');
+                return (
               <div 
                 key={v.id} 
                 className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
@@ -248,7 +267,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                     value={v.secret ? (secretKeyDrafts[v.id] ?? v.key) : v.key}
                     onChange={(e) => {
                       const newKey = e.target.value;
-                      if (v.secret) {
+                      if (v.secret && !isPlaceholder) {
                         setSecretKeyDrafts(drafts => ({ ...drafts, [v.id]: newKey }));
                         return;
                       }
@@ -258,19 +277,19 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                       if (!currentEnv) return;
                       
                       const freshVars = [...currentEnv.variables];
-                      const freshIndex = freshVars.findIndex(v_ => v_.id === v.id);
-                      if (freshIndex === -1) return;
                       
-                      const isLast = freshIndex === freshVars.length - 1;
-                      const isAdding = isLast && newKey.trim() !== '';
-                      
-                      freshVars[freshIndex] = { ...freshVars[freshIndex], key: newKey };
-                      
-                      if (isAdding) {
-                        freshVars.push({ id: `var-${Date.now()}-${Math.random()}`, key: '', value: '', enabled: true, secret: false });
+                      if (isPlaceholder) {
+                        if (newKey.trim() !== '') {
+                          freshVars.push({ id: `var-${Date.now()}-${Math.random()}`, key: newKey, value: '', enabled: true, secret: activeTab === 'secrets' });
+                          updateEnvironment(environmentId, { variables: freshVars });
+                        }
+                      } else {
+                        const freshIndex = freshVars.findIndex(v_ => v_.id === v.id);
+                        if (freshIndex === -1) return;
+                        
+                        freshVars[freshIndex] = { ...freshVars[freshIndex], key: newKey };
+                        updateEnvironment(environmentId, { variables: freshVars });
                       }
-                      
-                      updateEnvironment(environmentId, { variables: freshVars });
                     }}
                     onBlur={() => {
                       if (v.secret) void renameVariableKey(v);
@@ -319,7 +338,10 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                   <input 
                     type="checkbox" 
                     checked={v.secret || false}
-                    onChange={(e) => void updateSecretStatus(v, e.target.checked)}
+                    onChange={(e) => {
+                      if (isPlaceholder) return;
+                      void updateSecretStatus(v, e.target.checked);
+                    }}
                     className="accent-accent w-3.5 h-3.5 cursor-pointer rounded-sm"
                   />
                 </div>
@@ -332,7 +354,9 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                   </button>
                 </div>
               </div>
-            ))}
+                );
+              });
+            })()}
 
             {/* Standalone empty row removed; we use the trailing mapped row instead */}
           </div>

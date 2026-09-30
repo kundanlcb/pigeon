@@ -43,6 +43,11 @@ import {
   type FlowRunResult 
 } from '../utils/automation';
 import { MethodIcon } from './MethodIcon';
+import { EnvironmentSelector } from './EnvironmentSelector';
+
+interface AutomationViewProps {
+  onManageEnvClick?: () => void;
+}
 
 interface ContextMenuState {
   nodeId: string;
@@ -185,15 +190,13 @@ function FlowCanvasControls() {
   );
 }
 
-export function AutomationView() {
+export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
   const flows = useStore(state => state.flows);
   const activeFlowId = useStore(state => state.activeFlowId);
   const setActiveFlow = useStore(state => state.setActiveFlow);
   const updateFlow = useStore(state => state.updateFlow);
   const collections = useStore(state => state.collections);
-  const environments = useStore(state => state.environments);
-  const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
-  const setActiveEnvironment = useStore(state => state.setActiveEnvironment);
+
   const setActiveRequest = useStore(state => state.setActiveRequest);
   const setActiveView = useStore(state => state.setActiveView);
 
@@ -206,10 +209,7 @@ export function AutomationView() {
   const [logs, setLogs] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
 
-  // Dropdown states for Collection and Environment selectors
-  const [isEnvDropdownOpen, setIsEnvDropdownOpen] = useState(false);
   const [isColDropdownOpen, setIsColDropdownOpen] = useState(false);
-  const envDropdownRef = useRef<HTMLDivElement>(null);
   const colDropdownRef = useRef<HTMLDivElement>(null);
 
   // Modern Node Context Menu State
@@ -219,9 +219,6 @@ export function AutomationView() {
   // Handle outside click to close dropdowns and context menu
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (envDropdownRef.current && !envDropdownRef.current.contains(e.target as Node)) {
-        setIsEnvDropdownOpen(false);
-      }
       if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) {
         setIsColDropdownOpen(false);
       }
@@ -231,7 +228,6 @@ export function AutomationView() {
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsEnvDropdownOpen(false);
         setIsColDropdownOpen(false);
         setContextMenu(null);
       }
@@ -490,7 +486,7 @@ export function AutomationView() {
     updateFlow(activeFlowId, { nodes: nextNodes as any });
   };
 
-  const activeEnv = environments.find(e => e.id === activeEnvironmentId);
+
   const selectedCollection = collections.find(c => c.id === activeFlow?.collectionId);
   const totalRequestsCount = collections.reduce((acc, c) => acc + c.requests.length, 0);
 
@@ -548,7 +544,6 @@ export function AutomationView() {
             <button
               onClick={() => {
                 setIsColDropdownOpen(!isColDropdownOpen);
-                setIsEnvDropdownOpen(false);
               }}
               className="flex items-center space-x-1.5 px-2 py-1 rounded-[4px] text-xs font-medium border border-border-subtle bg-panel-bg/70 hover:bg-panel-bg hover:border-border-strong text-text-secondary hover:text-text-primary transition-all"
               title="Filter flow requests by collection"
@@ -605,64 +600,7 @@ export function AutomationView() {
             )}
           </div>
 
-          {/* Environment Selector */}
-          <div className="relative" ref={envDropdownRef}>
-            <button
-              onClick={() => {
-                setIsEnvDropdownOpen(!isEnvDropdownOpen);
-                setIsColDropdownOpen(false);
-              }}
-              className="flex items-center space-x-1.5 px-2 py-1 rounded-[4px] text-xs font-medium border border-border-subtle bg-panel-bg/70 hover:bg-panel-bg hover:border-border-strong text-text-secondary hover:text-text-primary transition-all"
-              title="Select active environment for this flow"
-            >
-              <Globe size={13} className={activeEnvironmentId ? 'text-emerald-400' : 'text-text-muted'} />
-              <span className="truncate max-w-[110px]">
-                {activeEnv ? activeEnv.name : 'No Environment'}
-              </span>
-              <ChevronDown size={11} className="text-text-muted shrink-0" />
-            </button>
-
-            {isEnvDropdownOpen && (
-              <div className="absolute top-full right-0 mt-1 w-52 bg-panel-bg border border-border-strong rounded-[6px] shadow-2xl overflow-hidden z-50 flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-2.5 py-1 text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                  Target Environment
-                </div>
-                <div 
-                  onClick={() => {
-                    setActiveEnvironment(null);
-                    setIsEnvDropdownOpen(false);
-                  }}
-                  className={`flex items-center px-2.5 py-1.5 text-xs cursor-pointer ${
-                    !activeEnvironmentId ? 'bg-accent/10 text-accent font-medium' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-                  }`}
-                >
-                  <span className="flex-1">No Environment</span>
-                  {!activeEnvironmentId && <Check size={13} />}
-                </div>
-
-                {environments.length > 0 && <div className="h-[1px] bg-border-subtle my-1" />}
-
-                <div className="max-h-60 overflow-y-auto">
-                  {environments.map(env => (
-                    <div 
-                      key={env.id}
-                      onClick={() => {
-                        setActiveEnvironment(env.id);
-                        setIsEnvDropdownOpen(false);
-                      }}
-                      className={`flex items-center px-2.5 py-1.5 text-xs cursor-pointer ${
-                        activeEnvironmentId === env.id ? 'bg-accent/10 text-accent font-medium' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-                      }`}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 shrink-0" />
-                      <span className="flex-1 truncate">{env.name}</span>
-                      {activeEnvironmentId === env.id && <Check size={13} />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <EnvironmentSelector onManageClick={onManageEnvClick || (() => {})} />
 
           {/* Add Node Button */}
           <button 

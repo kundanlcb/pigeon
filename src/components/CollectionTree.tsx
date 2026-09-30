@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Copy, Edit2, FolderPlus, MoreVertical, Plus,
 import type { Collection, CollectionFolder, RequestItem } from '../store';
 import { useStore } from '../store';
 import { MethodIcon } from './MethodIcon';
+import { ContextMenu } from './ContextMenu';
 
 interface CollectionTreeProps {
   collection: Collection;
@@ -22,6 +23,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
   const [newFolderName, setNewFolderName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
+  const [menuTriggerElement, setMenuTriggerElement] = useState<HTMLElement | null>(null);
 
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [editingRequestName, setEditingRequestName] = useState('');
@@ -80,7 +82,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
       <div
         key={request.id}
         onClick={() => setActiveRequest(request.id)}
-        className="w-full flex items-center h-[24px] cursor-pointer hover:bg-surface-hover transition-colors group relative pr-2 select-none"
+        className={`w-full flex items-center h-[24px] cursor-pointer hover:bg-surface-hover transition-colors group relative pr-2 select-none ${menuId === request.id ? 'bg-surface-hover' : ''} ${isActive ? 'bg-accent/10 text-accent font-medium' : 'text-text-secondary hover:text-text-primary'}`}
         style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
       >
         <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
@@ -108,19 +110,19 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
           </span>
         )}
         {editingRequestId !== request.id && (
-          <div className="relative ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100">
+          <div className={`relative ml-1 flex-shrink-0 transition-opacity ${menuId === request.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
             <button
               onClick={event => {
                 event.stopPropagation();
                 setMenuId(menuId === request.id ? null : request.id);
+                setMenuTriggerElement(event.currentTarget);
               }}
-              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+              className={`p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ${menuId === request.id ? 'bg-surface-hover text-text-primary' : ''}`}
               title="Request actions"
             >
               <MoreVertical size={13} />
             </button>
-            {menuId === request.id && (
-              <div onClick={event => event.stopPropagation()} className="absolute top-full right-0 mt-1 w-48 bg-panel-bg border border-border-strong rounded shadow-2xl z-50 py-1">
+            <ContextMenu isOpen={menuId === request.id} onClose={() => setMenuId(null)} triggerRef={{ current: menuTriggerElement }} width={160}>
                 <button onClick={() => { setEditingRequestId(request.id); setEditingRequestName(request.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Edit2 size={12} className="mr-2" /> Rename
                 </button>
@@ -134,8 +136,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                 <button onClick={() => { deleteRequest(request.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
                   <Trash2 size={12} className="mr-2" /> Delete
                 </button>
-              </div>
-            )}
+            </ContextMenu>
           </div>
         )}
       </div>
@@ -155,7 +156,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
             else next.add(folder.id);
             return next;
           })}
-          className="w-full flex items-center h-[24px] cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative pr-2 select-none"
+          className={`w-full flex items-center h-[24px] cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative pr-2 select-none ${menuId === folder.id ? 'bg-surface-hover text-text-primary' : ''}`}
           style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
         >
           <span
@@ -185,50 +186,19 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
               {folder.name}
             </span>
           )}
-          <div className="relative ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 flex items-center">
+          <div className={`relative ml-1 flex-shrink-0 flex items-center transition-opacity ${menuId === folder.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
             <button
-              onClick={event => {
-                event.stopPropagation();
-                addRequest(collection.id, { name: 'New Request', method: 'GET', url: '', headers: {}, folderId: folder.id });
-                if (isCollapsed) {
-                  setCollapsedFolders(current => {
-                    const next = new Set(current);
-                    next.delete(folder.id);
-                    return next;
-                  });
-                }
+              onClick={event => { 
+                event.stopPropagation(); 
+                setMenuId(menuId === folder.id ? null : folder.id); 
+                setMenuTriggerElement(event.currentTarget);
               }}
-              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-              title="Add Request"
-            >
-              <Plus size={13} />
-            </button>
-            <button
-              onClick={event => {
-                event.stopPropagation();
-                setNewFolderParentId(folder.id);
-                setNewFolderName('');
-                setMenuId(null);
-                setCollapsedFolders(current => {
-                  const next = new Set(current);
-                  next.delete(folder.id);
-                  return next;
-                });
-              }}
-              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
-              title="Add Subfolder"
-            >
-              <FolderPlus size={13} />
-            </button>
-            <button
-              onClick={event => { event.stopPropagation(); setMenuId(menuId === folder.id ? null : folder.id); }}
-              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
+              className={`p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5 ${menuId === folder.id ? 'bg-surface-hover text-text-primary' : ''}`}
               title="Folder actions"
             >
               <MoreVertical size={13} />
             </button>
-            {menuId === folder.id && (
-              <div onClick={event => event.stopPropagation()} className="absolute top-full right-0 mt-1 w-40 bg-panel-bg border border-border-strong rounded shadow-2xl z-50 py-1">
+            <ContextMenu isOpen={menuId === folder.id} onClose={() => setMenuId(null)} triggerRef={{ current: menuTriggerElement }} width={160}>
                 <button onClick={() => { addRequest(collection.id, { name: 'New Request', method: 'GET', url: '', headers: {}, folderId: folder.id }); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Plus size={12} className="mr-2" /> Add Request
                 </button>
@@ -245,8 +215,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                 <button onClick={() => { deleteFolder(collection.id, folder.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
                   <Trash2 size={12} className="mr-2" /> Delete
                 </button>
-              </div>
-            )}
+            </ContextMenu>
           </div>
         </div>
         {!isCollapsed && (

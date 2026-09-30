@@ -19,7 +19,9 @@ import {
   LoaderCircle,
   Play,
   FileUp,
-  FileDown
+  FileDown,
+  Search,
+  CheckCircle2
 } from 'lucide-react';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
@@ -29,6 +31,7 @@ import type { Collection } from '../store';
 import { serializePortableEnvironment } from '../utils/collectionFormat';
 import { deleteSecret, getSecret, setSecret } from '../utils/secrets';
 import { CollectionTree } from './CollectionTree';
+import { MethodIcon } from './MethodIcon';
 import {
   chooseFolderForCollection,
   getCollectionStorageStatusSnapshot,
@@ -37,6 +40,7 @@ import {
   subscribeCollectionStorageStatus,
   switchToLocalStorage
 } from '../utils/collectionStorage';
+import { ContextMenu } from './ContextMenu';
 
 interface CollectionsPanelProps {
   onImportClick: (type: 'request' | 'collection' | 'environment' | 'openapi', colId?: string, folderId?: string) => void;
@@ -55,7 +59,6 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const openEnvironmentTab = useStore(state => state.openEnvironmentTab);
 
-  const activeRequestId = useStore(state => state.activeRequestId);
   const toggleCollection = useStore(state => state.toggleCollection);
   const addCollection = useStore(state => state.addCollection);
   const renameCollection = useStore(state => state.renameCollection);
@@ -78,7 +81,33 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   const [editingEnvId, setEditingEnvId] = React.useState<string | null>(null);
   const [editEnvName, setEditEnvName] = React.useState('');
 
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    const results: Array<{ request: any; collectionId: string; collectionName: string }> = [];
+    collections.forEach(col => {
+      col.requests.forEach(req => {
+        if (req.name.toLowerCase().includes(query) || req.url.toLowerCase().includes(query)) {
+          results.push({ request: req, collectionId: col.id, collectionName: col.name });
+        }
+      });
+    });
+    return results;
+  }, [searchQuery, collections]);
+
+  const handleSearchResultClick = (result: any) => {
+    useStore.getState().setActiveRequest(result.request.id);
+    const col = collections.find(c => c.id === result.collectionId);
+    if (col && !col.isOpen) {
+      toggleCollection(col.id);
+    }
+    setSearchQuery('');
+  };
+
   const [openTopMenu, setOpenTopMenu] = React.useState<'import' | 'more' | null>(null);
+  const [menuTriggerElement, setMenuTriggerElement] = React.useState<HTMLElement | null>(null);
 
   React.useEffect(() => {
     const handleClickOutside = () => {
@@ -239,14 +268,13 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
 
               <div className="relative">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenColMenuId(null); }}
+                  onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenColMenuId(null); setMenuTriggerElement(e.currentTarget); }}
                   title="Import"
                   className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
                 >
                   <Download size={14} />
                 </button>
-                {openTopMenu === 'import' && (
-                  <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                <ContextMenu isOpen={openTopMenu === 'import'} onClose={() => setOpenTopMenu(null)} triggerRef={{ current: menuTriggerElement }} width={176}>
                     <div onClick={() => { setOpenTopMenu(null); onImportClick('request'); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       Import Request
                     </div>
@@ -269,20 +297,18 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                     }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       Open Collection Folder
                     </div>
-                  </div>
-                )}
+                </ContextMenu>
               </div>
 
               <div className="relative">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'more' ? null : 'more'); setOpenColMenuId(null); }}
+                  onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'more' ? null : 'more'); setOpenColMenuId(null); setMenuTriggerElement(e.currentTarget); }}
                   title="More Actions..."
                   className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
                 >
                   <MoreHorizontal size={14} />
                 </button>
-                {openTopMenu === 'more' && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                <ContextMenu isOpen={openTopMenu === 'more'} onClose={() => setOpenTopMenu(null)} triggerRef={{ current: menuTriggerElement }} width={192}>
                     <div onClick={() => { setOpenTopMenu(null); onAddEnvironmentClick(); }} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       New Environment
                     </div>
@@ -303,13 +329,50 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                     <div onClick={handleImportWorkspace} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                       <FileDown size={12} className="mr-2 opacity-70" /> Import Workspace
                     </div>
-                  </div>
-                )}
+                </ContextMenu>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto pt-3 pb-2">
+          <div className="px-2 py-1.5 border-b border-border-subtle relative shrink-0">
+            <Search size={12} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input
+              type="text"
+              placeholder="Search requests..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-surface-bg border border-border-strong rounded pl-7 pr-2 py-1 text-xs text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+            />
+            {searchQuery && (
+               <div className="absolute top-full left-0 right-0 mt-1 mx-2 bg-panel-bg border border-border-strong rounded shadow-2xl z-50 max-h-64 overflow-y-auto">
+                 {searchResults.length > 0 ? (
+                   searchResults.map((result, idx) => (
+                     <div 
+                       key={idx} 
+                       onClick={() => handleSearchResultClick(result)}
+                       className="px-3 py-2 border-b border-border-subtle last:border-0 cursor-pointer hover:bg-surface-hover flex flex-col"
+                     >
+                       <div className="flex items-center space-x-2">
+                         <MethodIcon method={result.request.method} size={11} />
+                         <span className="text-xs text-text-primary font-medium truncate flex-1">{result.request.name}</span>
+                       </div>
+                       <div className="text-[10px] text-text-muted mt-0.5 truncate flex items-center space-x-1">
+                         <span className="font-semibold text-text-secondary">{result.collectionName}</span>
+                         <span>•</span>
+                         <span className="truncate">{result.request.url || 'No URL'}</span>
+                       </div>
+                     </div>
+                   ))
+                 ) : (
+                   <div className="px-3 py-3 text-xs text-text-muted text-center italic">
+                     No requests found
+                   </div>
+                 )}
+               </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto pt-2 pb-2">
             {isAddingCollection && (
               <div className="px-2 py-1">
                 <input
@@ -342,7 +405,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
               <div key={col.id} className="w-full">
                 <div
                   onClick={() => toggleCollection(col.id)}
-                  className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
+                  className={`w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none ${openColMenuId === col.id ? 'bg-surface-hover text-text-primary' : ''}`}
                 >
                   <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
                     {col.isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
@@ -404,47 +467,20 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   )}
 
                   {confirmDeleteColId !== col.id && editingColId !== col.id && (
-                    <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1 flex items-center">
-                      <button
-                        onClick={(e) => handleColAction(e, 'run-collection', col)}
-                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-                        title="Run Collection"
-                      >
-                        <Play size={12} />
-                      </button>
-                      <button
-                        onClick={(e) => handleColAction(e, 'add-request', col)}
-                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
-                        title="Add Request"
-                      >
-                        <Plus size={13} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenColMenuId(null);
-                          setNewRootFolderCollectionId(col.id);
-                          setNewRootFolderName('');
-                          if (!col.isOpen) toggleCollection(col.id);
-                        }}
-                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
-                        title="Add Folder"
-                      >
-                        <FolderPlus size={13} />
-                      </button>
+                    <div className={`flex-shrink-0 relative ml-1 flex items-center ${openColMenuId === col.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenColMenuId(openColMenuId === col.id ? null : col.id);
+                          setMenuTriggerElement(e.currentTarget);
                         }}
-                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
+                        className={`p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5 ${openColMenuId === col.id ? 'bg-surface-hover text-text-primary' : ''}`}
                         title="More Actions"
                       >
                         <MoreVertical size={13} />
                       </button>
 
-                      {openColMenuId === col.id && (
-                        <div className="absolute top-full right-0 mt-1 w-44 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                      <ContextMenu isOpen={openColMenuId === col.id} onClose={() => setOpenColMenuId(null)} triggerRef={{ current: menuTriggerElement }} width={176}>
                           <div onClick={(e) => handleColAction(e, 'run-collection', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                             <Play size={12} className="mr-2 opacity-70" /> Run
                           </div>
@@ -478,8 +514,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           <div onClick={(e) => handleColAction(e, 'delete', col)} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
                             <Trash2 size={12} className="mr-2 opacity-70" /> Delete
                           </div>
-                        </div>
-                      )}
+                      </ContextMenu>
                     </div>
                   )}
                 </div>
@@ -574,16 +609,8 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   <div key={env.id} className="w-full">
                     <div
                       onClick={() => openEnvironmentTab(env.id)}
-                      className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover group transition-colors relative select-none"
+                      className={`w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover group transition-colors relative select-none ${openEnvMenuId === env.id ? 'bg-surface-hover text-text-primary' : ''}`}
                     >
-                      <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
-                        {isActive ? (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                        )}
-                      </span>
-
                       {editingEnvId === env.id ? (
                         <input
                           autoFocus
@@ -611,18 +638,12 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           className="flex-1 bg-surface-bg border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
                         />
                       ) : (
-                        <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${activeRequestId === env.id ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
+                        <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${isActive ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
                           {env.name}
                         </span>
                       )}
 
-                      {isActive && !editingEnvId && (
-                        <span className="text-[9.5px] uppercase font-mono text-emerald-400 mr-1 flex-shrink-0">
-                          active
-                        </span>
-                      )}
-
-                      <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1">
+                      <div className="flex-shrink-0 relative ml-1 flex items-center">
                         {confirmDeleteEnvId === env.id ? (
                           <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
                             <button
@@ -636,19 +657,27 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           </div>
                         ) : (
                           <>
+                            <div 
+                              onClick={(e) => { e.stopPropagation(); useStore.getState().setActiveEnvironment(isActive ? null : env.id); }}
+                              className={`p-0.5 rounded mr-0.5 transition-colors cursor-pointer ${isActive ? 'text-text-primary' : `text-text-muted hover:text-text-primary transition-opacity ${openEnvMenuId === env.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}`}
+                              title={isActive ? "Deactivate environment" : "Make active"}
+                            >
+                              <CheckCircle2 size={13} />
+                            </div>
+
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenEnvMenuId(openEnvMenuId === env.id ? null : env.id);
                                 setOpenColMenuId(null);
+                                setMenuTriggerElement(e.currentTarget);
                               }}
-                              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                              className={`p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-opacity ${openEnvMenuId === env.id ? 'opacity-100 bg-surface-hover text-text-primary' : 'opacity-0 group-hover:opacity-100'}`}
                             >
-                              <MoreVertical size={13} />
+                              <MoreHorizontal size={13} />
                             </button>
 
-                            {openEnvMenuId === env.id && (
-                              <div className="absolute top-full right-0 mt-1 w-40 bg-panel-bg border border-border-strong rounded shadow-2xl overflow-hidden z-50 py-1">
+                            <ContextMenu isOpen={openEnvMenuId === env.id} onClose={() => setOpenEnvMenuId(null)} triggerRef={{ current: menuTriggerElement }} width={160}>
                                 <div onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenEnvMenuId(null);
@@ -682,8 +711,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                                 }} className="flex items-center px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 cursor-pointer">
                                   <Trash2 size={12} className="mr-2 opacity-70" /> Delete
                                 </div>
-                              </div>
-                            )}
+                            </ContextMenu>
                           </>
                         )}
                       </div>

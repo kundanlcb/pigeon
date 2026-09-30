@@ -37,8 +37,7 @@ import {
   Send,
   Activity,
   Code2,
-  Loader2,
-  Search
+  Loader2
 } from 'lucide-react';
 
 import { useStore } from './store';
@@ -496,17 +495,8 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-app-bg text-text-primary overflow-hidden font-sans">
-      <div className="h-[44px] w-full shrink-0 z-50 bg-app-bg flex items-center justify-center relative">
+      <div className="h-[32px] w-full shrink-0 z-50 bg-app-bg flex items-center relative">
         <div className="absolute inset-0" data-tauri-drag-region />
-        <div className="w-[460px] h-[28px] bg-surface-bg border border-border-strong rounded flex items-center px-2 shadow-inner group focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all relative z-10">
-          <Search size={14} className="text-text-muted mr-2 shrink-0" />
-          <input 
-            type="text" 
-            placeholder="Search requests..." 
-            className="flex-1 bg-transparent text-xs text-text-primary outline-none"
-          />
-          <span className="text-[10px] font-mono text-text-muted border border-border-strong rounded px-1 ml-2 bg-panel-bg shrink-0 hidden sm:block">⌘K</span>
-        </div>
       </div>
       <div className="flex flex-1 min-h-0 relative">
       <EnvironmentManager
@@ -645,7 +635,7 @@ export default function App() {
             </ErrorBoundary>
           ) : activeView === 'automation' ? (
             <ErrorBoundary name="Automation Builder">
-              <AutomationView />
+              <AutomationView onManageEnvClick={() => setIsEnvManagerOpen(true)} />
             </ErrorBoundary>
           ) : (
             <>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import type { EnvironmentVariable } from '../store';
-import { X, Plus, Trash2, Share } from 'lucide-react';
+import { X, Plus, Trash2, Share, CheckCircle2 } from 'lucide-react';
 import { downloadAsFile } from '../utils/file';
 
 interface EnvironmentManagerProps {
@@ -86,15 +86,23 @@ export function EnvironmentManager({ isOpen, onClose }: EnvironmentManagerProps)
                   className={`flex items-center px-3 py-2 rounded-md cursor-pointer group ${selectedEnvId === env.id ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'}`}
                 >
                   <span className="flex-1 truncate text-sm font-medium">{env.name}</span>
-                  {activeEnvironmentId === env.id && (
-                    <span className="text-[10px] uppercase bg-accent/20 text-accent px-1.5 py-0.5 rounded ml-2">Active</span>
-                  )}
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); deleteEnvironment(env.id); }}
-                    className={`ml-2 p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors ${selectedEnvId === env.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  
+                  <div className="flex items-center space-x-1 shrink-0">
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); setActiveEnvironment(activeEnvironmentId === env.id ? null : env.id); }}
+                      className={`p-1 rounded transition-colors ${activeEnvironmentId === env.id ? 'text-text-primary' : 'text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100'}`}
+                      title={activeEnvironmentId === env.id ? "Deactivate environment" : "Make active"}
+                    >
+                      <CheckCircle2 size={15} />
+                    </div>
+
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); deleteEnvironment(env.id); }}
+                      className={`p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors ${selectedEnvId === env.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               ))
             )}

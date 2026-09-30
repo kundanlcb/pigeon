@@ -22,10 +22,10 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
   const [newFolderName, setNewFolderName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
-  const [confirmDeleteFolderId, setConfirmDeleteFolderId] = useState<string | null>(null);
+
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [editingRequestName, setEditingRequestName] = useState('');
-  const [confirmDeleteRequestId, setConfirmDeleteRequestId] = useState<string | null>(null);
+
 
   const activeRequestId = useStore(state => state.activeRequestId);
   const setActiveRequest = useStore(state => state.setActiveRequest);
@@ -33,7 +33,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
   const renameRequest = useStore(state => state.renameRequest);
   const deleteRequest = useStore(state => state.deleteRequest);
   const duplicateRequest = useStore(state => state.duplicateRequest);
-  const moveRequestToFolder = useStore(state => state.moveRequestToFolder);
+
   const addFolder = useStore(state => state.addCollectionFolder);
   const renameFolder = useStore(state => state.renameCollectionFolder);
   const deleteFolder = useStore(state => state.deleteCollectionFolder);

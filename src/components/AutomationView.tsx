@@ -762,7 +762,7 @@ export function AutomationView() {
               ))}
             </div>
             {logs.length > 0 && (
-              <div className="h-44 border-t border-border-strong bg-[#141416] p-2.5 overflow-y-auto font-mono text-[11px] text-gray-300">
+              <div className="h-44 border-t border-border-strong bg-panel-bg p-2.5 overflow-y-auto font-mono text-[11px] text-text-secondary">
                 {logs.map((l, i) => <div key={i} className="leading-tight py-0.5">{l}</div>)}
               </div>
             )}

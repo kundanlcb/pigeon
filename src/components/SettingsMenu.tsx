@@ -52,7 +52,7 @@ export function SettingsMenu() {
     <div className="relative mt-auto w-full" ref={containerRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 flex items-center justify-center cursor-pointer transition-colors outline-none border-l-2 border-transparent ${isOpen ? 'text-white' : 'text-zinc-500 hover:text-zinc-200'}`}
+        className={`w-full h-12 flex items-center justify-center cursor-pointer transition-colors outline-none border-l-2 border-transparent ${isOpen ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}
         title="Settings"
       >
         <Settings size={21} strokeWidth={1.5} />

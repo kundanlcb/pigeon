@@ -68,7 +68,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
             setNewFolderParentId(undefined);
           }
         }}
-        className="w-full bg-[#1e1e1e] border border-accent rounded-none px-1.5 py-0 text-xs h-[20px] text-text-primary outline-none"
+        className="w-full bg-surface-bg border border-accent rounded-none px-1.5 py-0 text-xs h-[20px] text-text-primary outline-none"
         placeholder="Folder name"
       />
     </div>
@@ -80,7 +80,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
       <div
         key={request.id}
         onClick={() => setActiveRequest(request.id)}
-        className="w-full flex items-center h-[24px] cursor-pointer hover:bg-[#2a2d2e] transition-colors group relative pr-2 select-none"
+        className="w-full flex items-center h-[24px] cursor-pointer hover:bg-surface-hover transition-colors group relative pr-2 select-none"
         style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
       >
         <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
@@ -100,10 +100,10 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
               if (event.key === 'Escape') setEditingRequestId(null);
             }}
             onClick={event => event.stopPropagation()}
-            className="flex-1 min-w-0 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
+            className="flex-1 min-w-0 bg-surface-bg border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
           />
         ) : (
-          <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${isActive ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+          <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${isActive ? 'text-text-primary font-semibold' : 'text-text-secondary group-hover:text-text-primary'}`}>
             {request.name}
           </span>
         )}
@@ -114,7 +114,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                 event.stopPropagation();
                 setMenuId(menuId === request.id ? null : request.id);
               }}
-              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
               title="Request actions"
             >
               <MoreVertical size={13} />
@@ -155,11 +155,11 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
             else next.add(folder.id);
             return next;
           })}
-          className="w-full flex items-center h-[24px] cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative pr-2 select-none"
+          className="w-full flex items-center h-[24px] cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative pr-2 select-none"
           style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
         >
           <span
-            className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-200"
+            className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary"
             title={isCollapsed ? 'Expand folder' : 'Collapse folder'}
           >
             {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
@@ -178,10 +178,10 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                 if (event.key === 'Escape') setEditingFolderId(null);
               }}
               onClick={event => event.stopPropagation()}
-              className="flex-1 min-w-0 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
+              className="flex-1 min-w-0 bg-surface-bg border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
             />
           ) : (
-            <span className="text-[12.5px] leading-[24px] tracking-[-0.01em] select-none truncate flex-1 text-[#cccccc] group-hover:text-white">
+            <span className="text-[12.5px] leading-[24px] tracking-[-0.01em] select-none truncate flex-1 text-text-secondary group-hover:text-text-primary">
               {folder.name}
             </span>
           )}
@@ -198,7 +198,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                   });
                 }
               }}
-              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
               title="Add Request"
             >
               <Plus size={13} />
@@ -215,14 +215,14 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                   return next;
                 });
               }}
-              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
               title="Add Subfolder"
             >
               <FolderPlus size={13} />
             </button>
             <button
               onClick={event => { event.stopPropagation(); setMenuId(menuId === folder.id ? null : folder.id); }}
-              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
               title="Folder actions"
             >
               <MoreVertical size={13} />

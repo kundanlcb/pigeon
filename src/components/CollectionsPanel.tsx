@@ -222,7 +222,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-[#161618] flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <Group orientation="vertical">
         <Panel defaultSize={70} minSize={20} className="flex flex-col">
           {/* Header matching request detail section height */}
@@ -232,7 +232,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
               <button
                 onClick={(e) => { e.stopPropagation(); setIsAddingCollection(true); setNewCollectionName(''); setOpenTopMenu(null); }}
                 title="New Collection"
-                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+                className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
               >
                 <Plus size={14} />
               </button>
@@ -241,7 +241,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                 <button
                   onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'import' ? null : 'import'); setOpenColMenuId(null); }}
                   title="Import"
-                  className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+                  className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
                 >
                   <Download size={14} />
                 </button>
@@ -277,7 +277,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                 <button
                   onClick={(e) => { e.stopPropagation(); setOpenTopMenu(openTopMenu === 'more' ? null : 'more'); setOpenColMenuId(null); }}
                   title="More Actions..."
-                  className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+                  className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
                 >
                   <MoreHorizontal size={14} />
                 </button>
@@ -314,7 +314,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
               <div className="px-2 py-1">
                 <input
                   autoFocus
-                  className="w-full bg-[#1e1e1e] border border-accent rounded-none px-2 py-0 text-xs h-[22px] text-text-primary outline-none"
+                  className="w-full bg-surface-bg border border-accent rounded-none px-2 py-0 text-xs h-[22px] text-text-primary outline-none"
                   placeholder="Collection name..."
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
@@ -342,9 +342,9 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
               <div key={col.id} className="w-full">
                 <div
                   onClick={() => toggleCollection(col.id)}
-                  className="w-full flex items-center h-[24px] px-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative select-none"
+                  className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
                 >
-                  <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-200">
+                  <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
                     {col.isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   </span>
 
@@ -363,7 +363,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   ) : editingColId === col.id ? (
                     <input
                       autoFocus
-                      className="flex-1 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none mr-2"
+                      className="flex-1 bg-surface-bg border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none mr-2"
                       value={editColName}
                       onChange={(e) => setEditColName(e.target.value)}
                       onBlur={() => {
@@ -385,7 +385,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <span className="text-[12.5px] font-semibold tracking-[-0.01em] select-none truncate flex-1 text-zinc-300 group-hover:text-white">
+                    <span className="text-[12.5px] font-semibold tracking-[-0.01em] select-none truncate flex-1 text-text-secondary group-hover:text-text-primary">
                       {col.name}
                     </span>
                   )}
@@ -407,14 +407,14 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                     <div className="opacity-0 group-hover:opacity-100 flex-shrink-0 relative ml-1 flex items-center">
                       <button
                         onClick={(e) => handleColAction(e, 'run-collection', col)}
-                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
                         title="Run Collection"
                       >
                         <Play size={12} />
                       </button>
                       <button
                         onClick={(e) => handleColAction(e, 'add-request', col)}
-                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
                         title="Add Request"
                       >
                         <Plus size={13} />
@@ -427,7 +427,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           setNewRootFolderName('');
                           if (!col.isOpen) toggleCollection(col.id);
                         }}
-                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
                         title="Add Folder"
                       >
                         <FolderPlus size={13} />
@@ -437,7 +437,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                           e.stopPropagation();
                           setOpenColMenuId(openColMenuId === col.id ? null : col.id);
                         }}
-                        className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 ml-0.5"
+                        className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover ml-0.5"
                         title="More Actions"
                       >
                         <MoreVertical size={13} />
@@ -503,7 +503,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                             }
                           }}
                           placeholder="Folder name"
-                          className="w-full bg-[#1e1e1e] border border-accent rounded-none px-1.5 py-0 text-xs h-[20px] text-text-primary outline-none"
+                          className="w-full bg-surface-bg border border-accent rounded-none px-1.5 py-0 text-xs h-[20px] text-text-primary outline-none"
                         />
                       </div>
                     )}
@@ -544,10 +544,10 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
         >
           <div
             onClick={toggleEnvPanel}
-            className="h-[24px] px-2 flex items-center justify-between border-t border-border-subtle shrink-0 cursor-pointer hover:bg-[#2a2d2e] transition-colors select-none"
+            className="h-[24px] px-2 flex items-center justify-between border-t border-border-subtle shrink-0 cursor-pointer hover:bg-surface-hover transition-colors select-none"
           >
             <div className="flex items-center">
-              <span className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-zinc-400">
+              <span className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-text-secondary">
                 {isEnvCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
               </span>
               <span className="text-[11px] font-bold tracking-wider text-text-secondary uppercase">Environments</span>
@@ -560,7 +560,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                 setIsEnvCollapsed(false);
               }}
               title="Add Environment"
-              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
             >
               <Plus size={13} />
             </button>
@@ -574,7 +574,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   <div key={env.id} className="w-full">
                     <div
                       onClick={() => openEnvironmentTab(env.id)}
-                      className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] group transition-colors relative select-none"
+                      className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover group transition-colors relative select-none"
                     >
                       <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
                         {isActive ? (
@@ -608,10 +608,10 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                             }
                             setEditingEnvId(null);
                           }}
-                          className="flex-1 bg-[#1e1e1e] border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
+                          className="flex-1 bg-surface-bg border border-accent rounded-none px-1 text-xs h-[18px] text-text-primary outline-none"
                         />
                       ) : (
-                        <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${activeRequestId === env.id ? 'text-white font-medium' : 'text-[#cccccc] group-hover:text-white'}`}>
+                        <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] flex-1 truncate select-none ${activeRequestId === env.id ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
                           {env.name}
                         </span>
                       )}
@@ -642,7 +642,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                                 setOpenEnvMenuId(openEnvMenuId === env.id ? null : env.id);
                                 setOpenColMenuId(null);
                               }}
-                              className="p-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+                              className="p-0.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover"
                             >
                               <MoreVertical size={13} />
                             </button>

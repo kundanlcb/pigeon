@@ -58,7 +58,7 @@ export function HistoryPanel() {
   }, [history]);
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-[#161618] flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <Group orientation="vertical">
         <Panel defaultSize={100} minSize={20} className="flex flex-col">
           <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
@@ -67,7 +67,7 @@ export function HistoryPanel() {
               <button
                 onClick={(e) => { e.stopPropagation(); clearHistory(); }}
                 title="Clear History"
-                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+                className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
               >
                 <Trash2 size={14} />
               </button>
@@ -85,12 +85,12 @@ export function HistoryPanel() {
                   <div key={idx} className="w-full">
                     <div
                       onClick={() => toggleGroup(group.label)}
-                      className="w-full flex items-center h-[24px] px-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative select-none"
+                      className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
                     >
-                      <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-200">
+                      <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
                         {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                       </span>
-                      <span className="text-[12.5px] font-semibold tracking-[-0.01em] select-none truncate flex-1 text-zinc-300 group-hover:text-white">
+                      <span className="text-[12.5px] font-semibold tracking-[-0.01em] select-none truncate flex-1 text-text-secondary group-hover:text-text-primary">
                         {group.label}
                       </span>
                     </div>
@@ -103,12 +103,12 @@ export function HistoryPanel() {
                             <div
                               key={item.id}
                               onClick={() => setActiveRequest(item.id)}
-                              className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer transition-colors relative group hover:bg-[#2a2d2e] select-none"
+                              className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer transition-colors relative group hover:bg-surface-hover select-none"
                             >
                               <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
                                 <MethodIcon method={item.request.method} size={13} />
                               </span>
-                              <span className={`text-[12.5px] tracking-[-0.01em] truncate flex-1 leading-[24px] ${isActive ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                              <span className={`text-[12.5px] tracking-[-0.01em] truncate flex-1 leading-[24px] ${isActive ? 'text-text-primary font-semibold' : 'text-text-secondary group-hover:text-text-primary'}`}>
                                 {item.request.url || 'Unnamed Request'}
                               </span>
                               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pl-2 space-x-1">

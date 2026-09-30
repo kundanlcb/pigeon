@@ -107,7 +107,7 @@ export function RequestTabs() {
                 closeRequest(id);
               }
             }}
-            className={`flex items-center min-w-[140px] max-w-[240px] px-3 h-full cursor-pointer relative group select-none ${isActive ? 'bg-app-bg text-text-primary z-10 rounded-t-lg' : 'bg-transparent text-text-secondary hover:bg-[#1e1e20]'}`}
+            className={`flex items-center min-w-[140px] max-w-[240px] px-3 h-full cursor-pointer relative group select-none ${isActive ? 'bg-app-bg text-text-primary z-10 rounded-t-lg' : 'bg-transparent text-text-secondary hover:bg-surface-hover'}`}
           >
             {isEnv ? (
               <span className="text-[10px] font-bold mr-2 text-accent">ENV</span>
@@ -183,7 +183,7 @@ export function RequestTabs() {
                 closeRequest(contextMenu.tabId);
                 setContextMenu(null);
               }}
-              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-white flex items-center justify-between transition-colors"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-text-primary flex items-center justify-between transition-colors"
             >
               <span>Close</span>
               <span className="text-[10px] opacity-60">⌘W</span>
@@ -196,7 +196,7 @@ export function RequestTabs() {
                 closeOtherRequests(contextMenu.tabId);
                 setContextMenu(null);
               }}
-              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit flex items-center justify-between transition-colors"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-text-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit flex items-center justify-between transition-colors"
             >
               <span>Close Others</span>
             </button>
@@ -208,7 +208,7 @@ export function RequestTabs() {
                 closeRequestsToTheRight(contextMenu.tabId);
                 setContextMenu(null);
               }}
-              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit flex items-center justify-between transition-colors"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-text-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit flex items-center justify-between transition-colors"
             >
               <span>Close to the Right</span>
             </button>
@@ -222,7 +222,7 @@ export function RequestTabs() {
                 closeAllRequests();
                 setContextMenu(null);
               }}
-              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit flex items-center justify-between transition-colors"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-text-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit flex items-center justify-between transition-colors"
             >
               <span>Close All</span>
               <span className="text-[10px] opacity-60">⌥⌘W</span>

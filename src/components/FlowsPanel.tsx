@@ -32,13 +32,13 @@ export function FlowsPanel() {
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-[#161618] flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Flows</span>
         <button
           onClick={() => { setIsAddingFlow(true); setNewFlowName(''); }}
           title="Add Flow"
-          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
+          className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
         >
           <Plus size={14} />
         </button>
@@ -48,7 +48,7 @@ export function FlowsPanel() {
           <div className="px-2 py-1">
             <input
               autoFocus
-              className="w-full bg-[#1e1e1e] border border-accent rounded-none px-2 py-0 text-xs h-[22px] text-text-primary outline-none"
+              className="w-full bg-surface-bg border border-accent rounded-none px-2 py-0 text-xs h-[22px] text-text-primary outline-none"
               placeholder="Flow name..."
               value={newFlowName}
               onChange={e => setNewFlowName(e.target.value)}
@@ -69,9 +69,9 @@ export function FlowsPanel() {
             <div key={flow.id} className="w-full">
               <div
                 onClick={() => setActiveFlow(flow.id)}
-                className="w-full flex items-center h-[24px] px-2 cursor-pointer text-[#cccccc] hover:text-white hover:bg-[#2a2d2e] transition-colors group relative select-none"
+                className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
               >
-                <Workflow size={13} className="mr-2 text-zinc-400 group-hover:text-zinc-200 flex-shrink-0" />
+                <Workflow size={13} className="mr-2 text-text-secondary group-hover:text-text-primary flex-shrink-0" />
 
                 {confirmDeleteFlowId === flow.id ? (
                   <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>
@@ -110,7 +110,7 @@ export function FlowsPanel() {
                     onClick={e => e.stopPropagation()}
                   />
                 ) : (
-                  <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] select-none truncate flex-1 ${isActive ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                  <span className={`text-[12.5px] leading-[24px] tracking-[-0.01em] select-none truncate flex-1 ${isActive ? 'text-text-primary font-semibold' : 'text-text-secondary group-hover:text-text-primary'}`}>
                     {flow.name}
                   </span>
                 )}

@@ -188,8 +188,9 @@ interface AppState {
   openEnvironmentTab: (id: string) => void;
   importCollection: (collection: Collection) => void;
   importEnvironment: (env: Environment) => void;
-  activeView: 'editor' | 'runner' | 'automation' | 'history';
-  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history') => void;
+  importWorkspace: (data: { collections: Collection[], environments: Environment[], flows: Flow[] }) => void;
+  activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control';
+  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control') => void;
   flows: Flow[];
   activeFlowId: string | null;
   addFlow: (name: string) => void;
@@ -640,6 +641,18 @@ export const useStore = create<AppState>()(
         return { collections: [...state.collections, newCol] };
       }),
       importEnvironment: (env) => set((state) => ({ environments: [...state.environments, env] })),
+      importWorkspace: (data) => set((state) => {
+        if (!data || !Array.isArray(data.collections)) return state;
+        return {
+          collections: data.collections,
+          environments: Array.isArray(data.environments) ? data.environments : state.environments,
+          flows: Array.isArray(data.flows) ? data.flows : state.flows,
+          activeRequestId: null,
+          openRequestIds: [],
+          activeEnvironmentId: Array.isArray(data.environments) && data.environments.length > 0 ? data.environments[0].id : null,
+          activeFlowId: null,
+        };
+      }),
       setActiveView: (view) => set({ activeView: view }),
       
       addFlow: (name) => set((state) => {

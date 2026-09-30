@@ -57,8 +57,9 @@ export function parseOpenAPI(content: string, filename: string): Collection {
         if (!['get', 'post', 'put', 'patch', 'delete'].includes(method.toLowerCase())) continue;
         
         let folderId = null;
-        if (operation.tags && operation.tags.length > 0) {
-          folderId = getFolderId(operation.tags[0]);
+        const op = operation as any;
+        if (op.tags && op.tags.length > 0) {
+          folderId = getFolderId(op.tags[0]);
         } else {
           // fallback to first part of path
           const parts = path.split('/').filter(Boolean);
@@ -71,7 +72,7 @@ export function parseOpenAPI(content: string, filename: string): Collection {
         const headers: Record<string, string> = {};
         
         // Handle parameters
-        const params = (operation.parameters || []).concat((pathItem as any).parameters || []);
+        const params = (op.parameters || []).concat((pathItem as any).parameters || []);
         const queryParams: string[] = [];
         
         for (let param of params) {
@@ -91,8 +92,8 @@ export function parseOpenAPI(content: string, filename: string): Collection {
         }
 
         let body: any = undefined;
-        if (operation.requestBody) {
-          let rb = operation.requestBody;
+        if (op.requestBody) {
+          let rb = op.requestBody;
           if (rb.$ref) rb = resolveRef(rb.$ref, spec);
           if (rb.content && rb.content['application/json']) {
             headers['Content-Type'] = 'application/json';
@@ -114,7 +115,7 @@ export function parseOpenAPI(content: string, filename: string): Collection {
 
         requests.push({
           id: `req-${crypto.randomUUID()}`,
-          name: operation.summary || operation.operationId || path,
+          name: op.summary || op.operationId || path,
           method: method.toUpperCase() as any,
           url,
           headers,

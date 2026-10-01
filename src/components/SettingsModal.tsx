@@ -177,8 +177,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <h2 className="text-xl font-bold text-text-primary">Pigeon</h2>
                   <p className="text-xs text-text-secondary font-mono tracking-widest uppercase">Version {appVersion}</p>
                 </div>
-                <div className="text-xs text-text-muted flex items-center gap-1 mt-6">
-                  Crafted with <span className="text-red-500 mx-1">❤️</span> by @kundanlcb
+                <div className="flex flex-col items-center gap-2 mt-6">
+                  <div className="text-xs text-text-muted flex items-center gap-1">
+                    Crafted with <span className="text-red-500 mx-1">❤️</span> by @adbhut
+                  </div>
+                  <div className="text-[10px] text-text-muted/60">
+                    © {new Date().getFullYear()} Pigeon. All rights reserved.
+                  </div>
                 </div>
               </div>
             )}

@@ -32,14 +32,25 @@ export interface SecurityAuditConfig {
 
 const sendAuditRequest = async (url: string, method: string, headers: Record<string, string>, body?: any) => {
   try {
-    const response = await fetch(url, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const requestPromise = fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal
     });
+
+    const response = await requestPromise;
+    clearTimeout(timeoutId);
+    
     const responseText = await response.text();
     return { status: response.status, body: responseText };
   } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return { status: 0, body: 'Request timed out' };
+    }
     return { status: 0, body: String(err) };
   }
 };
@@ -50,6 +61,23 @@ export async function runSecurityAudit(
   onProgress: (msg: string) => void
 ): Promise<AuditFinding[]> {
   const findings: AuditFinding[] = [];
+
+  // 0. Pre-flight Liveness Check
+  onProgress('Establishing baseline connection (Pre-flight)...');
+  const baselineRes = await sendAuditRequest(base.url, base.method, base.headers, base.body);
+  if (baselineRes.status === 0) {
+    findings.push({
+      id: 'baseline-fail',
+      category: 'BOLA', // Reusing category type, or we could add 'BASELINE' to the union
+      title: 'Baseline Connection Failed',
+      description: `The security engine could not establish a connection to ${base.url}. The request may have timed out, or the server is completely unresponsive.`,
+      risk: 'CRITICAL',
+      remediation: 'Ensure the server is running and the URL is correct before attempting a security audit.',
+      payloadSent: `Error Details: ${baselineRes.body}`
+    });
+    onProgress('Audit Aborted: Target Unreachable.');
+    return findings;
+  }
 
   // 1. Broken Object Level Authorization (BOLA)
   if (config.testBOLA && config.attackerAuthHeader) {

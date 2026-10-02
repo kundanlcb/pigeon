@@ -53,7 +53,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           </div>
 
           <div className="w-[1px] h-4 bg-border-strong" />
-          <div className="flex-1 min-w-[200px] max-w-[300px]">
+          <div className="w-[180px]">
             <EnvironmentSelector onManageClick={onManageEnvClick} />
           </div>
         </div>
@@ -72,7 +72,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl">
           
           {selectedRequestIds.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-text-muted mt-20">

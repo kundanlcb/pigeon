@@ -12,6 +12,16 @@ interface ResponseViewerProps {
 export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
   const [activeResponseTab, setActiveResponseTab] = useState('preview');
   const [copied, setCopied] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'pretty' | 'raw' | 'visual'>('pretty');
+
+  let language = 'plaintext';
+  if (response) {
+    const contentType = (response.headers?.['content-type'] || response.headers?.['Content-Type'] || '').toLowerCase();
+    if (contentType.includes('json')) language = 'json';
+    else if (contentType.includes('html')) language = 'html';
+    else if (contentType.includes('xml')) language = 'xml';
+    else if (contentType.includes('javascript') || contentType.includes('application/javascript')) language = 'javascript';
+  }
 
   const handleCopy = () => {
     if (!response) return;
@@ -59,46 +69,81 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
         </div>
       </div>
       
-      <div className="flex px-5 space-x-6 border-b border-border-subtle text-sm bg-panel-bg">
-        <button 
-          onClick={() => setActiveResponseTab('preview')}
-          className={`py-2.5 font-medium relative ${activeResponseTab === 'preview' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
-        >
-          Preview
-          {activeResponseTab === 'preview' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
-        </button>
-        <button 
-          onClick={() => setActiveResponseTab('headers')}
-          className={`py-2.5 font-medium relative ${activeResponseTab === 'headers' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
-        >
-          Headers
-          {response?.headers && Object.keys(response.headers).length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-surface-hover text-[10px] text-text-muted">
-              {Object.keys(response.headers).length}
-            </span>
-          )}
-          {activeResponseTab === 'headers' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
-        </button>
-        <button 
-          onClick={() => setActiveResponseTab('tests')}
-          className={`py-2.5 font-medium relative ${activeResponseTab === 'tests' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
-        >
-          Test Results
-          {response?.testResults && response.testResults.length > 0 && (
-            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${response.testResults.every((t: any) => t.passed) ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-              {response.testResults.filter((t: any) => t.passed).length}/{response.testResults.length}
-            </span>
-          )}
-          {activeResponseTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
-        </button>
+      <div className="flex px-5 border-b border-border-subtle text-sm bg-panel-bg items-center justify-between relative">
+        <div className="flex space-x-6 h-full">
+          <button 
+            onClick={() => setActiveResponseTab('preview')}
+            className={`py-2.5 font-medium relative ${activeResponseTab === 'preview' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
+          >
+            Preview
+            {activeResponseTab === 'preview' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+          </button>
+          <button 
+            onClick={() => setActiveResponseTab('headers')}
+            className={`py-2.5 font-medium relative ${activeResponseTab === 'headers' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
+          >
+            Headers
+            {response?.headers && Object.keys(response.headers).length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-surface-hover text-[10px] text-text-muted">
+                {Object.keys(response.headers).length}
+              </span>
+            )}
+            {activeResponseTab === 'headers' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+          </button>
+          <button 
+            onClick={() => setActiveResponseTab('tests')}
+            className={`py-2.5 font-medium relative ${activeResponseTab === 'tests' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
+          >
+            Test Results
+            {response?.testResults && response.testResults.length > 0 && (
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${response.testResults.every((t: any) => t.passed) ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                {response.testResults.filter((t: any) => t.passed).length}/{response.testResults.length}
+              </span>
+            )}
+            {activeResponseTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+          </button>
+        </div>
+        {activeResponseTab === 'preview' && response && (
+          <div className="flex bg-surface-bg rounded-md p-0.5 border border-border-subtle">
+            <button 
+              onClick={() => setPreviewMode('pretty')} 
+              className={`px-3 py-1 rounded-sm text-xs font-medium transition-colors ${previewMode === 'pretty' ? 'bg-panel-bg text-text-primary shadow-sm' : 'text-text-muted hover:text-text-primary'}`}
+            >
+              Pretty
+            </button>
+            <button 
+              onClick={() => setPreviewMode('raw')} 
+              className={`px-3 py-1 rounded-sm text-xs font-medium transition-colors ${previewMode === 'raw' ? 'bg-panel-bg text-text-primary shadow-sm' : 'text-text-muted hover:text-text-primary'}`}
+            >
+              Raw
+            </button>
+            {language === 'html' && (
+              <button 
+                onClick={() => setPreviewMode('visual')} 
+                className={`px-3 py-1 rounded-sm text-xs font-medium transition-colors ${previewMode === 'visual' ? 'bg-panel-bg text-text-primary shadow-sm' : 'text-text-muted hover:text-text-primary'}`}
+              >
+                Visual
+              </button>
+            )}
+          </div>
+        )}
       </div>
       
       <div className="flex-1 overflow-y-auto font-mono text-[13px] leading-relaxed relative">
         {response ? (
           activeResponseTab === 'preview' ? (
-            isJsonString(response.data) ? (
+            previewMode === 'visual' && language === 'html' ? (
+              <div className="w-full h-full bg-white absolute inset-0">
+                <iframe
+                  srcDoc={response.data}
+                  title="Response Preview"
+                  className="w-full h-full border-0 bg-white"
+                  sandbox="allow-scripts allow-same-origin"
+                />
+              </div>
+            ) : previewMode === 'pretty' ? (
               <div className="w-full h-full bg-panel-bg absolute inset-0">
-                <JsonEditor value={response.data} readOnly={true} bgType="panel" />
+                <JsonEditor value={response.data} readOnly={true} bgType="panel" language={language} autoFormat={true} />
               </div>
             ) : (
               <pre className="text-text-primary m-0 whitespace-pre-wrap p-4 w-full h-full">

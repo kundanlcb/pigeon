@@ -94,9 +94,10 @@ interface JsonEditorProps {
   readOnly?: boolean;
   bgType?: 'app' | 'panel';
   language?: string;
+  autoFormat?: boolean;
 }
 
-export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', language = 'json' }: JsonEditorProps) {
+export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', language = 'json', autoFormat = false }: JsonEditorProps) {
   const monaco = useMonaco();
   const theme = useStore(state => state.theme);
   
@@ -118,6 +119,12 @@ export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', 
 
     editor.onDidChangeModelContent(updateDecorations);
     updateDecorations();
+
+    if (autoFormat) {
+      setTimeout(() => {
+        editor.getAction('editor.action.formatDocument')?.run();
+      }, 100);
+    }
   };
   
   useEffect(() => {

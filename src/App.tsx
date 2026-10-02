@@ -6,6 +6,7 @@ import { CollectionsPanel } from "./components/CollectionsPanel";
 import { FlowsPanel } from "./components/FlowsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { SourceControlPanel } from "./components/SourceControlPanel";
+import { SecuritySidebar } from "./components/SecuritySidebar";
 import { RequestTabs } from "./components/RequestTabs";
 import { SecurityHub } from "./components/SecurityHub";
 import { RequestEditor } from "./components/RequestEditor";
@@ -533,6 +534,8 @@ export default function App() {
           <FlowsPanel />
         ) : activeView === 'source-control' ? (
           <SourceControlPanel />
+        ) : activeView === 'security' ? (
+          <SecuritySidebar />
         ) : (
           <CollectionsPanel
             onAddEnvironmentClick={() => setIsEnvManagerOpen(true)}
@@ -651,7 +654,7 @@ export default function App() {
             </ErrorBoundary>
           ) : activeView === 'security' ? (
             <ErrorBoundary name="Security Hub">
-              <SecurityHub />
+              <SecurityHub onManageEnvClick={() => setIsEnvManagerOpen(true)} />
             </ErrorBoundary>
           ) : (
             <>

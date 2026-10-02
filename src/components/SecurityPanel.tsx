@@ -133,12 +133,12 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
             </div>
 
             <div className="border border-border-strong rounded-md overflow-hidden bg-app-bg shadow-sm">
-              <div className="flex bg-surface-bg border-b border-border-strong px-2 py-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
-                <div className="w-[200px] border-r border-border-strong px-2">Target Auth Header</div>
-                <div className="flex-1 px-3">Secondary Attacker Token (For BOLA)</div>
+              <div className="grid grid-cols-[200px_1fr] bg-surface-bg border-b border-border-strong text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                <div className="border-r border-border-strong px-3 py-1.5">Target Auth Header</div>
+                <div className="px-3 py-1.5">Secondary Attacker Token (For BOLA)</div>
               </div>
-              <div className="flex px-1 py-1">
-                <div className="w-[200px] border-r border-border-strong pr-1 h-[28px]">
+              <div className="grid grid-cols-[200px_1fr]">
+                <div className="border-r border-border-strong p-1 h-[32px]">
                   <Dropdown 
                     value={config.authHeaderName} 
                     onChange={val => setConfig({...config, authHeaderName: val})}
@@ -146,14 +146,14 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                     className="w-full h-full text-[13px] font-mono px-2"
                   />
                 </div>
-                <div className="flex-1 pl-1">
+                <div className="p-1 h-[32px]">
                   <input 
                     type="text" 
                     value={config.attackerAuthHeader}
                     onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
                     disabled={!config.testBOLA}
                     placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
-                    className="w-full h-full bg-transparent px-2 py-1.5 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
+                    className="w-full h-full bg-transparent px-2 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
                   />
                 </div>
               </div>

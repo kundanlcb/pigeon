@@ -40,7 +40,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   const [groupedFindings, setGroupedFindings] = useState<RequestFindings[] | null>(null);
   const [expandedFindingIds, setExpandedFindingIds] = useState<Set<string>>(new Set());
   
-  const [progress, setProgress] = useState({ current: 0, total: 0, currentName: '', currentMethod: '' });
+  const [progress, setProgress] = useState({ current: 0, total: 0, currentName: '', currentMethod: '', currentUrl: '' });
   const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -73,14 +73,14 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       .flatMap(col => col.requests)
       .filter(req => selectedRequestIds.includes(req.id));
 
-    setProgress({ current: 0, total: targetRequests.length, currentName: '', currentMethod: '' });
+    setProgress({ current: 0, total: targetRequests.length, currentName: '', currentMethod: '', currentUrl: '' });
     setLogs(prev => [...prev, `[*] Target Scope: ${targetRequests.length} endpoints.`]);
 
     let currentIndex = 0;
     for (const req of targetRequests) {
       if (signal.aborted) break;
       currentIndex++;
-      setProgress({ current: currentIndex, total: targetRequests.length, currentName: req.name, currentMethod: req.method });
+      setProgress({ current: currentIndex, total: targetRequests.length, currentName: req.name, currentMethod: req.method, currentUrl: req.url });
 
       setLogs(prev => [...prev, `__SECTION__STARTING_AUDIT_FOR__[${req.method}] ${req.name}`]);
 
@@ -222,6 +222,11 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                           }`}>{progress.currentMethod}</span>
                         )}
                         <span>{progress.currentName || 'Initializing...'}</span>
+                        {progress.currentUrl && (
+                          <span className="ml-1.5 text-[10px] text-text-muted font-mono opacity-60 truncate max-w-[250px]">
+                            ({progress.currentUrl})
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center space-x-3 text-text-secondary">
                         <span>{progress.current} of {progress.total}</span>

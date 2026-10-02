@@ -171,7 +171,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         {isRunning ? (
           <button
             onClick={stopAudit}
-            className="flex items-center space-x-1.5 px-3 h-[28px] rounded-md text-[11px] font-medium transition-all shadow-sm bg-red-500/10 text-red-400 hover:bg-red-500/20"
+            className="flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm bg-red-500/10 text-red-400 hover:bg-red-500/20"
           >
             <StopCircle size={14} />
             <span>Stop Audit</span>
@@ -180,7 +180,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           <button
             onClick={startFleetAudit}
             disabled={selectedRequestIds.length === 0}
-            className={`flex items-center space-x-1.5 px-3 h-[28px] rounded-md text-[11px] font-medium transition-all shadow-sm ${
+            className={`flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm ${
               selectedRequestIds.length === 0
                 ? 'opacity-50 cursor-not-allowed bg-surface-hover text-text-muted'
                 : 'bg-accent text-white hover:bg-accent-hover'

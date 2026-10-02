@@ -27,7 +27,7 @@ export function EnvironmentSelector({ onManageClick }: EnvironmentSelectorProps)
     <div className="relative">
       <div 
         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-        className="flex items-center space-x-1.5 px-2 py-1 rounded-md cursor-pointer text-xs font-medium text-accent border border-accent/40 bg-accent/5 hover:bg-accent/10 hover:border-accent transition-all"
+        className="flex items-center space-x-1.5 px-2 py-1 rounded cursor-pointer text-xs font-medium text-accent border border-accent/40 bg-accent/5 hover:bg-accent/10 hover:border-accent transition-all"
       >
         <Globe size={13} className={activeEnvironmentId ? 'text-emerald-400' : 'text-accent'} />
         <span className="truncate max-w-[110px]">{activeEnv ? activeEnv.name : 'No Environment'}</span>

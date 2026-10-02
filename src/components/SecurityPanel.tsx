@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle2, Info, Loader2, XCircle, Settings2, Play, ChevronRight, CheckSquare, Square } from 'lucide-react';
+import { Dropdown } from './Dropdown';
 import { runSecurityAudit } from '../utils/security/engine';
 import type { AuditFinding, SecurityAuditContext, RiskLevel, SecurityAuditConfig } from '../utils/security/engine';
 
@@ -137,26 +138,22 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                 <div className="flex-1 px-3">Secondary Attacker Token (For BOLA)</div>
               </div>
               <div className="flex px-1 py-1">
-                <div className="w-[200px] border-r border-border-strong pr-1">
-                  <input 
-                    type="text" 
+                <div className="w-[200px] border-r border-border-strong pr-1 h-[28px]">
+                  <Dropdown 
                     value={config.authHeaderName} 
-                    onChange={e => setConfig({...config, authHeaderName: e.target.value})}
-                    list="available-headers"
-                    placeholder="Authorization"
-                    className="w-full bg-transparent px-2 py-1.5 text-[13px] font-mono focus:outline-none placeholder-text-muted/50"
+                    onChange={val => setConfig({...config, authHeaderName: val})}
+                    options={Array.from(new Set([...Object.keys(requestContext?.headers || {}), 'Authorization', 'X-API-Key'])).map(h => ({ value: h, label: h }))}
+                    className="w-full h-full text-[13px] font-mono px-2"
                   />
-                  <datalist id="available-headers">
-                    {Object.keys(requestContext?.headers || {}).map(h => <option key={h} value={h} />)}
-                  </datalist>
                 </div>
                 <div className="flex-1 pl-1">
                   <input 
                     type="text" 
                     value={config.attackerAuthHeader}
-                    onChange={e => setConfig({...config, attackerAuthHeader: e.target.value, testBOLA: !!e.target.value})}
-                    placeholder="Leave empty to skip BOLA test..."
-                    className="w-full bg-transparent px-2 py-1.5 text-[13px] font-mono focus:outline-none placeholder-text-muted"
+                    onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
+                    disabled={!config.testBOLA}
+                    placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
+                    className="w-full h-full bg-transparent px-2 py-1.5 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -170,6 +167,13 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                 (v) => setConfig({ ...config, testBrokenAuth: v })
               )}
               
+              {renderConfigToggle(
+                "Broken Object Level Auth (BOLA)", 
+                "Tests if a different user can access this resource. Requires a secondary token above.", 
+                config.testBOLA, 
+                (v) => setConfig({ ...config, testBOLA: v })
+              )}
+
               {renderConfigToggle(
                 "Mass Assignment", 
                 "Injects elevated privilege properties (e.g. is_admin) into JSON payloads.", 

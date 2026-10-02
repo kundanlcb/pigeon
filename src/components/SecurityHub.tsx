@@ -192,8 +192,8 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         )}
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col p-6">
-        <div className={`mx-auto w-full h-full flex flex-col ${isRunning || groupedFindings ? 'max-w-6xl' : 'max-w-5xl'}`}>
+      <div className="flex-1 overflow-hidden flex flex-col px-4 py-6">
+        <div className="w-full h-full flex flex-col">
           
           {selectedRequestIds.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-text-muted mt-20">

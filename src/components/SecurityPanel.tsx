@@ -257,19 +257,20 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                       <td className="px-3 py-3">
                         <RiskBadge risk={finding.risk} />
                       </td>
-                      <td className="pr-6 pl-3 py-3 space-y-2 max-w-[400px]">
-                        <div className="text-text-secondary leading-relaxed">{finding.description}</div>
+                      <td className="pr-6 pl-3 py-3 space-y-1.5 max-w-[450px]">
+                        <div className="text-text-primary leading-relaxed">{finding.description}</div>
                         
                         {finding.payloadSent && (
-                          <div className="mt-2 text-red-400 bg-[#0a0a0a] p-2 rounded border border-border-strong text-[11px] whitespace-pre-wrap font-mono custom-scrollbar overflow-x-auto">
-                            {finding.payloadSent}
+                          <div className="text-[11px] font-mono whitespace-pre-wrap">
+                            <span className="text-text-muted font-semibold">Evidence: </span>
+                            <span className="text-red-400">{finding.payloadSent}</span>
                           </div>
                         )}
 
                         {finding.remediation && finding.risk !== 'PASS' && (
-                          <div className="mt-2 text-blue-300 bg-blue-500/10 p-2 rounded border border-blue-500/20 text-[11px] leading-relaxed">
-                            <span className="font-semibold uppercase tracking-wider block mb-1 opacity-70">Remediation</span>
-                            {finding.remediation}
+                          <div className="text-[11px] leading-relaxed">
+                            <span className="text-text-muted font-semibold">Remediation: </span>
+                            <span className="text-blue-400">{finding.remediation}</span>
                           </div>
                         )}
                       </td>

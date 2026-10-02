@@ -3,9 +3,11 @@ import { Panel } from 'react-resizable-panels';
 import { KeyValueEditor } from './KeyValueEditor';
 import { AuthEditor } from './AuthEditor';
 import { BodyEditor } from './BodyEditor';
-import { Braces } from 'lucide-react';
+import { Braces, Shield } from 'lucide-react';
 
 import { JsonEditor } from './JsonEditor';
+import { SecurityPanel } from './SecurityPanel';
+import { resolveEnvVariables } from '../utils/env';
 import { useStore } from '../store';
 import { createSecretReference, deleteSecret, getSecret, setSecret } from '../utils/secrets';
 import { deleteUnusedRequestSecrets, requestSecretIsShared } from '../utils/authSecrets';
@@ -36,9 +38,11 @@ const DEFAULT_TEST_SCRIPT = `// Write JavaScript that runs after the response is
 
 interface RequestEditorProps {
   setLocalUrl: (url: string) => void;
+  localUrl: string;
+  localMethod: string;
 }
 
-export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
+export function RequestEditor({ setLocalUrl, localUrl, localMethod }: RequestEditorProps) {
   const activeRequest = useStore(state => state.getActiveRequest());
   const updateActiveRequest = useStore(state => state.updateActiveRequest);
   const updateRequest = useStore(state => state.updateRequest);
@@ -227,6 +231,14 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
           Tests
           {activeTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
         </button>
+        <button 
+          onClick={() => setActiveTab('security')}
+          className={`py-3 font-medium flex items-center space-x-1.5 transition-colors relative ${activeTab === 'security' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}
+        >
+          <Shield size={14} className={activeTab === 'security' ? 'text-accent' : 'text-text-secondary'} />
+          <span>DevSecOps</span>
+          {activeTab === 'security' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+        </button>
 
         {(activeTab === 'req-params' || activeTab === 'req-headers' || (activeTab === 'req-body' && typeof activeRequest?.body === 'object' && (activeRequest?.body?.type === 'form-data' || activeRequest?.body?.type === 'x-www-form-urlencoded'))) && (
           <button 
@@ -337,6 +349,35 @@ export function RequestEditor({ setLocalUrl }: RequestEditorProps) {
               language="javascript"
               value={activeRequest?.testScript || DEFAULT_TEST_SCRIPT}
               onChange={(val) => updateActiveRequest({ testScript: val })}
+            />
+          </div>
+        )}
+        {activeTab === 'security' && (
+          <div className="absolute inset-0 bg-app-bg z-10">
+            <SecurityPanel 
+              requestContext={
+                activeRequest ? {
+                  url: resolveEnvVariables(localUrl, useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId)),
+                  method: localMethod,
+                  headers: Object.fromEntries(
+                    Object.entries(activeRequest.headers || {})
+                      .filter(([key]) => !activeRequest.disabledHeaders?.includes(key))
+                      .map(([k, v]) => [
+                        resolveEnvVariables(k, useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId)),
+                        resolveEnvVariables(v as string, useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId))
+                      ])
+                  ),
+                  body: activeRequest.body && typeof activeRequest.body === 'object' && activeRequest.body.type === 'raw' && activeRequest.body.raw 
+                    ? (() => {
+                        try {
+                          return JSON.parse(resolveEnvVariables((activeRequest.body as any).raw, useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId)));
+                        } catch {
+                          return undefined;
+                        }
+                      })()
+                    : undefined
+                } : null
+              }
             />
           </div>
         )}

@@ -21,6 +21,7 @@ export interface SecurityAuditContext {
 }
 
 export interface SecurityAuditConfig {
+  authHeaderName: string;
   testBOLA: boolean;
   attackerAuthHeader: string;
   testBrokenAuth: boolean;
@@ -53,7 +54,7 @@ export async function runSecurityAudit(
   // 1. Broken Object Level Authorization (BOLA)
   if (config.testBOLA && config.attackerAuthHeader) {
     onProgress('Testing BOLA / IDOR...');
-    const bolaHeaders = { ...base.headers, 'Authorization': config.attackerAuthHeader };
+    const bolaHeaders = { ...base.headers, [config.authHeaderName]: config.attackerAuthHeader };
     const bolaRes = await sendAuditRequest(base.url, base.method, bolaHeaders, base.body);
     
     if (bolaRes.status >= 200 && bolaRes.status < 300) {
@@ -64,7 +65,7 @@ export async function runSecurityAudit(
         description: 'The server accepted a request for a resource using a different user\'s token.',
         risk: 'CRITICAL',
         remediation: 'Ensure the backend verifies that the requested resource ID belongs to the user associated with the provided token.',
-        payloadSent: `Headers: { Authorization: ${config.attackerAuthHeader.substring(0, 15)}... }`
+        payloadSent: `Headers: { ${config.authHeaderName}: ${config.attackerAuthHeader.substring(0, 15)}... }`
       });
     } else {
       findings.push({
@@ -82,8 +83,14 @@ export async function runSecurityAudit(
   if (config.testBrokenAuth) {
     onProgress('Testing Broken Authentication (Missing Auth)...');
     const noAuthHeaders = { ...base.headers };
-    delete noAuthHeaders['Authorization'];
-    delete noAuthHeaders['authorization'];
+    
+    // Attempt to remove the configured auth header (case-insensitive)
+    const headerKeyToRemove = Object.keys(noAuthHeaders).find(
+      key => key.toLowerCase() === config.authHeaderName.toLowerCase()
+    );
+    if (headerKeyToRemove) {
+      delete noAuthHeaders[headerKeyToRemove];
+    }
     
     const noAuthRes = await sendAuditRequest(base.url, base.method, noAuthHeaders, base.body);
     if (noAuthRes.status >= 200 && noAuthRes.status < 300) {
@@ -91,10 +98,10 @@ export async function runSecurityAudit(
         id: 'auth-1',
         category: 'BROKEN_AUTH',
         title: 'Missing Authentication',
-        description: 'The endpoint returned a successful response even when the Authorization header was completely removed.',
+        description: `The endpoint returned a successful response even when the ${config.authHeaderName} header was completely removed.`,
         risk: 'CRITICAL',
         remediation: 'Enforce strict authentication middleware on this endpoint.',
-        payloadSent: 'Headers: (Removed Authorization)'
+        payloadSent: `Headers: (Removed ${config.authHeaderName})`
       });
     } else {
       findings.push({

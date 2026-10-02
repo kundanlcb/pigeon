@@ -34,6 +34,7 @@ const RiskBadge = ({ risk }: { risk: RiskLevel }) => {
 
 export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   const [config, setConfig] = useState<SecurityAuditConfig>({
+    authHeaderName: 'Authorization',
     testBOLA: false,
     attackerAuthHeader: '',
     testBrokenAuth: true,
@@ -129,12 +130,23 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
               <h3 className="text-sm font-semibold mb-1">Audit Configuration</h3>
               <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
             </div>
+
+            <div className="flex items-center space-x-3 p-3 bg-surface-bg border border-border-strong rounded-md">
+              <label className="text-[12px] font-medium text-text-primary whitespace-nowrap">Auth Header Key:</label>
+              <input
+                type="text"
+                value={config.authHeaderName}
+                onChange={(e) => setConfig({ ...config, authHeaderName: e.target.value })}
+                placeholder="Authorization, X-API-Key..."
+                className="flex-1 bg-app-bg border border-border-strong rounded px-3 py-1.5 text-[12px] font-mono focus:border-accent focus:ring-1 focus:ring-accent outline-none placeholder-text-muted"
+              />
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {renderConfigToggle(
                 "Broken Authentication", 
-                "Strips Authorization headers to ensure endpoint rejects unauthenticated access.", 
-                config.testBrokenAuth, 
+                `Strips ${config.authHeaderName} headers to ensure endpoint rejects unauthenticated access.`, 
+                config.testBrokenAuth,  
                 (v) => setConfig({ ...config, testBrokenAuth: v })
               )}
               

@@ -18,6 +18,20 @@ export interface SecurityScanRecord {
   logs: string[];
 }
 
+export interface LoadTestRecord {
+  id: string;
+  name: string;
+  targetUrl: string;
+  timestamp: number;
+  durationSec: number;
+  vus: number;
+  totalRequests: number;
+  successCount: number;
+  errorCount: number;
+  rps: number;
+  p95LatencyMs: number;
+}
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export type AuthType = 'none' | 'bearer' | 'basic' | 'api_key' | 'oauth2_client_credentials';
@@ -206,8 +220,8 @@ interface AppState {
   importCollection: (collection: Collection) => void;
   importEnvironment: (env: Environment) => void;
   importWorkspace: (data: { collections: Collection[], environments: Environment[], flows: Flow[] }) => void;
-  activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security';
-  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security') => void;
+  activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security' | 'performance';
+  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security' | 'performance') => void;
   selectedSecurityRequestIds: string[];
   setSelectedSecurityRequestIds: (ids: string[]) => void;
   securityHistory: SecurityScanRecord[];
@@ -216,6 +230,14 @@ interface AppState {
   addSecurityScan: (scan: SecurityScanRecord) => void;
   deleteSecurityScan: (id: string) => void;
   clearSecurityHistory: () => void;
+  selectedPerformanceRequestId: string | null;
+  setSelectedPerformanceRequestId: (id: string | null) => void;
+  performanceHistory: LoadTestRecord[];
+  activePerformanceTestId: string | null;
+  setActivePerformanceTestId: (id: string | null) => void;
+  addPerformanceTest: (record: LoadTestRecord) => void;
+  deletePerformanceTest: (id: string) => void;
+  clearPerformanceHistory: () => void;
   flows: Flow[];
   activeFlowId: string | null;
   addFlow: (name: string) => void;
@@ -244,6 +266,9 @@ export const useStore = create<AppState>()(
       selectedSecurityRequestIds: [],
       securityHistory: [],
       activeSecurityScanId: null,
+      selectedPerformanceRequestId: null,
+      performanceHistory: [],
+      activePerformanceTestId: null,
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
       activeRequestId: 'req-1',
       openRequestIds: ['req-1'],
@@ -690,6 +715,11 @@ export const useStore = create<AppState>()(
         activeSecurityScanId: state.activeSecurityScanId === id ? null : state.activeSecurityScanId
       })),
       clearSecurityHistory: () => set({ securityHistory: [], activeSecurityScanId: null }),
+      setSelectedPerformanceRequestId: (id) => set({ selectedPerformanceRequestId: id }),
+      setActivePerformanceTestId: (id) => set({ activePerformanceTestId: id }),
+      addPerformanceTest: (record) => set(state => ({ performanceHistory: [record, ...state.performanceHistory] })),
+      deletePerformanceTest: (id) => set(state => ({ performanceHistory: state.performanceHistory.filter(r => r.id !== id) })),
+      clearPerformanceHistory: () => set({ performanceHistory: [] }),
       
       addFlow: (name) => set((state) => {
         const newFlow = { id: `flow-${Date.now()}`, name, nodes: [], edges: [] };

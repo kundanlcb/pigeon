@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Shield, Play, CheckSquare, Square, StopCircle, ChevronRight } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Shield, Play, CheckSquare, Square, StopCircle, ChevronRight, ChevronDown, Check, AlertTriangle } from 'lucide-react';
 import { useStore } from '../store';
 import { runSecurityAudit, type SecurityAuditConfig, type AuditFinding } from '../utils/security/engine';
 import { resolveEnvVariables } from '../utils/env';
@@ -7,6 +7,13 @@ import { EnvironmentSelector } from './EnvironmentSelector';
 
 interface SecurityHubProps {
   onManageEnvClick: () => void;
+}
+
+interface RequestFindings {
+  requestId: string;
+  requestName: string;
+  requestMethod: string;
+  findings: AuditFinding[];
 }
 
 export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
@@ -30,69 +37,79 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
 
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
-  const [findings, setFindings] = useState<AuditFinding[] | null>(null);
+  const [groupedFindings, setGroupedFindings] = useState<RequestFindings[] | null>(null);
+  const [expandedFindingIds, setExpandedFindingIds] = useState<Set<string>>(new Set());
+  
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  const toggleFindingExpand = (reqId: string) => {
+    const next = new Set(expandedFindingIds);
+    if (next.has(reqId)) next.delete(reqId);
+    else next.add(reqId);
+    setExpandedFindingIds(next);
+  };
 
   const startFleetAudit = async () => {
     if (selectedRequestIds.length === 0) return;
     
     setIsRunning(true);
     setLogs(['[*] Initializing DevSecOps Fleet Audit...']);
-    setFindings(null);
+    setGroupedFindings(null);
+    setExpandedFindingIds(new Set());
     
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
-    let allFindings: AuditFinding[] = [];
+    let allGroupedFindings: RequestFindings[] = [];
 
-    // Gather all requests from collections that match the selected IDs
     const targetRequests = collections
       .flatMap(col => col.requests)
       .filter(req => selectedRequestIds.includes(req.id));
 
+    setProgress({ current: 0, total: targetRequests.length });
     setLogs(prev => [...prev, `[*] Target Scope: ${targetRequests.length} endpoints.`]);
 
+    let currentIndex = 0;
     for (const req of targetRequests) {
       if (signal.aborted) break;
+      currentIndex++;
+      setProgress({ current: currentIndex, total: targetRequests.length });
 
-      setLogs(prev => [...prev, `\n[*] Starting audit for: ${req.method} ${req.name}`]);
+      setLogs(prev => [...prev, `__SECTION__STARTING_AUDIT_FOR__[${req.method}] ${req.name}`]);
 
-      // Resolve variables for URL and Headers
       const resolvedUrl = resolveEnvVariables(req.url, activeEnvironment);
-      
       const resolvedHeaders: Record<string, string> = {};
       for (const [k, v] of Object.entries(req.headers || {})) {
         resolvedHeaders[k] = resolveEnvVariables(v, activeEnvironment);
       }
       
-      // Inject Attacker Token if BOLA is enabled and we have it
       if (config.testBOLA && config.attackerAuthHeader) {
         resolvedHeaders[config.authHeaderName] = resolveEnvVariables(config.attackerAuthHeader, activeEnvironment);
       }
 
-      const context = {
-        url: resolvedUrl,
-        method: req.method,
-        headers: resolvedHeaders,
-        body: req.body
-      };
+      const context = { url: resolvedUrl, method: req.method, headers: resolvedHeaders, body: req.body };
 
       try {
         const endpointFindings = await runSecurityAudit(
           context,
           config,
-          (msg) => {
-            setLogs(prev => [...prev, msg]);
-          },
+          (msg) => setLogs(prev => [...prev, msg]),
           signal
         );
 
-        // Tag findings with the endpoint name for the fleet report
-        const taggedFindings = endpointFindings.map(f => ({
-          ...f,
-          title: `[${req.name}] ${f.title}`
-        }));
-
-        allFindings = [...allFindings, ...taggedFindings];
+        allGroupedFindings.push({
+          requestId: req.id,
+          requestName: req.name,
+          requestMethod: req.method,
+          findings: endpointFindings
+        });
       } catch (err: any) {
         if (err.name === 'AbortError') {
           setLogs(prev => [...prev, '[-] Audit aborted by user.']);
@@ -103,10 +120,10 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     }
 
     if (!signal.aborted) {
-      setLogs(prev => [...prev, '\n[*] Fleet Audit Completed.']);
+      setLogs(prev => [...prev, '__SECTION__COMPLETED__Fleet Audit Completed.']);
     }
 
-    setFindings(allFindings);
+    setGroupedFindings(allGroupedFindings);
     setIsRunning(false);
   };
 
@@ -175,8 +192,8 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="max-w-5xl">
+      <div className="flex-1 overflow-hidden flex flex-col p-6">
+        <div className={`mx-auto w-full h-full flex flex-col ${isRunning || groupedFindings ? 'max-w-6xl' : 'max-w-5xl'}`}>
           
           {selectedRequestIds.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-text-muted mt-20">
@@ -186,94 +203,179 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                 Select target endpoints from the left sidebar to configure the master auth tokens and execute the complete security matrix against them.
               </p>
             </div>
-          ) : isRunning || findings ? (
-            <div className="space-y-6">
+          ) : isRunning || groupedFindings ? (
+            <div className="flex-1 flex flex-col min-h-0 space-y-6">
               
-              {/* Live Terminal Logs */}
-              <div className="bg-panel-bg border border-border-strong rounded-md p-4 font-mono text-[11px] h-[300px] overflow-y-auto custom-scrollbar shadow-sm">
-                {logs.map((log, i) => (
-                  <div key={i} className={`py-0.5 ${
-                    log.includes('[!]') || log.includes('Error') ? 'text-red-400' :
-                    log.includes('[✓]') ? 'text-green-400' :
-                    log.includes('[-]') ? 'text-text-muted' :
-                    'text-text-primary'
-                  }`}>
-                    <span className="leading-relaxed">{log}</span>
+              {/* Progress Summary Header */}
+              {isRunning && (
+                <div className="flex items-center justify-between bg-panel-bg border border-border-strong rounded-md p-4 shrink-0 shadow-sm">
+                  <div className="flex flex-col space-y-2 flex-1 mr-8">
+                    <div className="flex justify-between text-[12px] font-medium">
+                      <span>Auditing endpoint {progress.current} of {progress.total}</span>
+                      <span className="text-accent">{Math.round((progress.current / progress.total) * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-app-bg rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-accent transition-all duration-300"
+                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                      />
+                    </div>
                   </div>
-                ))}
-                {isRunning && (
-                  <div className="flex items-center text-blue-300 opacity-50 mt-2">
-                    <ChevronRight size={14} className="shrink-0 mr-2" />
-                    <span className="animate-pulse">_</span>
+                  <div className="flex items-center text-accent text-[12px] font-semibold animate-pulse">
+                    <Shield size={14} className="mr-2" />
+                    Audit in progress...
+                  </div>
+                </div>
+              )}
+
+              {/* Layout splits into two blocks if findings exist, or just terminal if running */}
+              <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+                
+                {/* Terminal / Live Logs */}
+                <div className={`flex flex-col ${groupedFindings && !isRunning ? 'hidden' : 'flex-1 lg:w-1/2'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
+                  <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
+                    <span>Execution Log</span>
+                    {isRunning && <span className="flex items-center text-accent"><Play size={10} className="mr-1 animate-pulse" /> Live</span>}
+                  </div>
+                  <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 font-mono text-[11px]">
+                    {logs.map((log, i) => {
+                      if (log.startsWith('__SECTION__STARTING_AUDIT_FOR__')) {
+                        const title = log.replace('__SECTION__STARTING_AUDIT_FOR__', '');
+                        return (
+                          <div key={i} className="mt-6 mb-2 py-1.5 px-3 bg-accent/10 border-l-2 border-accent text-accent font-bold">
+                            Audit Target: {title}
+                          </div>
+                        );
+                      }
+                      if (log.startsWith('__SECTION__COMPLETED__')) {
+                        return (
+                          <div key={i} className="mt-6 py-2 text-center text-green-400 font-bold border-y border-green-400/20 bg-green-400/5">
+                            {log.replace('__SECTION__COMPLETED__', '')}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={i} className={`py-0.5 ${
+                          log.includes('[!]') || log.includes('Error') ? 'text-red-400' :
+                          log.includes('[✓]') ? 'text-green-400' :
+                          log.includes('[-]') ? 'text-text-muted' :
+                          'text-text-primary'
+                        }`}>
+                          <span className="leading-relaxed whitespace-pre-wrap">{log}</span>
+                        </div>
+                      );
+                    })}
+                    {isRunning && (
+                      <div className="flex items-center text-blue-300 opacity-50 mt-2">
+                        <ChevronRight size={14} className="shrink-0 mr-2" />
+                        <span className="animate-pulse">_</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Findings List (Row by Row, grouped by Request) */}
+                {groupedFindings && (
+                  <div className={`flex flex-col flex-1 min-h-0 ${!isRunning ? 'w-full' : 'lg:w-1/2'}`}>
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <h3 className="text-[14px] font-semibold text-text-primary">Audit Findings</h3>
+                      <div className="text-[11px] font-medium text-text-secondary">
+                        {groupedFindings.filter(g => g.findings.some(f => f.risk !== 'PASS')).length} endpoints with vulnerabilities
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                      {groupedFindings.map((group) => {
+                        const vulns = group.findings.filter(f => f.risk !== 'PASS');
+                        const hasVulns = vulns.length > 0;
+                        const isExpanded = expandedFindingIds.has(group.requestId);
+
+                        return (
+                          <div key={group.requestId} className="flex flex-col">
+                            {/* Request Row Header */}
+                            <div 
+                              onClick={() => hasVulns && toggleFindingExpand(group.requestId)}
+                              className={`flex items-center justify-between p-3 rounded-md text-[13px] ${
+                                hasVulns ? 'cursor-pointer hover:bg-surface-hover/50' : 'opacity-70'
+                              } transition-colors border-b border-border-subtle`}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 flex items-center justify-center text-text-muted">
+                                  {hasVulns ? (
+                                    isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+                                  ) : (
+                                    <Check size={14} className="text-green-500" />
+                                  )}
+                                </div>
+                                <span className={`font-bold text-[10px] w-12 ${
+                                  group.requestMethod === 'GET' ? 'text-blue-400' :
+                                  group.requestMethod === 'POST' ? 'text-green-400' :
+                                  group.requestMethod === 'PUT' ? 'text-yellow-400' :
+                                  group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                                }`}>{group.requestMethod}</span>
+                                <span className={`font-medium ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {hasVulns ? (
+                                  <span className="text-[11px] font-bold text-red-400 flex items-center">
+                                    <AlertTriangle size={12} className="mr-1.5" />
+                                    {vulns.length} Issues
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] font-medium text-green-500">Passed</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Collapsed Details Rows */}
+                            {isExpanded && hasVulns && (
+                              <div className="pl-12 py-2 space-y-4 bg-surface-bg/30 rounded-b-md">
+                                {vulns.map((vuln, i) => (
+                                  <div key={i} className="py-2 border-b border-border-subtle last:border-0 pr-4">
+                                    <div className="flex items-center space-x-3 mb-1">
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                        vuln.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
+                                        vuln.risk === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
+                                        'bg-yellow-500/10 text-yellow-500'
+                                      }`}>
+                                        {vuln.risk}
+                                      </span>
+                                      <span className="text-[12px] font-semibold text-text-primary">{vuln.title}</span>
+                                      <span className="text-[10px] text-text-muted font-mono bg-surface-hover px-1.5 py-0.5 rounded">{vuln.category}</span>
+                                    </div>
+                                    <div className="text-[12px] text-text-secondary leading-relaxed pl-[1px] mt-2 mb-3">
+                                      {vuln.description}
+                                    </div>
+                                    {vuln.remediation && (
+                                      <div className="text-[11px] pl-[1px] mt-1.5 text-text-secondary flex items-start">
+                                        <Shield size={12} className="mr-1.5 mt-0.5 text-accent shrink-0" />
+                                        <span><strong className="text-text-primary font-medium">Remediation:</strong> {vuln.remediation}</span>
+                                      </div>
+                                    )}
+                                    {vuln.payloadSent && (
+                                      <div className="mt-2 text-[10px] font-mono text-text-muted">
+                                        <span className="text-[9px] uppercase tracking-wider font-bold block mb-1">Payload / Headers Sent:</span>
+                                        {vuln.payloadSent}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      
+                      {groupedFindings.length === 0 && (
+                        <div className="text-[12px] text-text-muted text-center py-10">No findings to display.</div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-
-              {/* Audit Findings Report */}
-              {findings && (
-                <div className="space-y-4 pt-4 border-t border-border-strong">
-                  <h3 className="text-sm font-semibold flex items-center">
-                    Fleet Audit Report 
-                    <span className="ml-3 text-[11px] font-normal px-2 py-0.5 bg-surface-hover rounded text-text-secondary">
-                      {findings.filter(f => f.risk !== 'PASS').length} vulnerabilities found
-                    </span>
-                  </h3>
-                  
-                  {findings.filter(f => f.risk !== 'PASS').length === 0 ? (
-                    <div className="p-6 border border-border-strong rounded-md bg-surface-bg flex flex-col items-center justify-center text-center">
-                      <Shield className="text-green-400 mb-3" size={32} />
-                      <div className="text-[13px] font-semibold text-green-400">0 Vulnerabilities Found</div>
-                      <div className="text-[11px] text-text-secondary mt-1">All scanned endpoints passed the configured security matrix policies.</div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                      {findings.filter(f => f.risk !== 'PASS').map((f, i) => (
-                        <div key={i} className={`p-4 border rounded-md bg-surface-bg shadow-sm ${
-                          f.risk === 'CRITICAL' ? 'border-red-500/50' :
-                          f.risk === 'HIGH' ? 'border-orange-500/50' :
-                          f.risk === 'MEDIUM' ? 'border-yellow-500/50' : 'border-border-strong'
-                        }`}>
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <div className="text-[13px] font-semibold text-text-primary">{f.title}</div>
-                              <div className="text-[10px] text-text-muted mt-0.5 font-mono">{f.category}</div>
-                            </div>
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider ${
-                              f.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
-                              f.risk === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
-                              f.risk === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-500' :
-                              'bg-surface-hover text-text-secondary'
-                            }`}>
-                              {f.risk}
-                            </span>
-                          </div>
-                          
-                          <p className="text-[12px] text-text-secondary leading-relaxed mb-3">
-                            {f.description}
-                          </p>
-                          
-                          {f.remediation && (
-                            <div className="mt-3 bg-surface-hover p-3 rounded text-[11px]">
-                              <span className="font-semibold text-text-primary block mb-1">Recommended Remediation:</span>
-                              <span className="text-text-secondary">{f.remediation}</span>
-                            </div>
-                          )}
-
-                          {f.payloadSent && (
-                            <div className="mt-3 text-[10px] font-mono p-3 bg-app-bg border border-border-strong rounded text-text-muted overflow-x-auto">
-                              <div className="mb-1 text-[9px] uppercase tracking-wider font-bold">Payload Sent</div>
-                              {f.payloadSent}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           ) : (
-            <div className="space-y-10">
+            <div className="space-y-10 overflow-y-auto h-full pb-10">
               
               {/* Authentication Context */}
               <div className="space-y-4">

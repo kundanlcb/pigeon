@@ -135,7 +135,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
 
   const renderConfigToggle = (label: string, description: string, checked: boolean, onChange: (val: boolean) => void) => (
     <div 
-      className="flex items-start space-x-3 py-4 border-b border-border-subtle hover:bg-surface-hover/20 cursor-pointer transition-colors px-2 -mx-2"
+      className="flex items-start space-x-3 py-4 border-b border-border-subtle hover:bg-surface-hover/20 cursor-pointer transition-colors px-2 -mx-2 last:border-b-0"
       onClick={() => onChange(!checked)}
     >
       <div className="mt-0.5 text-accent">

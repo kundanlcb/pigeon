@@ -167,15 +167,15 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   return (
     <div className="flex-1 flex flex-col h-full bg-app-bg text-text-primary">
       <div className="flex items-center justify-between px-4 h-[44px] border-b border-border-strong bg-panel-bg shrink-0">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-6 overflow-hidden">
+          <div className="flex items-center space-x-3 shrink-0">
             <Shield className="text-accent" size={16} />
-            <h2 className="text-[13px] font-semibold text-text-primary">DevSecOps Collection Scanner</h2>
+            <h2 className="text-[13px] font-semibold text-text-primary whitespace-nowrap">DevSecOps Collection Scanner</h2>
           </div>
 
-          <div className="w-[1px] h-4 bg-border-strong" />
+          <div className="w-[1px] h-4 bg-border-strong shrink-0" />
           <div className="flex items-center space-x-2 text-sm text-text-muted shrink-0">
-            <span className="font-medium text-text-primary">{selectedRequestIds.length}/{totalRequests} APIs selected</span>
+            <span className="font-medium text-text-primary whitespace-nowrap">{selectedRequestIds.length}/{totalRequests} APIs selected</span>
           </div>
 
           <div className="w-[1px] h-4 bg-border-strong" />

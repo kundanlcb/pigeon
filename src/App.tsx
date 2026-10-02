@@ -34,6 +34,7 @@ import { Panel, Group, Separator } from 'react-resizable-panels';
 import { fetch } from '@tauri-apps/plugin-http';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { WhatsNewModal } from './components/WhatsNewModal';
 import { startCollectionStorage } from './utils/collectionStorage';
 import {
   Send,
@@ -784,6 +785,7 @@ export default function App() {
           <span className="text-sm font-medium">{toast.message}</span>
         </div>
       )}
+      <WhatsNewModal />
       </div>
     </div>
   );

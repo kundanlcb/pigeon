@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --color-app-bg: #09090b;       /* Deepest charcoal / black */
   --color-panel-bg: #121214;     /* Sidebar/Pane background */
   --color-surface-bg: #18181b;   /* Hover/Active states */

@@ -679,7 +679,7 @@ export default function App() {
                   <div className="flex-1 min-h-0 flex flex-col">
                     <div className="pl-3 pr-4 h-[54px] flex items-center space-x-3 border-b border-border-subtle shrink-0 min-w-0">
                       <div className="flex-1 min-w-0 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
-                        <div className="relative border-r border-border-strong flex items-center w-[100px] shrink-0 h-full">
+                        <div className="relative border-r border-border-strong flex items-center w-auto shrink-0 h-full">
                           <Dropdown
                             value={localMethod}
                             onChange={(val) => {

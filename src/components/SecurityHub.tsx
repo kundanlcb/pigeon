@@ -22,6 +22,10 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   const environments = useStore(state => state.environments);
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const activeEnvironment = environments.find(e => e.id === activeEnvironmentId);
+  const activeSecurityScanId = useStore(state => state.activeSecurityScanId);
+  const securityHistory = useStore(state => state.securityHistory);
+  const addSecurityScan = useStore(state => state.addSecurityScan);
+  const setActiveSecurityScanId = useStore(state => state.setActiveSecurityScanId);
 
   const totalRequests = collections.reduce((sum, col) => sum + col.requests.length, 0);
   
@@ -51,6 +55,21 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     }
   }, [logs]);
 
+  useEffect(() => {
+    if (activeSecurityScanId) {
+      const scan = securityHistory.find(s => s.id === activeSecurityScanId);
+      if (scan) {
+        setGroupedFindings(scan.findings);
+        setLogs(scan.logs);
+        setIsLogsExpanded(false);
+        setExpandedFindingIds(new Set());
+      }
+    } else if (!isRunning) {
+      setGroupedFindings(null);
+      setLogs([]);
+    }
+  }, [activeSecurityScanId, securityHistory]);
+
   const toggleFindingExpand = (reqId: string) => {
     const next = new Set(expandedFindingIds);
     if (next.has(reqId)) next.delete(reqId);
@@ -62,7 +81,9 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     if (selectedRequestIds.length === 0) return;
     
     setIsRunning(true);
-    setLogs(['[*] Initializing DevSecOps Fleet Audit...']);
+    setActiveSecurityScanId(null);
+    let runLogs = ['[*] Initializing DevSecOps Fleet Audit...'];
+    setLogs([...runLogs]);
     setGroupedFindings(null);
     setExpandedFindingIds(new Set());
     
@@ -75,7 +96,8 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       .filter(req => selectedRequestIds.includes(req.id));
 
     setProgress({ current: 0, total: targetRequests.length, currentName: '', currentMethod: '', currentUrl: '' });
-    setLogs(prev => [...prev, `[*] Target Scope: ${targetRequests.length} endpoints.`]);
+    runLogs.push(`[*] Target Scope: ${targetRequests.length} endpoints.`);
+    setLogs([...runLogs]);
 
     let currentIndex = 0;
     for (const req of targetRequests) {
@@ -83,7 +105,8 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       currentIndex++;
       setProgress({ current: currentIndex, total: targetRequests.length, currentName: req.name, currentMethod: req.method, currentUrl: req.url });
 
-      setLogs(prev => [...prev, `__SECTION__STARTING_AUDIT_FOR__[${req.method}] ${req.name}`]);
+      runLogs.push(`__SECTION__STARTING_AUDIT_FOR__[${req.method}] ${req.name}`);
+      setLogs([...runLogs]);
 
       const resolvedUrl = resolveEnvVariables(req.url, activeEnvironment);
       const resolvedHeaders: Record<string, string> = {};
@@ -101,7 +124,10 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         const endpointFindings = await runSecurityAudit(
           context,
           config,
-          (msg) => setLogs(prev => [...prev, msg]),
+          (msg) => {
+            runLogs.push(msg);
+            setLogs([...runLogs]);
+          },
           signal
         );
 
@@ -113,19 +139,35 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         });
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          setLogs(prev => [...prev, '[-] Audit aborted by user.']);
+          runLogs.push('[-] Audit aborted by user.');
+          setLogs([...runLogs]);
           break;
         }
-        setLogs(prev => [...prev, `[!] Error auditing ${req.name}: ${err.message}`]);
+        runLogs.push(`[!] Error auditing ${req.name}: ${err.message}`);
+        setLogs([...runLogs]);
       }
     }
 
     if (!signal.aborted) {
-      setLogs(prev => [...prev, '__SECTION__COMPLETED__Fleet Audit Completed.']);
+      runLogs.push('__SECTION__COMPLETED__Fleet Audit Completed.');
+      setLogs([...runLogs]);
     }
 
     setGroupedFindings(allGroupedFindings);
     setIsRunning(false);
+    
+    // Save to history automatically
+    if (allGroupedFindings.length > 0 || !signal.aborted) {
+      const newScan = {
+        id: `scan-${Date.now()}`,
+        timestamp: Date.now(),
+        requestIds: targetRequests.map(r => r.id),
+        findings: allGroupedFindings,
+        logs: runLogs
+      };
+      addSecurityScan(newScan);
+      setActiveSecurityScanId(newScan.id);
+    }
   };
 
   const stopAudit = () => {

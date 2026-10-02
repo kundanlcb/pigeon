@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare } from 'lucide-react';
+import { Shield, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, Clock, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
 import { Panel } from 'react-resizable-panels';
 
@@ -7,8 +7,13 @@ export function SecuritySidebar() {
   const collections = useStore(state => state.collections);
   const selectedRequestIds = useStore(state => state.selectedSecurityRequestIds);
   const setSelectedRequestIds = useStore(state => state.setSelectedSecurityRequestIds);
+  const securityHistory = useStore(state => state.securityHistory);
+  const activeSecurityScanId = useStore(state => state.activeSecurityScanId);
+  const setActiveSecurityScanId = useStore(state => state.setActiveSecurityScanId);
+  const deleteSecurityScan = useStore(state => state.deleteSecurityScan);
 
   const [expandedColIds, setExpandedColIds] = useState<Set<string>>(new Set());
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
   const toggleCollectionExpand = (colId: string) => {
     const next = new Set(expandedColIds);
@@ -42,6 +47,7 @@ export function SecuritySidebar() {
       next = [...next, ...missing];
     }
     setSelectedRequestIds(next);
+    setActiveSecurityScanId(null);
   };
 
   const toggleRequestSelection = (reqId: string) => {
@@ -52,6 +58,7 @@ export function SecuritySidebar() {
       next.push(reqId);
     }
     setSelectedRequestIds(next);
+    setActiveSecurityScanId(null);
   };
 
   const allRequestIds = collections.flatMap(c => c.requests.map(r => r.id));
@@ -151,6 +158,54 @@ export function SecuritySidebar() {
           </div>
         )}
       </div>
+
+      {securityHistory.length > 0 && (
+        <div className="flex-1 overflow-y-auto custom-scrollbar border-t border-border-strong">
+          <div 
+            className="flex items-center space-x-2 px-4 py-2 hover:bg-surface-hover/50 cursor-pointer text-[10px] font-bold text-text-muted uppercase tracking-wider"
+            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+          >
+            {isHistoryExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span>Past Audits</span>
+            <span className="ml-auto bg-surface-bg px-1.5 py-0.5 rounded text-[9px]">{securityHistory.length}</span>
+          </div>
+
+          {isHistoryExpanded && (
+            <div className="px-2 pb-4">
+              {securityHistory.map(scan => (
+                <div 
+                  key={scan.id}
+                  onClick={() => setActiveSecurityScanId(scan.id)}
+                  className={`group flex items-center justify-between px-2 py-2 rounded-md cursor-pointer transition-colors ${
+                    activeSecurityScanId === scan.id ? 'bg-surface-hover text-text-primary' : 'text-text-secondary hover:bg-surface-hover/50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 overflow-hidden">
+                    <Clock size={12} className="shrink-0 text-text-muted" />
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-[12px] font-medium truncate">
+                        {new Date(scan.timestamp).toLocaleString()}
+                      </span>
+                      <span className="text-[10px] text-text-muted truncate">
+                        {scan.requestIds.length} endpoints • {scan.findings.reduce((sum, f) => sum + f.findings.filter(v => v.risk !== 'PASS').length, 0)} issues
+                      </span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSecurityScan(scan.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-text-muted transition-all"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </Panel>
   );
 }

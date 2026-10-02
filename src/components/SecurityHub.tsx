@@ -39,6 +39,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   const [logs, setLogs] = useState<string[]>([]);
   const [groupedFindings, setGroupedFindings] = useState<RequestFindings[] | null>(null);
   const [expandedFindingIds, setExpandedFindingIds] = useState<Set<string>>(new Set());
+  const [isLogsExpanded, setIsLogsExpanded] = useState(false);
   
   const [progress, setProgress] = useState({ current: 0, total: 0, currentName: '', currentMethod: '', currentUrl: '' });
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -194,15 +195,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           </button>
         ) : (
           <div className="flex items-center space-x-3">
-            {groupedFindings && (
-              <button
-                onClick={exportReport}
-                className="flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm bg-panel-bg text-text-secondary border border-border-strong hover:bg-surface-hover hover:text-text-primary"
-              >
-                <Download size={14} />
-                <span>Export Report</span>
-              </button>
-            )}
+
             <button
               onClick={startFleetAudit}
               disabled={selectedRequestIds.length === 0}
@@ -279,7 +272,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
               <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
                 
                 {/* Terminal / Live Logs */}
-                <div className={`flex flex-col ${groupedFindings && !isRunning ? 'hidden' : 'flex-1 lg:w-1/2'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
+                <div className={`flex flex-col ${(groupedFindings && !isRunning && !isLogsExpanded) ? 'hidden' : 'flex-1 lg:w-1/2'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
                   <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                     <span>Execution Log</span>
                     {isRunning && <span className="flex items-center text-accent"><Play size={10} className="mr-1 animate-pulse" /> Live</span>}
@@ -347,11 +340,19 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                               {medium > 0 && <span className="text-yellow-400">{medium} Medium</span>}
                               {low > 0 && <span className="text-blue-400">{low} Low</span>}
                               {(critical > 0 || high > 0 || medium > 0 || low > 0) && <span className="opacity-40">|</span>}
-                              <span>{affected} {affected === 1 ? 'endpoint' : 'endpoints'} affected</span>
-                            </>
-                          );
-                        })()}
-                      </div>
+                                <span>{affected} {affected === 1 ? 'endpoint' : 'endpoints'} affected</span>
+                                <div className="w-px h-3 bg-border-strong mx-1" />
+                                <button
+                                  onClick={exportReport}
+                                  className="flex items-center space-x-1.5 px-2 py-1 rounded text-[11px] font-medium transition-all bg-surface-bg text-text-secondary border border-border-strong hover:bg-surface-hover hover:text-text-primary normal-case"
+                                >
+                                  <Download size={12} />
+                                  <span>Export</span>
+                                </button>
+                              </>
+                            );
+                          })()}
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -442,6 +443,18 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                         <div className="text-[12px] text-text-muted text-center py-10">No findings to display.</div>
                       )}
                     </div>
+                    
+                    {!isRunning && groupedFindings && (
+                      <div className="p-2 border-t border-border-strong bg-app-bg shrink-0 flex justify-center">
+                        <button
+                          onClick={() => setIsLogsExpanded(!isLogsExpanded)}
+                          className="flex items-center space-x-1.5 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors py-1"
+                        >
+                          {isLogsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          <span>{isLogsExpanded ? 'Hide Raw Execution Logs' : 'View Raw Execution Logs'}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

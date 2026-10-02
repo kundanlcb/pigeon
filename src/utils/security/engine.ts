@@ -20,6 +20,15 @@ export interface SecurityAuditContext {
   body?: any;
 }
 
+export interface SecurityAuditConfig {
+  testBOLA: boolean;
+  attackerAuthHeader: string;
+  testBrokenAuth: boolean;
+  testMassAssignment: boolean;
+  testVerbTampering: boolean;
+  testFuzzing: boolean;
+}
+
 const sendAuditRequest = async (url: string, method: string, headers: Record<string, string>, body?: any) => {
   try {
     const response = await fetch(url, {
@@ -36,15 +45,15 @@ const sendAuditRequest = async (url: string, method: string, headers: Record<str
 
 export async function runSecurityAudit(
   base: SecurityAuditContext,
-  attackerAuthHeader: string,
+  config: SecurityAuditConfig,
   onProgress: (msg: string) => void
 ): Promise<AuditFinding[]> {
   const findings: AuditFinding[] = [];
 
   // 1. Broken Object Level Authorization (BOLA)
-  if (attackerAuthHeader) {
+  if (config.testBOLA && config.attackerAuthHeader) {
     onProgress('Testing BOLA / IDOR...');
-    const bolaHeaders = { ...base.headers, 'Authorization': attackerAuthHeader };
+    const bolaHeaders = { ...base.headers, 'Authorization': config.attackerAuthHeader };
     const bolaRes = await sendAuditRequest(base.url, base.method, bolaHeaders, base.body);
     
     if (bolaRes.status >= 200 && bolaRes.status < 300) {
@@ -55,7 +64,7 @@ export async function runSecurityAudit(
         description: 'The server accepted a request for a resource using a different user\'s token.',
         risk: 'CRITICAL',
         remediation: 'Ensure the backend verifies that the requested resource ID belongs to the user associated with the provided token.',
-        payloadSent: `Headers: { Authorization: ${attackerAuthHeader.substring(0, 15)}... }`
+        payloadSent: `Headers: { Authorization: ${config.attackerAuthHeader.substring(0, 15)}... }`
       });
     } else {
       findings.push({
@@ -70,35 +79,37 @@ export async function runSecurityAudit(
   }
 
   // 2. Broken Authentication
-  onProgress('Testing Broken Authentication (Missing Auth)...');
-  const noAuthHeaders = { ...base.headers };
-  delete noAuthHeaders['Authorization'];
-  delete noAuthHeaders['authorization'];
-  
-  const noAuthRes = await sendAuditRequest(base.url, base.method, noAuthHeaders, base.body);
-  if (noAuthRes.status >= 200 && noAuthRes.status < 300) {
-    findings.push({
-      id: 'auth-1',
-      category: 'BROKEN_AUTH',
-      title: 'Missing Authentication',
-      description: 'The endpoint returned a successful response even when the Authorization header was completely removed.',
-      risk: 'CRITICAL',
-      remediation: 'Enforce strict authentication middleware on this endpoint.',
-      payloadSent: 'Headers: (Removed Authorization)'
-    });
-  } else {
-    findings.push({
-      id: 'auth-pass',
-      category: 'BROKEN_AUTH',
-      title: 'Authentication Check',
-      description: `Server rejected unauthenticated request with status ${noAuthRes.status}.`,
-      risk: 'PASS',
-      remediation: '',
-    });
+  if (config.testBrokenAuth) {
+    onProgress('Testing Broken Authentication (Missing Auth)...');
+    const noAuthHeaders = { ...base.headers };
+    delete noAuthHeaders['Authorization'];
+    delete noAuthHeaders['authorization'];
+    
+    const noAuthRes = await sendAuditRequest(base.url, base.method, noAuthHeaders, base.body);
+    if (noAuthRes.status >= 200 && noAuthRes.status < 300) {
+      findings.push({
+        id: 'auth-1',
+        category: 'BROKEN_AUTH',
+        title: 'Missing Authentication',
+        description: 'The endpoint returned a successful response even when the Authorization header was completely removed.',
+        risk: 'CRITICAL',
+        remediation: 'Enforce strict authentication middleware on this endpoint.',
+        payloadSent: 'Headers: (Removed Authorization)'
+      });
+    } else {
+      findings.push({
+        id: 'auth-pass',
+        category: 'BROKEN_AUTH',
+        title: 'Authentication Check',
+        description: `Server rejected unauthenticated request with status ${noAuthRes.status}.`,
+        risk: 'PASS',
+        remediation: '',
+      });
+    }
   }
 
   // 3. Mass Assignment
-  if (base.method !== 'GET' && base.body && typeof base.body === 'object') {
+  if (config.testMassAssignment && base.method !== 'GET' && base.body && typeof base.body === 'object') {
     onProgress('Testing Mass Assignment...');
     const maliciousBody = { 
       ...base.body, 
@@ -121,57 +132,61 @@ export async function runSecurityAudit(
   }
 
   // 4. Verb Tampering
-  onProgress('Testing HTTP Verb Tampering...');
-  const verbsToTest = ['DELETE', 'PUT', 'PATCH'].filter(v => v !== base.method);
-  for (const verb of verbsToTest) {
-    const verbRes = await sendAuditRequest(base.url, verb, base.headers, base.body);
-    if (verbRes.status >= 200 && verbRes.status < 300) {
-      findings.push({
-        id: `verb-${verb}`,
-        category: 'VERB_TAMPERING',
-        title: `Broken Function Level Auth (${verb})`,
-        description: `The endpoint unexpectedly allowed a ${verb} request.`,
-        risk: 'HIGH',
-        remediation: `Ensure routing strictly denies ${verb} methods for this path unless explicitly authorized.`,
-        payloadSent: `Method: ${verb}`
-      });
+  if (config.testVerbTampering) {
+    onProgress('Testing HTTP Verb Tampering...');
+    const verbsToTest = ['DELETE', 'PUT', 'PATCH'].filter(v => v !== base.method);
+    for (const verb of verbsToTest) {
+      const verbRes = await sendAuditRequest(base.url, verb, base.headers, base.body);
+      if (verbRes.status >= 200 && verbRes.status < 300) {
+        findings.push({
+          id: `verb-${verb}`,
+          category: 'VERB_TAMPERING',
+          title: `Broken Function Level Auth (${verb})`,
+          description: `The endpoint unexpectedly allowed a ${verb} request.`,
+          risk: 'HIGH',
+          remediation: `Ensure routing strictly denies ${verb} methods for this path unless explicitly authorized.`,
+          payloadSent: `Method: ${verb}`
+        });
+      }
     }
   }
 
   // 5. 1-Click Fuzzer
-  onProgress('Fuzzing endpoint stability...');
-  const fuzzedBodies = [
-    null,
-    {},
-    { id: "' OR 1=1 --" },
-    { test: "A".repeat(10000) }
-  ];
-  
-  if (base.method !== 'GET') {
-    let fuzzerCrashes = 0;
-    await Promise.all(fuzzedBodies.map(async (fuzzBody) => {
-      const res = await sendAuditRequest(base.url, base.method, base.headers, fuzzBody);
-      if (res.status >= 500) fuzzerCrashes++;
-    }));
+  if (config.testFuzzing) {
+    onProgress('Fuzzing endpoint stability...');
+    const fuzzedBodies = [
+      null,
+      {},
+      { id: "' OR 1=1 --" },
+      { test: "A".repeat(10000) }
+    ];
     
-    if (fuzzerCrashes > 0) {
-      findings.push({
-        id: 'fuzz-1',
-        category: 'FUZZING',
-        title: 'Server Instability Detected',
-        description: `The server crashed (${fuzzerCrashes} times) and returned a 500 Error when presented with malformed edge-case payloads.`,
-        risk: 'MEDIUM',
-        remediation: 'Implement robust global error handling to prevent 500 crashes and avoid leaking stack traces.',
-      });
-    } else {
-      findings.push({
-        id: 'fuzz-pass',
-        category: 'FUZZING',
-        title: 'Fuzzing Check',
-        description: 'Server gracefully handled all malformed edge-case payloads without crashing.',
-        risk: 'PASS',
-        remediation: '',
-      });
+    if (base.method !== 'GET') {
+      let fuzzerCrashes = 0;
+      await Promise.all(fuzzedBodies.map(async (fuzzBody) => {
+        const res = await sendAuditRequest(base.url, base.method, base.headers, fuzzBody);
+        if (res.status >= 500) fuzzerCrashes++;
+      }));
+      
+      if (fuzzerCrashes > 0) {
+        findings.push({
+          id: 'fuzz-1',
+          category: 'FUZZING',
+          title: 'Server Instability Detected',
+          description: `The server crashed (${fuzzerCrashes} times) and returned a 500 Error when presented with malformed edge-case payloads.`,
+          risk: 'MEDIUM',
+          remediation: 'Implement robust global error handling to prevent 500 crashes and avoid leaking stack traces.',
+        });
+      } else {
+        findings.push({
+          id: 'fuzz-pass',
+          category: 'FUZZING',
+          title: 'Fuzzing Check',
+          description: 'Server gracefully handled all malformed edge-case payloads without crashing.',
+          risk: 'PASS',
+          remediation: '',
+        });
+      }
     }
   }
 

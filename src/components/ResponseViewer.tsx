@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { Check, Copy, Code2 } from 'lucide-react';
-import { isJsonString } from '../utils/syntax';
+
 import { JsonEditor } from './JsonEditor';
 
 interface ResponseViewerProps {

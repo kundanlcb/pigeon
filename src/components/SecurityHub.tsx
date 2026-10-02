@@ -334,13 +334,13 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                         const isExpanded = expandedFindingIds.has(group.requestId);
 
                         return (
-                          <div key={group.requestId} className="flex flex-col">
+                          <div key={group.requestId} className="flex flex-col border-b border-border-subtle last:border-b-0">
                             {/* Request Row Header */}
                             <div 
                               onClick={() => hasVulns && toggleFindingExpand(group.requestId)}
                               className={`flex items-center justify-between p-3 rounded-md text-[13px] ${
                                 hasVulns ? 'cursor-pointer hover:bg-surface-hover/50' : 'opacity-70'
-                              } transition-colors border-b border-border-subtle`}
+                              } transition-colors`}
                             >
                               <div className="flex items-center space-x-3">
                                 <div className="w-4 h-4 flex items-center justify-center text-text-muted">

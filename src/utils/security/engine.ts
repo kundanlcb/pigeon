@@ -30,11 +30,19 @@ export interface SecurityAuditConfig {
   testFuzzing: boolean;
 }
 
-const sendAuditRequest = async (url: string, method: string, headers: Record<string, string>, body?: any) => {
+const sendAuditRequest = async (url: string, method: string, headers: Record<string, string>, body?: any, signal?: AbortSignal) => {
   try {
+    if (signal?.aborted) throw { name: 'AbortError', message: 'Manual abort' };
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for non-prod environments
     
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      });
+    }
+
     const startTime = Date.now();
     const requestPromise = fetch(url, {
       method,
@@ -50,7 +58,7 @@ const sendAuditRequest = async (url: string, method: string, headers: Record<str
     return { status: response.status, body: responseText, duration: Date.now() - startTime };
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      return { status: 0, body: 'Request timed out after 60s', duration: 60000 };
+      return { status: 0, body: 'Request timed out or aborted', duration: 60000 };
     }
     return { status: 0, body: String(err), duration: 0 };
   }
@@ -59,13 +67,19 @@ const sendAuditRequest = async (url: string, method: string, headers: Record<str
 export async function runSecurityAudit(
   base: SecurityAuditContext,
   config: SecurityAuditConfig,
-  onProgress: (msg: string) => void
+  onProgress: (msg: string) => void,
+  abortSignal?: AbortSignal
 ): Promise<AuditFinding[]> {
   const findings: AuditFinding[] = [];
 
+  const checkAbort = () => {
+    if (abortSignal?.aborted) throw new Error('Audit manually aborted by user.');
+  };
+
   // 0. Pre-flight Liveness Check
+  checkAbort();
   onProgress('[*] Establishing baseline connection (Pre-flight)...');
-  const baselineRes = await sendAuditRequest(base.url, base.method, base.headers, base.body);
+  const baselineRes = await sendAuditRequest(base.url, base.method, base.headers, base.body, abortSignal);
   if (baselineRes.status === 0) {
     findings.push({
       id: 'baseline-fail',
@@ -82,10 +96,11 @@ export async function runSecurityAudit(
   onProgress(`[✓] Baseline connection successful [${baselineRes.status}] (${baselineRes.duration}ms).`);
 
   // 1. Broken Object Level Authorization (BOLA)
+  checkAbort();
   if (config.testBOLA && config.attackerAuthHeader) {
     onProgress('[*] Queueing BOLA / IDOR test...');
     const bolaHeaders = { ...base.headers, [config.authHeaderName]: config.attackerAuthHeader };
-    const bolaRes = await sendAuditRequest(base.url, base.method, bolaHeaders, base.body);
+    const bolaRes = await sendAuditRequest(base.url, base.method, bolaHeaders, base.body, abortSignal);
     
     if (bolaRes.status >= 200 && bolaRes.status < 300) {
       onProgress(`[!] BOLA test failed: Endpoint accepted secondary token [${bolaRes.status}]`);
@@ -114,6 +129,7 @@ export async function runSecurityAudit(
   }
 
   // 2. Broken Authentication
+  checkAbort();
   if (config.testBrokenAuth) {
     onProgress(`[*] Queueing Broken Authentication test (Stripping ${config.authHeaderName})...`);
     const noAuthHeaders = { ...base.headers };
@@ -126,7 +142,7 @@ export async function runSecurityAudit(
       delete noAuthHeaders[headerKeyToRemove];
     }
     
-    const noAuthRes = await sendAuditRequest(base.url, base.method, noAuthHeaders, base.body);
+    const noAuthRes = await sendAuditRequest(base.url, base.method, noAuthHeaders, base.body, abortSignal);
     if (noAuthRes.status >= 200 && noAuthRes.status < 300) {
       onProgress(`[!] Broken Authentication test failed: Endpoint allowed unauthenticated access [${noAuthRes.status}]`);
       findings.push({
@@ -154,6 +170,7 @@ export async function runSecurityAudit(
   }
 
   // 3. Mass Assignment
+  checkAbort();
   if (config.testMassAssignment && base.method !== 'GET' && base.body && typeof base.body === 'object') {
     onProgress('[*] Queueing Mass Assignment test...');
     const maliciousBody = { 
@@ -162,7 +179,7 @@ export async function runSecurityAudit(
       role: 'admin',
       permissions: 'superadmin' 
     };
-    const massRes = await sendAuditRequest(base.url, base.method, base.headers, maliciousBody);
+    const massRes = await sendAuditRequest(base.url, base.method, base.headers, maliciousBody, abortSignal);
     if (massRes.status >= 200 && massRes.status < 300) {
       onProgress(`[!] Mass Assignment test failed: Server accepted injected privilege flags [${massRes.status}]`);
       findings.push({
@@ -184,13 +201,15 @@ export async function runSecurityAudit(
   }
 
   // 4. Verb Tampering
+  checkAbort();
   if (config.testVerbTampering) {
     onProgress('[*] Queueing HTTP Verb Tampering tests...');
     const verbsToTest = ['DELETE', 'PUT', 'PATCH'].filter(v => v !== base.method);
     let verbFailures = 0;
     for (const verb of verbsToTest) {
+      checkAbort();
       onProgress(`    [*] Testing method: ${verb}...`);
-      const verbRes = await sendAuditRequest(base.url, verb, base.headers, base.body);
+      const verbRes = await sendAuditRequest(base.url, verb, base.headers, base.body, abortSignal);
       if (verbRes.status >= 200 && verbRes.status < 300) {
         verbFailures++;
         onProgress(`    [!] Verb Tampering failed: Endpoint unexpectedly allowed ${verb} [${verbRes.status}]`);
@@ -215,6 +234,7 @@ export async function runSecurityAudit(
   }
 
   // 5. 1-Click Fuzzer
+  checkAbort();
   if (config.testFuzzing) {
     onProgress('[*] Queueing 1-Click Fuzzer (Edge-case payloads)...');
     const fuzzedBodies = [
@@ -228,7 +248,8 @@ export async function runSecurityAudit(
       let fuzzerCrashes = 0;
       let executed = 0;
       await Promise.all(fuzzedBodies.map(async (fuzzBody) => {
-        const res = await sendAuditRequest(base.url, base.method, base.headers, fuzzBody);
+        checkAbort();
+        const res = await sendAuditRequest(base.url, base.method, base.headers, fuzzBody, abortSignal);
         executed++;
         onProgress(`    [*] Fuzz payload ${executed}/${fuzzedBodies.length} completed [${res.status}].`);
         if (res.status >= 500) fuzzerCrashes++;

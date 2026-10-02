@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Shield, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, Clock, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
-import { Panel } from 'react-resizable-panels';
+import { Panel, Group, Separator } from 'react-resizable-panels';
 
 export function SecuritySidebar() {
   const collections = useStore(state => state.collections);
@@ -86,8 +86,10 @@ export function SecuritySidebar() {
         )}
       </div>
       
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-        {collections.map(col => {
+      <Group orientation="vertical">
+        <Panel defaultSize={65} minSize={20} className="flex flex-col">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+            {collections.map(col => {
           const isExpanded = expandedColIds.has(col.id);
           const selectionState = getCollectionSelectionState(col.id);
           
@@ -153,14 +155,17 @@ export function SecuritySidebar() {
         })}
         
         {collections.length === 0 && (
-          <div className="text-[12px] text-text-muted text-center py-8">
-            No collections found.
+            <div className="text-[12px] text-text-muted text-center py-8">
+              No collections found.
+            </div>
+          )}
           </div>
-        )}
-      </div>
+        </Panel>
 
-      <div className="h-1/3 flex flex-col overflow-hidden border-t border-border-strong bg-panel-bg">
-        <div 
+        <Separator className="h-[1px] bg-border-strong hover:bg-accent hover:h-[3px] -my-[1px] z-10 transition-colors cursor-row-resize shrink-0" />
+
+        <Panel defaultSize={35} minSize={15} className="flex flex-col overflow-hidden bg-panel-bg">
+          <div 
           className="flex items-center space-x-2 px-4 py-2 hover:bg-surface-hover/50 cursor-pointer text-[10px] font-bold text-text-muted uppercase tracking-wider shrink-0"
           onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
         >
@@ -205,11 +210,12 @@ export function SecuritySidebar() {
                     <Trash2 size={12} />
                   </button>
                 </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+                ))
+              )}
+            </div>
+          )}
+        </Panel>
+      </Group>
     </Panel>
   );
 }

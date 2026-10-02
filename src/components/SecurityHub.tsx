@@ -311,13 +311,24 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
               )}
 
               {/* Layout splits into two blocks if findings exist, or just terminal if running */}
-              <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+              <div className="flex-1 flex flex-col gap-6 min-h-0">
                 
                 {/* Terminal / Live Logs */}
-                <div className={`flex flex-col ${(groupedFindings && !isRunning && !isLogsExpanded) ? 'hidden' : 'flex-1 lg:w-1/2'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
+                <div className={`flex flex-col ${(!isRunning && groupedFindings && !isLogsExpanded) ? 'hidden' : 'flex-1'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
                   <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                     <span>Execution Log</span>
-                    {isRunning && <span className="flex items-center text-accent"><Play size={10} className="mr-1 animate-pulse" /> Live</span>}
+                    <div className="flex items-center space-x-3">
+                      {isRunning && <span className="flex items-center text-accent"><Play size={10} className="mr-1 animate-pulse" /> Live</span>}
+                      {!isRunning && isLogsExpanded && (
+                        <button
+                          onClick={() => setIsLogsExpanded(false)}
+                          className="flex items-center space-x-1 text-[10px] font-medium text-text-secondary hover:text-text-primary transition-colors bg-surface-hover/50 px-2 py-1 rounded"
+                        >
+                          <ChevronDown size={12} />
+                          <span>Back to Findings</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 font-mono text-[11px]">
                         {logs.map((log, i) => {
@@ -357,8 +368,8 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                 </div>
 
                 {/* Findings List (Row by Row, grouped by Request) */}
-                {groupedFindings && (
-                  <div className={`flex flex-col flex-1 min-h-0 ${!isRunning ? 'w-full' : 'lg:w-1/2'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm`}>
+                {(groupedFindings && (!isLogsExpanded || isRunning)) && (
+                  <div className={`flex flex-col flex-1 min-h-0 w-full bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm`}>
                     <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                       <span>Audit Findings</span>
                       <div className="flex items-center space-x-3 text-[11px] font-medium text-text-secondary normal-case tracking-normal">
@@ -486,14 +497,14 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                       )}
                     </div>
                     
-                    {!isRunning && groupedFindings && (
+                    {!isRunning && groupedFindings && !isLogsExpanded && (
                       <div className="p-2 border-t border-border-strong bg-app-bg shrink-0 flex justify-center">
                         <button
-                          onClick={() => setIsLogsExpanded(!isLogsExpanded)}
+                          onClick={() => setIsLogsExpanded(true)}
                           className="flex items-center space-x-1.5 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors py-1"
                         >
-                          {isLogsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          <span>{isLogsExpanded ? 'Hide Raw Execution Logs' : 'View Raw Execution Logs'}</span>
+                          <ChevronRight size={14} />
+                          <span>View Raw Execution Logs</span>
                         </button>
                       </div>
                     )}

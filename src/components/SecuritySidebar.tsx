@@ -54,10 +54,29 @@ export function SecuritySidebar() {
     setSelectedRequestIds(next);
   };
 
+  const allRequestIds = collections.flatMap(c => c.requests.map(r => r.id));
+  const isAllSelected = collections.length > 0 && selectedRequestIds.length === allRequestIds.length;
+
+  const handleBulkToggle = () => {
+    if (isAllSelected) {
+      setSelectedRequestIds([]);
+    } else {
+      setSelectedRequestIds(allRequestIds);
+    }
+  };
+
   return (
     <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">DevSecOps Scanner</span>
+        {collections.length > 0 && (
+          <button
+            onClick={handleBulkToggle}
+            className="text-[10px] font-medium text-text-muted hover:text-text-primary transition-colors"
+          >
+            {isAllSelected ? 'Deselect All' : 'Select All'}
+          </button>
+        )}
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">

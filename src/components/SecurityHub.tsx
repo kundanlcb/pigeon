@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Shield, Play, CheckSquare, Square, StopCircle, ChevronRight, ChevronDown, Check, AlertTriangle } from 'lucide-react';
+import { Shield, Play, CheckSquare, Square, StopCircle, ChevronRight, ChevronDown, Check, AlertTriangle, Download } from 'lucide-react';
 import { useStore } from '../store';
 import { runSecurityAudit, type SecurityAuditConfig, type AuditFinding } from '../utils/security/engine';
 import { resolveEnvVariables } from '../utils/env';
@@ -133,6 +133,22 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     }
   };
 
+  const exportReport = () => {
+    if (!groupedFindings) return;
+    const report = {
+      generatedAt: new Date().toISOString(),
+      targetCount: groupedFindings.length,
+      findings: groupedFindings
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pigeon-security-report-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderConfigToggle = (label: string, description: string, checked: boolean, onChange: (val: boolean) => void) => (
     <div 
       className="flex items-start space-x-3 py-4 border-b border-border-subtle hover:bg-surface-hover/20 cursor-pointer transition-colors px-2 -mx-2 last:border-b-0"
@@ -177,18 +193,29 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
             <span>Stop Audit</span>
           </button>
         ) : (
-          <button
-            onClick={startFleetAudit}
-            disabled={selectedRequestIds.length === 0}
-            className={`flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm ${
-              selectedRequestIds.length === 0
-                ? 'opacity-50 cursor-not-allowed bg-surface-hover text-text-muted'
-                : 'bg-accent text-white hover:bg-accent-hover'
-            }`}
-          >
-            <Play size={14} />
-            <span>Start Audit</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            {groupedFindings && (
+              <button
+                onClick={exportReport}
+                className="flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm bg-panel-bg text-text-secondary border border-border-strong hover:bg-surface-hover hover:text-text-primary"
+              >
+                <Download size={14} />
+                <span>Export Report</span>
+              </button>
+            )}
+            <button
+              onClick={startFleetAudit}
+              disabled={selectedRequestIds.length === 0}
+              className={`flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm ${
+                selectedRequestIds.length === 0
+                  ? 'opacity-50 cursor-not-allowed bg-surface-hover text-text-muted'
+                  : 'bg-accent text-white hover:bg-accent-hover'
+              }`}
+            >
+              <Play size={14} />
+              <span>Start Audit</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -396,9 +423,11 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                                       </div>
                                     )}
                                     {vuln.payloadSent && (
-                                      <div className="mt-2 text-[10px] font-mono text-text-muted">
-                                        <span className="text-[9px] uppercase tracking-wider font-bold block mb-1">Payload / Headers Sent:</span>
-                                        {vuln.payloadSent}
+                                      <div className="mt-3">
+                                        <span className="text-[9px] uppercase tracking-wider font-bold block mb-1.5 text-text-muted">Payload / Headers Sent:</span>
+                                        <div className="bg-app-bg border border-border-strong rounded p-3 text-[10.5px] font-mono text-text-secondary whitespace-pre-wrap overflow-x-auto shadow-inner">
+                                          {vuln.payloadSent}
+                                        </div>
                                       </div>
                                     )}
                                   </div>

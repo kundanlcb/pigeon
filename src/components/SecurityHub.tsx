@@ -257,8 +257,8 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                     {isRunning && <span className="flex items-center text-accent"><Play size={10} className="mr-1 animate-pulse" /> Live</span>}
                   </div>
                   <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 font-mono text-[11px]">
-                    {logs.map((log, i) => {
-                      if (log.startsWith('__SECTION__STARTING_AUDIT_FOR__')) {
+                        {logs.map((log, i) => {
+                          if (log.startsWith('__SECTION__STARTING_AUDIT_FOR__')) {
                         const title = log.replace('__SECTION__STARTING_AUDIT_FOR__', '');
                         return (
                           <div key={i} className="mt-6 mb-2 py-1.5 px-3 bg-accent/10 border-l-2 border-accent text-accent font-bold">
@@ -298,8 +298,29 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                   <div className={`flex flex-col flex-1 min-h-0 ${!isRunning ? 'w-full' : 'lg:w-1/2'}`}>
                     <div className="flex items-center justify-between mb-4 shrink-0">
                       <h3 className="text-[14px] font-semibold text-text-primary">Audit Findings</h3>
-                      <div className="text-[11px] font-medium text-text-secondary">
-                        {groupedFindings.filter(g => g.findings.some(f => f.risk !== 'PASS')).length} endpoints with vulnerabilities
+                      <div className="flex items-center space-x-3 text-[11px] font-medium text-text-secondary">
+                        {(() => {
+                          let high = 0, medium = 0, low = 0, affected = 0;
+                          groupedFindings.forEach(g => {
+                            const vulns = g.findings.filter(f => f.risk !== 'PASS');
+                            if (vulns.length > 0) affected++;
+                            vulns.forEach(v => {
+                              if (v.risk === 'HIGH') high++;
+                              else if (v.risk === 'MEDIUM') medium++;
+                              else if (v.risk === 'LOW') low++;
+                            });
+                          });
+                          
+                          return (
+                            <>
+                              {high > 0 && <span className="text-red-400">{high} High</span>}
+                              {medium > 0 && <span className="text-yellow-400">{medium} Medium</span>}
+                              {low > 0 && <span className="text-blue-400">{low} Low</span>}
+                              {(high > 0 || medium > 0 || low > 0) && <span className="opacity-40">|</span>}
+                              <span>{affected} {affected === 1 ? 'endpoint' : 'endpoints'} affected</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle2, Info, Loader2, XCircle, Settings2, Play, ChevronRight, CheckSquare, Square } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Shield, AlertTriangle, CheckCircle2, Info, XCircle, Settings2, Play, ChevronRight, CheckSquare, Square, StopCircle } from 'lucide-react';
 import { Dropdown } from './Dropdown';
 import { runSecurityAudit } from '../utils/security/engine';
 import type { AuditFinding, SecurityAuditContext, RiskLevel, SecurityAuditConfig } from '../utils/security/engine';
@@ -47,21 +47,35 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [findings, setFindings] = useState<AuditFinding[] | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleRunAudit = async () => {
     if (!requestContext) return;
+
+    if (isRunning && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      return;
+    }
+
     setIsRunning(true);
     setFindings(null);
     setLogs([]);
+    
+    abortControllerRef.current = new AbortController();
+
     try {
-      const results = await runSecurityAudit(requestContext, config, (msg) => {
-        setLogs(prev => [...prev, msg]);
-      });
+      const results = await runSecurityAudit(
+        requestContext, 
+        config, 
+        (msg) => setLogs(prev => [...prev, msg]),
+        abortControllerRef.current.signal
+      );
       setFindings(results);
-    } catch (err) {
-      setLogs(prev => [...prev, `[!] Critical Error: ${String(err)}`]);
+    } catch (err: any) {
+      setLogs(prev => [...prev, `[!] Audit Aborted: ${err.message || String(err)}`]);
     } finally {
       setIsRunning(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -104,15 +118,15 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
           
           <button
             onClick={handleRunAudit}
-            disabled={isRunning || !requestContext}
+            disabled={!requestContext && !isRunning}
             className={`flex items-center space-x-2 px-4 py-1.5 rounded-md text-[13px] font-medium transition-all shadow-sm ${
               isRunning 
-                ? 'bg-surface-hover text-text-muted cursor-not-allowed' 
+                ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20' 
                 : 'bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20'
             }`}
           >
-            {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            <span>{isRunning ? 'Running Matrix...' : (findings ? 'Re-run Audit' : 'Launch Audit')}</span>
+            {isRunning ? <StopCircle size={14} className="animate-pulse" /> : <Play size={14} />}
+            <span>{isRunning ? 'Stop Audit' : (findings ? 'Re-run Audit' : 'Launch Audit')}</span>
           </button>
         </div>
       </div>
@@ -225,46 +239,48 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
               </div>
             </div>
 
-            {/* Findings List */}
-            <div className="space-y-4">
-              {findings.map((finding) => (
-                <div key={finding.id} className="border border-border-strong rounded-md overflow-hidden bg-panel-bg shadow-sm">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between p-3 border-b border-border-subtle bg-[#1a1a1a]">
-                    <div className="flex items-center space-x-3">
-                      <RiskIcon risk={finding.risk} />
-                      <span className="text-[13px] font-mono font-semibold text-gray-200">{finding.title}</span>
-                    </div>
-                    <RiskBadge risk={finding.risk} />
-                  </div>
-                  
-                  {/* Card Body */}
-                  <div className="p-4 text-[13px] space-y-4">
-                    <div>
-                      <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1">Finding</h4>
-                      <p className="text-text-secondary leading-relaxed">{finding.description}</p>
-                    </div>
-                    
-                    {finding.payloadSent && (
-                      <div>
-                        <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1">Forensic Evidence (Injected)</h4>
-                        <pre className="bg-[#0a0a0a] p-3 rounded border border-border-strong font-mono text-[11px] text-red-400 overflow-x-auto whitespace-pre-wrap">
-                          {finding.payloadSent}
-                        </pre>
-                      </div>
-                    )}
+            <div className="border border-border-strong rounded-md overflow-hidden bg-app-bg shadow-sm">
+              <table className="w-full text-left text-[12px] font-mono border-collapse">
+                <thead>
+                  <tr className="bg-surface-bg border-b border-border-strong text-[10px] text-text-muted uppercase tracking-wider">
+                    <th className="px-4 py-2 w-8"></th>
+                    <th className="px-3 py-2 w-[250px]">Attack Vector</th>
+                    <th className="px-3 py-2 w-24">Risk</th>
+                    <th className="px-3 py-2">Forensic Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {findings.map((finding) => (
+                    <tr key={finding.id} className="border-b border-border-subtle hover:bg-surface-hover/30 group align-top">
+                      <td className="px-4 py-3 pt-[14px]">
+                        <RiskIcon risk={finding.risk} />
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-text-primary text-[13px]">
+                        {finding.title}
+                      </td>
+                      <td className="px-3 py-3">
+                        <RiskBadge risk={finding.risk} />
+                      </td>
+                      <td className="px-3 py-3 space-y-2 max-w-[400px]">
+                        <div className="text-text-secondary leading-relaxed">{finding.description}</div>
+                        
+                        {finding.payloadSent && (
+                          <div className="mt-2 text-red-400 bg-[#0a0a0a] p-2 rounded border border-border-strong text-[11px] whitespace-pre-wrap font-mono custom-scrollbar overflow-x-auto">
+                            {finding.payloadSent}
+                          </div>
+                        )}
 
-                    {finding.remediation && finding.risk !== 'PASS' && (
-                      <div>
-                        <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1">Remediation</h4>
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded p-3 text-blue-300 leading-relaxed text-[12px]">
-                          {finding.remediation}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                        {finding.remediation && finding.risk !== 'PASS' && (
+                          <div className="mt-2 text-blue-300 bg-blue-500/10 p-2 rounded border border-blue-500/20 text-[11px] leading-relaxed">
+                            <span className="font-semibold uppercase tracking-wider block mb-1 opacity-70">Remediation</span>
+                            {finding.remediation}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         ))}

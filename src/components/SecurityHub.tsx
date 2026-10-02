@@ -223,7 +223,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                         )}
                         <span>{progress.currentName || 'Initializing...'}</span>
                         {progress.currentUrl && (
-                          <span className="ml-1.5 text-[10px] text-text-muted font-mono opacity-60 truncate max-w-[250px]">
+                          <span className="ml-1.5 text-[11px] text-text-secondary font-mono truncate max-w-[300px]">
                             ({progress.currentUrl})
                           </span>
                         )}

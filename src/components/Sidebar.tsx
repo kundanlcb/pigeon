@@ -32,6 +32,17 @@ export function Sidebar() {
           <History size={19} strokeWidth={1.5} />
         </button>
         <button 
+          onClick={() => setActiveView('security')}
+          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+            activeView === 'security' 
+              ? 'bg-border-strong text-accent' 
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+          }`}
+          title="DevSecOps Hub"
+        >
+          <Shield size={19} strokeWidth={1.5} />
+        </button>
+        <button 
           onClick={() => setActiveView('automation')}
           className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
             activeView === 'automation' 
@@ -52,17 +63,6 @@ export function Sidebar() {
           title="Source Control"
         >
           <GitBranch size={19} strokeWidth={1.5} />
-        </button>
-        <button 
-          onClick={() => setActiveView('security')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
-            activeView === 'security' 
-              ? 'bg-border-strong text-accent' 
-              : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-          }`}
-          title="DevSecOps Hub"
-        >
-          <Shield size={19} strokeWidth={1.5} />
         </button>
       </div>
       <SettingsMenu />

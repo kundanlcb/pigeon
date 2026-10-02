@@ -208,41 +208,42 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
               
               {/* Progress Summary Header */}
               {isRunning && (
-                <div className="flex items-center justify-between bg-panel-bg border border-border-strong rounded-md p-4 shrink-0 shadow-sm">
-                  <div className="flex flex-col space-y-2 flex-1 mr-8">
-                    <div className="flex justify-between text-[12px] font-medium">
-                      <div className="flex items-center">
-                        <span className="text-text-secondary mr-2">Auditing:</span>
-                        {progress.currentMethod && (
-                          <span className={`font-bold text-[10px] mr-1.5 ${
-                            progress.currentMethod === 'GET' ? 'text-blue-400' :
-                            progress.currentMethod === 'POST' ? 'text-green-400' :
-                            progress.currentMethod === 'PUT' ? 'text-yellow-400' :
-                            progress.currentMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
-                          }`}>{progress.currentMethod}</span>
-                        )}
-                        <span>{progress.currentName || 'Initializing...'}</span>
-                        {progress.currentUrl && (
-                          <span className="ml-1.5 text-[11px] text-text-secondary font-mono truncate max-w-[300px]">
-                            ({progress.currentUrl})
-                          </span>
-                        )}
-                      </div>
+                <div className="flex flex-col space-y-3 bg-panel-bg border border-border-strong rounded-md p-4 shrink-0 shadow-sm">
+                  <div className="flex items-center justify-between text-[12px] font-medium">
+                    <div className="flex items-center">
+                      <span className="text-text-secondary mr-2">Auditing:</span>
+                      {progress.currentMethod && (
+                        <span className={`font-bold text-[10px] mr-1.5 ${
+                          progress.currentMethod === 'GET' ? 'text-blue-400' :
+                          progress.currentMethod === 'POST' ? 'text-green-400' :
+                          progress.currentMethod === 'PUT' ? 'text-yellow-400' :
+                          progress.currentMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                        }`}>{progress.currentMethod}</span>
+                      )}
+                      <span>{progress.currentName || 'Initializing...'}</span>
+                      {progress.currentUrl && (
+                        <span className="ml-1.5 text-[11px] text-text-secondary font-mono truncate max-w-[300px]">
+                          ({progress.currentUrl})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-3 text-text-secondary">
                         <span>{progress.current} of {progress.total}</span>
                         <span className="text-accent font-bold w-8 text-right">{Math.round((progress.current / progress.total) * 100)}%</span>
                       </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-app-bg rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-accent transition-all duration-300"
-                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                      />
+                      <div className="w-px h-3.5 bg-border-strong" />
+                      <div className="flex items-center text-accent font-semibold animate-pulse">
+                        <Shield size={13} className="mr-1.5" />
+                        Audit in progress...
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center text-accent text-[12px] font-semibold animate-pulse">
-                    <Shield size={14} className="mr-2" />
-                    Audit in progress...
+                  <div className="h-1.5 w-full bg-app-bg rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-accent transition-all duration-300"
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
                   </div>
                 </div>
               )}

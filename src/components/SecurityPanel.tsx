@@ -45,18 +45,21 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   });
   
   const [isRunning, setIsRunning] = useState(false);
-  const [progress, setProgress] = useState<string>('');
+  const [logs, setLogs] = useState<string[]>([]);
   const [findings, setFindings] = useState<AuditFinding[] | null>(null);
 
   const handleRunAudit = async () => {
     if (!requestContext) return;
     setIsRunning(true);
     setFindings(null);
+    setLogs([]);
     try {
-      const results = await runSecurityAudit(requestContext, config, setProgress);
+      const results = await runSecurityAudit(requestContext, config, (msg) => {
+        setLogs(prev => [...prev, msg]);
+      });
       setFindings(results);
     } catch (err) {
-      setProgress(`Error: ${String(err)}`);
+      setLogs(prev => [...prev, `[!] Critical Error: ${String(err)}`]);
     } finally {
       setIsRunning(false);
     }
@@ -114,16 +117,25 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
         </div>
       </div>
 
-      {/* Progress Log */}
+      {/* Progress Terminal */}
       {isRunning && (
-        <div className="p-3 border-b border-border-strong bg-[#0a0a0a] flex items-center space-x-2 text-xs font-mono text-green-400 shrink-0">
-          <ChevronRight size={14} className="animate-pulse" />
-          <span>[SYSTEM] {progress}</span>
+        <div className="flex-1 p-4 bg-[#0a0a0a] overflow-y-auto custom-scrollbar font-mono text-xs flex flex-col space-y-1.5">
+          {logs.map((log, i) => (
+            <div key={i} className={`flex items-start ${log.includes('[!]') ? 'text-red-400' : log.includes('[✓]') ? 'text-green-400' : log.includes('[-]') ? 'text-text-muted' : 'text-blue-300'}`}>
+              <ChevronRight size={14} className="mt-[2px] shrink-0 opacity-50 mr-2" />
+              <span className="leading-relaxed">{log}</span>
+            </div>
+          ))}
+          <div className="flex items-center text-blue-300 opacity-50">
+            <ChevronRight size={14} className="shrink-0 mr-2" />
+            <span className="animate-pulse">_</span>
+          </div>
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      {!isRunning && (
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
         {!findings && !isRunning ? (
           // Configuration Matrix
           <div className="p-5 max-w-3xl mx-auto space-y-6">
@@ -257,6 +269,7 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

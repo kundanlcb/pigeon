@@ -152,7 +152,7 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
         <div className="flex-1 overflow-y-auto custom-scrollbar">
         {!findings && !isRunning ? (
           // Configuration Matrix
-          <div className="p-5 max-w-3xl mx-auto space-y-6">
+          <div className="p-4 md:p-6 space-y-6 w-full">
             <div>
               <h3 className="text-sm font-semibold mb-1">Audit Configuration</h3>
               <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
@@ -224,9 +224,9 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
           </div>
         ) : (findings && (
           // Security Report
-          <div className="p-5 max-w-4xl mx-auto space-y-6">
+          <div className="w-full flex flex-col h-full">
             {/* Scorecard Header */}
-            <div className="flex items-center justify-between p-4 bg-surface-bg border border-border-strong rounded-lg">
+            <div className="flex items-center justify-between px-6 py-4 bg-surface-bg border-b border-border-strong shrink-0">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Security Audit Report</h3>
                 <p className="text-xs text-text-secondary">Scanned {findings.length} attack vectors across the endpoint.</p>
@@ -239,11 +239,11 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
               </div>
             </div>
 
-            <div className="border border-border-strong rounded-md overflow-hidden bg-app-bg shadow-sm">
+            <div className="flex-1 overflow-y-auto bg-app-bg">
               <table className="w-full text-left text-[12px] font-mono border-collapse">
                 <thead>
-                  <tr className="bg-surface-bg border-b border-border-strong text-[10px] text-text-muted uppercase tracking-wider">
-                    <th className="px-4 py-2 w-8"></th>
+                  <tr className="bg-panel-bg border-b border-border-strong text-[10px] text-text-muted uppercase tracking-wider sticky top-0 z-10">
+                    <th className="px-6 py-2 w-8"></th>
                     <th className="px-3 py-2 w-[250px]">Attack Vector</th>
                     <th className="px-3 py-2 w-24">Risk</th>
                     <th className="px-3 py-2">Forensic Result</th>
@@ -252,7 +252,7 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                 <tbody>
                   {findings.map((finding) => (
                     <tr key={finding.id} className="border-b border-border-subtle hover:bg-surface-hover/30 group align-top">
-                      <td className="px-4 py-3 pt-[14px]">
+                      <td className="pl-6 pr-3 py-3 pt-[14px]">
                         <RiskIcon risk={finding.risk} />
                       </td>
                       <td className="px-3 py-3 font-semibold text-text-primary text-[13px]">
@@ -261,7 +261,7 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                       <td className="px-3 py-3">
                         <RiskBadge risk={finding.risk} />
                       </td>
-                      <td className="px-3 py-3 space-y-2 max-w-[400px]">
+                      <td className="pr-6 pl-3 py-3 space-y-2 max-w-[400px]">
                         <div className="text-text-secondary leading-relaxed">{finding.description}</div>
                         
                         {finding.payloadSent && (

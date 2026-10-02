@@ -100,9 +100,19 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
     <div className="flex flex-col h-full bg-app-bg text-text-primary overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border-strong bg-panel-bg shrink-0">
-        <div className="flex items-center space-x-2">
-          <Shield size={16} className="text-accent" />
-          <span className="text-[13px] font-semibold">Security Matrix</span>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Shield size={16} className="text-accent" />
+            <span className="text-[13px] font-semibold">Security Matrix</span>
+          </div>
+          {findings && !isRunning && (
+            <div className="flex items-center space-x-3 px-3 border-l border-border-strong">
+              <span className="text-[11px] text-text-secondary">Scanned {findings.length} vectors</span>
+              <span className={`text-[12px] font-bold font-mono ${criticalCount > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                {criticalCount > 0 ? `${criticalCount} VULNERABILITIES` : 'SECURE'}
+              </span>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center space-x-3">
@@ -225,20 +235,6 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
         ) : (findings && (
           // Security Report
           <div className="w-full flex flex-col h-full">
-            {/* Scorecard Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-surface-bg border-b border-border-strong shrink-0">
-              <div>
-                <h3 className="text-sm font-semibold mb-1">Security Audit Report</h3>
-                <p className="text-xs text-text-secondary">Scanned {findings.length} attack vectors across the endpoint.</p>
-              </div>
-              <div className="text-right">
-                <div className={`text-2xl font-bold font-mono ${criticalCount > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                  {criticalCount > 0 ? `${criticalCount} VULNERABILITIES` : 'SECURE'}
-                </div>
-                <div className="text-[11px] text-text-muted uppercase tracking-wider mt-1">Status</div>
-              </div>
-            </div>
-
             <div className="flex-1 overflow-y-auto bg-app-bg">
               <table className="w-full text-left text-[12px] font-mono border-collapse">
                 <thead>

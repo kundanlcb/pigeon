@@ -40,7 +40,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   const [groupedFindings, setGroupedFindings] = useState<RequestFindings[] | null>(null);
   const [expandedFindingIds, setExpandedFindingIds] = useState<Set<string>>(new Set());
   
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [progress, setProgress] = useState({ current: 0, total: 0, currentName: '', currentMethod: '' });
   const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -73,14 +73,14 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       .flatMap(col => col.requests)
       .filter(req => selectedRequestIds.includes(req.id));
 
-    setProgress({ current: 0, total: targetRequests.length });
+    setProgress({ current: 0, total: targetRequests.length, currentName: '', currentMethod: '' });
     setLogs(prev => [...prev, `[*] Target Scope: ${targetRequests.length} endpoints.`]);
 
     let currentIndex = 0;
     for (const req of targetRequests) {
       if (signal.aborted) break;
       currentIndex++;
-      setProgress({ current: currentIndex, total: targetRequests.length });
+      setProgress({ current: currentIndex, total: targetRequests.length, currentName: req.name, currentMethod: req.method });
 
       setLogs(prev => [...prev, `__SECTION__STARTING_AUDIT_FOR__[${req.method}] ${req.name}`]);
 
@@ -211,8 +211,22 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                 <div className="flex items-center justify-between bg-panel-bg border border-border-strong rounded-md p-4 shrink-0 shadow-sm">
                   <div className="flex flex-col space-y-2 flex-1 mr-8">
                     <div className="flex justify-between text-[12px] font-medium">
-                      <span>Auditing endpoint {progress.current} of {progress.total}</span>
-                      <span className="text-accent">{Math.round((progress.current / progress.total) * 100)}%</span>
+                      <div className="flex items-center">
+                        <span className="text-text-secondary mr-2">Auditing:</span>
+                        {progress.currentMethod && (
+                          <span className={`font-bold text-[10px] mr-1.5 ${
+                            progress.currentMethod === 'GET' ? 'text-blue-400' :
+                            progress.currentMethod === 'POST' ? 'text-green-400' :
+                            progress.currentMethod === 'PUT' ? 'text-yellow-400' :
+                            progress.currentMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                          }`}>{progress.currentMethod}</span>
+                        )}
+                        <span>{progress.currentName || 'Initializing...'}</span>
+                      </div>
+                      <div className="flex items-center space-x-3 text-text-secondary">
+                        <span>{progress.current} of {progress.total}</span>
+                        <span className="text-accent font-bold w-8 text-right">{Math.round((progress.current / progress.total) * 100)}%</span>
+                      </div>
                     </div>
                     <div className="h-1.5 w-full bg-app-bg rounded-full overflow-hidden">
                       <div 

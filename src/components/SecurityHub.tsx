@@ -296,17 +296,18 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
 
                 {/* Findings List (Row by Row, grouped by Request) */}
                 {groupedFindings && (
-                  <div className={`flex flex-col flex-1 min-h-0 ${!isRunning ? 'w-full' : 'lg:w-1/2'}`}>
-                    <div className="flex items-center justify-between mb-4 shrink-0">
-                      <h3 className="text-[14px] font-semibold text-text-primary">Audit Findings</h3>
-                      <div className="flex items-center space-x-3 text-[11px] font-medium text-text-secondary">
+                  <div className={`flex flex-col flex-1 min-h-0 ${!isRunning ? 'w-full' : 'lg:w-1/2'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm`}>
+                    <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
+                      <span>Audit Findings</span>
+                      <div className="flex items-center space-x-3 text-[11px] font-medium text-text-secondary normal-case tracking-normal">
                         {(() => {
-                          let high = 0, medium = 0, low = 0, affected = 0;
+                          let critical = 0, high = 0, medium = 0, low = 0, affected = 0;
                           groupedFindings.forEach(g => {
                             const vulns = g.findings.filter(f => f.risk !== 'PASS');
                             if (vulns.length > 0) affected++;
                             vulns.forEach(v => {
-                              if (v.risk === 'HIGH') high++;
+                              if (v.risk === 'CRITICAL') critical++;
+                              else if (v.risk === 'HIGH') high++;
                               else if (v.risk === 'MEDIUM') medium++;
                               else if (v.risk === 'LOW') low++;
                             });
@@ -314,10 +315,11 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                           
                           return (
                             <>
+                              {critical > 0 && <span className="text-purple-400">{critical} Critical</span>}
                               {high > 0 && <span className="text-red-400">{high} High</span>}
                               {medium > 0 && <span className="text-yellow-400">{medium} Medium</span>}
                               {low > 0 && <span className="text-blue-400">{low} Low</span>}
-                              {(high > 0 || medium > 0 || low > 0) && <span className="opacity-40">|</span>}
+                              {(critical > 0 || high > 0 || medium > 0 || low > 0) && <span className="opacity-40">|</span>}
                               <span>{affected} {affected === 1 ? 'endpoint' : 'endpoints'} affected</span>
                             </>
                           );
@@ -325,7 +327,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
                       {groupedFindings.map((group) => {
                         const vulns = group.findings.filter(f => f.risk !== 'PASS');
                         const hasVulns = vulns.length > 0;

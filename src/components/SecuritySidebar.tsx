@@ -7,7 +7,7 @@ export function SecuritySidebar() {
   const selectedRequestIds = useStore(state => state.selectedSecurityRequestIds);
   const setSelectedRequestIds = useStore(state => state.setSelectedSecurityRequestIds);
 
-  const [expandedColIds, setExpandedColIds] = useState<Set<string>>(new Set(collections.map(c => c.id)));
+  const [expandedColIds, setExpandedColIds] = useState<Set<string>>(new Set());
 
   const toggleCollectionExpand = (colId: string) => {
     const next = new Set(expandedColIds);
@@ -121,9 +121,6 @@ export function SecuritySidebar() {
                       </div>
                     );
                   })}
-                  {col.requests.length === 0 && (
-                    <div className="pl-6 py-1 text-[11px] text-text-muted italic">Empty collection</div>
-                  )}
                 </div>
               )}
             </div>

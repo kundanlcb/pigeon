@@ -168,8 +168,8 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
               <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
             </div>
 
-            <div className="border-y border-border-strong bg-surface-bg/30">
-              <div className="grid grid-cols-[200px_1fr] border-b border-border-strong text-[11px] font-medium text-text-muted">
+            <div className="border border-border-strong rounded-md overflow-hidden bg-surface-bg shadow-sm">
+              <div className="grid grid-cols-[200px_1fr] border-b border-border-strong text-[11px] font-medium text-text-muted bg-panel-bg">
                 <div className="border-r border-border-strong px-4 py-2">Target Auth Header</div>
                 <div className="px-4 py-2">Secondary Attacker Token (For BOLA)</div>
               </div>

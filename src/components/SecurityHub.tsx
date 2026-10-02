@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, Play, CheckSquare, Square, Info } from 'lucide-react';
+import { Shield, Play, CheckSquare, Square } from 'lucide-react';
 import { useStore } from '../store';
 import type { SecurityAuditConfig } from '../utils/security/engine';
 import { EnvironmentSelector } from './EnvironmentSelector';
@@ -53,7 +53,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           </div>
 
           <div className="w-[1px] h-4 bg-border-strong" />
-          <div className="w-48">
+          <div className="flex-1 min-w-[200px] max-w-[300px]">
             <EnvironmentSelector onManageClick={onManageEnvClick} />
           </div>
         </div>
@@ -90,32 +90,31 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                 <div className="flex items-center justify-between">
                   <h3 className="text-[13px] font-semibold text-text-primary">1. Global Authentication Context</h3>
                 </div>
-                
-                <div className="space-y-4 bg-surface-bg p-4 border border-border-strong rounded-md shadow-sm">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-text-secondary">Master Auth Header (e.g. Authorization)</label>
-                    <input 
-                      type="text" 
-                      value={config.authHeaderName}
-                      onChange={e => setConfig({...config, authHeaderName: e.target.value})}
-                      placeholder="Authorization"
-                      className="w-full h-9 bg-app-bg border border-border-strong rounded px-3 text-[13px] font-mono focus:outline-none focus:border-accent placeholder-text-muted transition-colors"
-                    />
-                    <p className="text-[10px] text-text-muted flex items-center mt-1">
-                      <Info size={10} className="mr-1" /> This header will be stripped during Broken Authentication testing.
-                    </p>
+                <div className="border border-border-strong rounded-md overflow-hidden bg-surface-bg shadow-sm">
+                  <div className="grid grid-cols-[250px_1fr] border-b border-border-strong text-[11px] font-medium text-text-muted bg-panel-bg">
+                    <div className="border-r border-border-strong px-4 py-2">Master Auth Header (e.g. Authorization)</div>
+                    <div className="px-4 py-2">Secondary Attacker Token (For BOLA)</div>
                   </div>
-
-                  <div className="space-y-1.5 pt-2 border-t border-border-subtle">
-                    <label className="text-[11px] font-medium text-text-secondary">Secondary Attacker Token (For BOLA)</label>
-                    <input 
-                      type="text" 
-                      value={config.attackerAuthHeader}
-                      onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
-                      disabled={!config.testBOLA}
-                      placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
-                      className="w-full h-9 bg-app-bg border border-border-strong rounded px-3 text-[13px] font-mono focus:outline-none focus:border-accent placeholder-text-muted disabled:opacity-50 transition-colors"
-                    />
+                  <div className="grid grid-cols-[250px_1fr]">
+                    <div className="border-r border-border-strong h-[40px]">
+                      <input 
+                        type="text" 
+                        value={config.authHeaderName}
+                        onChange={e => setConfig({...config, authHeaderName: e.target.value})}
+                        placeholder="Authorization"
+                        className="w-full h-full bg-transparent px-4 text-[13px] font-mono focus:outline-none placeholder-text-muted transition-colors"
+                      />
+                    </div>
+                    <div className="h-[40px]">
+                      <input 
+                        type="text" 
+                        value={config.attackerAuthHeader}
+                        onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
+                        disabled={!config.testBOLA}
+                        placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
+                        className="w-full h-full bg-transparent px-4 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50 transition-colors"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

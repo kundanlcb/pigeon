@@ -263,6 +263,12 @@ export function KeyValueEditor({
                     value={secretDraft}
                     placeholder={secretPlaceholder}
                     onChange={event => onSecretValueChange?.(pair.key, event.target.value)}
+                    onBlur={() => {
+                      if (secretDraft) onSecretSave?.(pair.key, secretDraft);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && secretDraft) onSecretSave?.(pair.key, secretDraft);
+                    }}
                   />
                 ) : (
                   <HighlightedInput
@@ -298,6 +304,7 @@ export function KeyValueEditor({
                     type="button"
                     title="Save secret to system keychain"
                     aria-label="Save secret to system keychain"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onSecretSave?.(pair.key, secretDraft)}
                     className="p-1 text-text-muted hover:text-accent transition-colors"
                   >

@@ -165,6 +165,8 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
                 placeholder="Value"
                 value={secretDrafts.apiKeyValue ?? (currentAuth.apiKeyValueInKeychain ? '' : currentAuth.apiKeyValue || '')}
                 onChange={(e) => updateDraft('apiKeyValue', e.target.value)}
+                onBlur={() => void saveSecret('apiKeyValue')}
+                onKeyDown={(e) => { if (e.key === 'Enter') void saveSecret('apiKeyValue'); }}
                 spellCheck={false}
               />
               {renderSecretActions('apiKeyValue', !!currentAuth.apiKeyValueInKeychain)}
@@ -193,6 +195,7 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
                 placeholder={currentAuth.bearerTokenInKeychain ? 'Enter a replacement token' : 'Enter Bearer token'}
                 value={secretDrafts.bearerToken ?? (currentAuth.bearerTokenInKeychain ? '' : currentAuth.bearerToken || '')}
                 onChange={(e) => updateDraft('bearerToken', e.target.value)}
+                onBlur={() => void saveSecret('bearerToken')}
                 spellCheck={false}
               />
               {renderSecretActions('bearerToken', !!currentAuth.bearerTokenInKeychain)}
@@ -221,6 +224,8 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
                 placeholder="Password"
                 value={secretDrafts.basicPassword ?? (currentAuth.basicPasswordInKeychain ? '' : currentAuth.basicPassword || '')}
                 onChange={(e) => updateDraft('basicPassword', e.target.value)}
+                onBlur={() => void saveSecret('basicPassword')}
+                onKeyDown={(e) => { if (e.key === 'Enter') void saveSecret('basicPassword'); }}
                 spellCheck={false}
               />
               {renderSecretActions('basicPassword', !!currentAuth.basicPasswordInKeychain)}
@@ -298,6 +303,8 @@ export function AuthEditor({ requestId, auth }: AuthEditorProps) {
                   placeholder={currentAuth.clientSecretInKeychain ? 'Enter a replacement secret' : 'Client Secret'}
                   value={secretDrafts.clientSecret ?? (currentAuth.clientSecretInKeychain ? '' : currentAuth.clientSecret || '')}
                   onChange={(e) => updateDraft('clientSecret', e.target.value)}
+                  onBlur={() => void saveSecret('clientSecret')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void saveSecret('clientSecret'); }}
                   spellCheck={false}
                 />
                 {renderSecretActions('clientSecret', !!currentAuth.clientSecretInKeychain)}

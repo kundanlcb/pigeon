@@ -181,6 +181,7 @@ export default function App() {
   const activeRequest = useStore(state => state.getActiveRequest());
   const toast = useStore(state => state.toast);
   const [curlModalRequest, setCurlModalRequest] = useState(activeRequest);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   const updateActiveRequest = useStore(state => state.updateActiveRequest);
   const addHistoryItem = useStore(state => state.addHistoryItem);
@@ -200,9 +201,17 @@ export default function App() {
   }, [activeRequest]);
 
   const handleSend = async () => {
+    if (isLoading) {
+      abortControllerRef.current?.abort();
+      setIsLoading(false);
+      return;
+    }
     if (!localUrl) return;
     setIsLoading(true);
     setResponse(null);
+
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     const startTime = performance.now();
     try {
@@ -396,13 +405,15 @@ export default function App() {
             body: reqBodyToUse,
             connectTimeout: appSettings?.requestTimeout,
             maxRedirections: appSettings?.maxRedirects,
+            signal,
             ...(dangerOptions ? { danger: dangerOptions } : {})
           });
         } else {
           return await window.fetch(finalUrl, {
             method: context.request.method,
             headers: context.request.headers,
-            body: reqBodyToUse
+            body: reqBodyToUse,
+            signal
           });
         }
       };
@@ -473,11 +484,11 @@ export default function App() {
       const endTime = performance.now();
       setResponse({
         status: 0,
-        statusText: 'Error',
+        statusText: error.name === 'AbortError' ? 'Cancelled' : 'Error',
         time: Math.round(endTime - startTime),
         size: 0,
         headers: {},
-        data: formatRequestError(error),
+        data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatRequestError(error),
         testResults: []
       });
     } finally {
@@ -710,10 +721,18 @@ export default function App() {
                       </div>
                       <button
                         onClick={handleSend}
-                        disabled={isLoading}
-                        className="flex shrink-0 items-center justify-center space-x-1.5 bg-accent hover:bg-accent-hover text-white px-4 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`flex shrink-0 items-center justify-center space-x-1.5 px-4 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 ${
+                          isLoading 
+                            ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" 
+                            : "bg-accent hover:bg-accent-hover text-white"
+                        }`}
                       >
-                        {isLoading ? <Loader2 size={14} className="animate-spin" /> : (
+                        {isLoading ? (
+                          <>
+                            <span>Cancel</span>
+                            <Loader2 size={14} className="animate-spin" />
+                          </>
+                        ) : (
                           <>
                             <span>Send</span>
                             <Send size={14} />

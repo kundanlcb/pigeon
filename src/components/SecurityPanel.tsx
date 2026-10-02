@@ -83,7 +83,7 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   
   const renderConfigToggle = (label: string, description: string, checked: boolean, onChange: (val: boolean) => void) => (
     <div 
-      className="flex items-start space-x-3 p-3 border border-border-subtle rounded-md hover:border-accent/50 cursor-pointer transition-colors"
+      className="flex items-start space-x-3 py-4 border-b border-border-subtle hover:bg-surface-hover/20 cursor-pointer transition-colors px-2 -mx-2"
       onClick={() => onChange(!checked)}
     >
       <div className="mt-0.5 text-accent">
@@ -168,34 +168,34 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
               <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
             </div>
 
-            <div className="border border-border-strong rounded-md overflow-hidden bg-app-bg shadow-sm">
-              <div className="grid grid-cols-[200px_1fr] bg-surface-bg border-b border-border-strong text-[10px] font-semibold text-text-muted uppercase tracking-wider">
-                <div className="border-r border-border-strong px-3 py-1.5">Target Auth Header</div>
-                <div className="px-3 py-1.5">Secondary Attacker Token (For BOLA)</div>
+            <div className="border-y border-border-strong bg-surface-bg/30">
+              <div className="grid grid-cols-[200px_1fr] border-b border-border-strong text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                <div className="border-r border-border-strong px-4 py-2">Target Auth Header</div>
+                <div className="px-4 py-2">Secondary Attacker Token (For BOLA)</div>
               </div>
               <div className="grid grid-cols-[200px_1fr]">
-                <div className="border-r border-border-strong p-1 h-[32px]">
+                <div className="border-r border-border-strong h-[36px]">
                   <Dropdown 
                     value={config.authHeaderName} 
                     onChange={val => setConfig({...config, authHeaderName: val})}
                     options={Array.from(new Set([...Object.keys(requestContext?.headers || {}), 'Authorization', 'X-API-Key'])).map(h => ({ value: h, label: h }))}
-                    className="w-full h-full text-[13px] font-mono px-2"
+                    className="w-full h-full text-[13px] font-mono px-4 !border-0 !rounded-none bg-transparent"
                   />
                 </div>
-                <div className="p-1 h-[32px]">
+                <div className="h-[36px]">
                   <input 
                     type="text" 
                     value={config.attackerAuthHeader}
                     onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
                     disabled={!config.testBOLA}
                     placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
-                    className="w-full h-full bg-transparent px-2 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
+                    className="w-full h-full bg-transparent px-4 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
                   />
                 </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-0">
               {renderConfigToggle(
                 "Broken Authentication", 
                 `Strips ${config.authHeaderName} headers to ensure endpoint rejects unauthenticated access.`, 

@@ -191,6 +191,8 @@ interface AppState {
   importWorkspace: (data: { collections: Collection[], environments: Environment[], flows: Flow[] }) => void;
   activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security';
   setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security') => void;
+  selectedSecurityRequestIds: string[];
+  setSelectedSecurityRequestIds: (ids: string[]) => void;
   flows: Flow[];
   activeFlowId: string | null;
   addFlow: (name: string) => void;
@@ -216,6 +218,7 @@ export const useStore = create<AppState>()(
       appSettings: { insecureSSL: true, requestTimeout: 30000, maxRedirects: 10 },
       theme: "dark",
       activeView: 'editor',
+      selectedSecurityRequestIds: [],
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
       activeRequestId: 'req-1',
       openRequestIds: ['req-1'],
@@ -654,6 +657,7 @@ export const useStore = create<AppState>()(
         };
       }),
       setActiveView: (view) => set({ activeView: view }),
+      setSelectedSecurityRequestIds: (ids) => set({ selectedSecurityRequestIds: ids }),
       
       addFlow: (name) => set((state) => {
         const newFlow = { id: `flow-${Date.now()}`, name, nodes: [], edges: [] };

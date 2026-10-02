@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { deleteUnusedRequestSecrets, duplicateEnvironmentWithSecrets } from './utils/authSecrets';
+import { type AuditFinding } from './utils/security/engine';
+
+export interface RequestFindings {
+  requestId: string;
+  requestName: string;
+  requestMethod: string;
+  findings: AuditFinding[];
+}
+
+export interface SecurityScanRecord {
+  id: string;
+  timestamp: number;
+  requestIds: string[];
+  findings: RequestFindings[];
+  logs: string[];
+}
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export type AuthType = 'none' | 'bearer' | 'basic' | 'api_key' | 'oauth2_client_credentials';
@@ -193,6 +210,12 @@ interface AppState {
   setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security') => void;
   selectedSecurityRequestIds: string[];
   setSelectedSecurityRequestIds: (ids: string[]) => void;
+  securityHistory: SecurityScanRecord[];
+  activeSecurityScanId: string | null;
+  setActiveSecurityScanId: (id: string | null) => void;
+  addSecurityScan: (scan: SecurityScanRecord) => void;
+  deleteSecurityScan: (id: string) => void;
+  clearSecurityHistory: () => void;
   flows: Flow[];
   activeFlowId: string | null;
   addFlow: (name: string) => void;
@@ -219,6 +242,8 @@ export const useStore = create<AppState>()(
       theme: "dark",
       activeView: 'editor',
       selectedSecurityRequestIds: [],
+      securityHistory: [],
+      activeSecurityScanId: null,
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
       activeRequestId: 'req-1',
       openRequestIds: ['req-1'],
@@ -658,6 +683,13 @@ export const useStore = create<AppState>()(
       }),
       setActiveView: (view) => set({ activeView: view }),
       setSelectedSecurityRequestIds: (ids) => set({ selectedSecurityRequestIds: ids }),
+      setActiveSecurityScanId: (id) => set({ activeSecurityScanId: id }),
+      addSecurityScan: (scan) => set((state) => ({ securityHistory: [scan, ...state.securityHistory] })),
+      deleteSecurityScan: (id) => set((state) => ({ 
+        securityHistory: state.securityHistory.filter(s => s.id !== id),
+        activeSecurityScanId: state.activeSecurityScanId === id ? null : state.activeSecurityScanId
+      })),
+      clearSecurityHistory: () => set({ securityHistory: [], activeSecurityScanId: null }),
       
       addFlow: (name) => set((state) => {
         const newFlow = { id: `flow-${Date.now()}`, name, nodes: [], edges: [] };

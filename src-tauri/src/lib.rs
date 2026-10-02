@@ -1,5 +1,6 @@
 mod secrets;
 mod git;
+mod load_test;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,6 +26,7 @@ pub fn run() {
             secrets::get_secret,
             secrets::delete_secret,
             git::git_command,
+            load_test::start_load_test,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

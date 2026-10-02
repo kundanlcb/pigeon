@@ -9,6 +9,8 @@ import { SourceControlPanel } from "./components/SourceControlPanel";
 import { SecuritySidebar } from "./components/SecuritySidebar";
 import { RequestTabs } from "./components/RequestTabs";
 import { SecurityHub } from "./components/SecurityHub";
+import { PerformanceSidebar } from "./components/PerformanceSidebar";
+import { PerformanceHub } from "./components/PerformanceHub";
 import { RequestEditor } from "./components/RequestEditor";
 import { ResponseViewer } from "./components/ResponseViewer";
 import { CurlModal } from "./components/CurlModal";
@@ -537,6 +539,8 @@ export default function App() {
           <SourceControlPanel />
         ) : activeView === 'security' ? (
           <SecuritySidebar />
+        ) : activeView === 'performance' ? (
+          <PerformanceSidebar />
         ) : (
           <CollectionsPanel
             onAddEnvironmentClick={() => setIsEnvManagerOpen(true)}
@@ -656,6 +660,10 @@ export default function App() {
           ) : activeView === 'security' ? (
             <ErrorBoundary name="Security Hub">
               <SecurityHub onManageEnvClick={() => setIsEnvManagerOpen(true)} />
+            </ErrorBoundary>
+          ) : activeView === 'performance' ? (
+            <ErrorBoundary name="Performance Hub">
+              <PerformanceHub />
             </ErrorBoundary>
           ) : (
             <>

@@ -189,8 +189,8 @@ interface AppState {
   importCollection: (collection: Collection) => void;
   importEnvironment: (env: Environment) => void;
   importWorkspace: (data: { collections: Collection[], environments: Environment[], flows: Flow[] }) => void;
-  activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control';
-  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control') => void;
+  activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security';
+  setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security') => void;
   flows: Flow[];
   activeFlowId: string | null;
   addFlow: (name: string) => void;

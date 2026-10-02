@@ -7,6 +7,7 @@ import { FlowsPanel } from "./components/FlowsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { SourceControlPanel } from "./components/SourceControlPanel";
 import { RequestTabs } from "./components/RequestTabs";
+import { SecurityHub } from "./components/SecurityHub";
 import { RequestEditor } from "./components/RequestEditor";
 import { ResponseViewer } from "./components/ResponseViewer";
 import { CurlModal } from "./components/CurlModal";
@@ -647,6 +648,10 @@ export default function App() {
           ) : activeView === 'automation' ? (
             <ErrorBoundary name="Automation Builder">
               <AutomationView onManageEnvClick={() => setIsEnvManagerOpen(true)} />
+            </ErrorBoundary>
+          ) : activeView === 'security' ? (
+            <ErrorBoundary name="Security Hub">
+              <SecurityHub />
             </ErrorBoundary>
           ) : (
             <>

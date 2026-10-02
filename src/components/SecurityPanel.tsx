@@ -131,15 +131,35 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
               <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
             </div>
 
-            <div className="flex items-center space-x-3 p-3 bg-surface-bg border border-border-strong rounded-md">
-              <label className="text-[12px] font-medium text-text-primary whitespace-nowrap">Auth Header Key:</label>
-              <input
-                type="text"
-                value={config.authHeaderName}
-                onChange={(e) => setConfig({ ...config, authHeaderName: e.target.value })}
-                placeholder="Authorization, X-API-Key..."
-                className="flex-1 bg-app-bg border border-border-strong rounded px-3 py-1.5 text-[12px] font-mono focus:border-accent focus:ring-1 focus:ring-accent outline-none placeholder-text-muted"
-              />
+            <div className="border border-border-strong rounded-md overflow-hidden bg-app-bg shadow-sm">
+              <div className="flex bg-surface-bg border-b border-border-strong px-2 py-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                <div className="w-[200px] border-r border-border-strong px-2">Target Auth Header</div>
+                <div className="flex-1 px-3">Secondary Attacker Token (For BOLA)</div>
+              </div>
+              <div className="flex px-1 py-1">
+                <div className="w-[200px] border-r border-border-strong pr-1">
+                  <input 
+                    type="text" 
+                    value={config.authHeaderName} 
+                    onChange={e => setConfig({...config, authHeaderName: e.target.value})}
+                    list="available-headers"
+                    placeholder="Authorization"
+                    className="w-full bg-transparent px-2 py-1.5 text-[13px] font-mono focus:outline-none placeholder-text-muted/50"
+                  />
+                  <datalist id="available-headers">
+                    {Object.keys(requestContext?.headers || {}).map(h => <option key={h} value={h} />)}
+                  </datalist>
+                </div>
+                <div className="flex-1 pl-1">
+                  <input 
+                    type="text" 
+                    value={config.attackerAuthHeader}
+                    onChange={e => setConfig({...config, attackerAuthHeader: e.target.value, testBOLA: !!e.target.value})}
+                    placeholder="Leave empty to skip BOLA test..."
+                    className="w-full bg-transparent px-2 py-1.5 text-[13px] font-mono focus:outline-none placeholder-text-muted"
+                  />
+                </div>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -169,29 +189,6 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
                 "Fires malformed payloads and edge-cases to detect 500 Internal Server Errors.", 
                 config.testFuzzing, 
                 (v) => setConfig({ ...config, testFuzzing: v })
-              )}
-            </div>
-
-            <div className="border-t border-border-subtle pt-6">
-              {renderConfigToggle(
-                "Broken Object Level Auth (BOLA)", 
-                "Tests if a different user can access this resource. Requires a secondary token.", 
-                config.testBOLA, 
-                (v) => setConfig({ ...config, testBOLA: v })
-              )}
-              
-              {config.testBOLA && (
-                <div className="mt-3 ml-8 p-3 bg-surface-bg border border-border-strong rounded-md space-y-2">
-                  <label className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Secondary Attacker Token</label>
-                  <input
-                    type="text"
-                    value={config.attackerAuthHeader}
-                    onChange={(e) => setConfig({ ...config, attackerAuthHeader: e.target.value })}
-                    placeholder="Bearer eyJhb..."
-                    className="w-full bg-app-bg border border-border-strong rounded px-3 py-1.5 text-[13px] font-mono focus:border-accent focus:ring-1 focus:ring-accent outline-none placeholder-text-muted"
-                  />
-                  <p className="text-[11px] text-text-secondary">Pigeon will swap your primary token with this one to check for IDOR vulnerabilities.</p>
-                </div>
               )}
             </div>
           </div>

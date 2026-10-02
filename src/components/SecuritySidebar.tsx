@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Shield, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare } from 'lucide-react';
 import { useStore } from '../store';
+import { Panel } from 'react-resizable-panels';
 
 export function SecuritySidebar() {
   const collections = useStore(state => state.collections);
@@ -54,11 +55,9 @@ export function SecuritySidebar() {
   };
 
   return (
-    <div className="w-64 flex-shrink-0 bg-sidebar-bg border-r border-border-strong flex flex-col h-full z-10 overflow-hidden font-sans select-none">
-      <div className="flex items-center justify-between p-3 shrink-0 h-[40px] border-b border-border-strong text-text-primary">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold tracking-wider opacity-80 uppercase">DevSecOps Scanner</span>
-        </div>
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+      <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
+        <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">DevSecOps Scanner</span>
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -133,6 +132,6 @@ export function SecuritySidebar() {
           </div>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }

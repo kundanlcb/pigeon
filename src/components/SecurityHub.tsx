@@ -150,11 +150,11 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-app-bg text-text-primary">
-      <div className="flex items-center justify-between p-4 border-b border-border-strong bg-panel-bg shrink-0">
+      <div className="flex items-center justify-between px-4 h-[44px] border-b border-border-strong bg-panel-bg shrink-0">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
-            <Shield className="text-accent" size={20} />
-            <h2 className="text-sm font-semibold">DevSecOps Collection Scanner</h2>
+            <Shield className="text-accent" size={16} />
+            <h2 className="text-[13px] font-semibold text-text-primary">DevSecOps Collection Scanner</h2>
           </div>
 
           <div className="w-[1px] h-4 bg-border-strong" />
@@ -171,7 +171,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         {isRunning ? (
           <button
             onClick={stopAudit}
-            className="flex items-center space-x-2 px-6 py-2 rounded-md text-[13px] font-medium transition-all shadow-sm bg-red-500/10 text-red-400 hover:bg-red-500/20"
+            className="flex items-center space-x-1.5 px-3 h-[28px] rounded-md text-[11px] font-medium transition-all shadow-sm bg-red-500/10 text-red-400 hover:bg-red-500/20"
           >
             <StopCircle size={14} />
             <span>Stop Audit</span>
@@ -180,7 +180,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           <button
             onClick={startFleetAudit}
             disabled={selectedRequestIds.length === 0}
-            className={`flex items-center space-x-2 px-6 py-2 rounded-md text-[13px] font-medium transition-all shadow-sm ${
+            className={`flex items-center space-x-1.5 px-3 h-[28px] rounded-md text-[11px] font-medium transition-all shadow-sm ${
               selectedRequestIds.length === 0
                 ? 'opacity-50 cursor-not-allowed bg-surface-hover text-text-muted'
                 : 'bg-accent text-white hover:bg-accent-hover'

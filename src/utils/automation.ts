@@ -132,154 +132,40 @@ export async function executeRequestNode(
   if (!request) {
     return { nodeId: node.id, requestId: reqId, requestName: 'Unknown', status: 'error', error: 'Request not found' };
   }
-  const startTime = performance.now();
 
   try {
-    const context: PigeonContext = {
-      env: {
-        get: (key: string) => {
-          if (flowVariables[key] !== undefined) return flowVariables[key];
-          const env = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
-          return env?.variables.find(v => v.key === key)?.value;
-        },
-        set: (key: string, value: string) => {
-          flowVariables[key] = value; // Always save to local flow state
-          const envId = useStore.getState().activeEnvironmentId;
-          if (!envId) return; // But also sync to environment if one is active
-          const env = useStore.getState().environments.find(e => e.id === envId);
-          if (!env) return;
-          const newVars = [...env.variables];
-          const idx = newVars.findIndex(v => v.key === key);
-          if (idx >= 0) newVars[idx] = { ...newVars[idx], value };
-          else newVars.push({ id: `var-${Date.now()}`, key, value, enabled: true });
-          useStore.getState().updateEnvironment(envId, { variables: newVars });
-        }
-      },
-      request: {
-        url: removeDisabledQueryParams(request.url, request.disabledParams),
-        method: request.method,
-        headers: getEnabledRequestHeaders(request),
-        body: request.body
-      },
-      response: undefined
-    };
-
-    if (request.preRequestScript) {
-      const allVars: Record<string, string> = {};
-      const envId = useStore.getState().activeEnvironmentId;
-      const envObj = useStore.getState().environments.find(e => e.id === envId);
-      if (envObj) {
-        for (const v of envObj.variables) {
-          allVars[v.key] = v.secret ? (await import('./secrets').then(m => m.getSecret(envId!, v.key)) || '') : v.value;
-        }
-      }
-      await runPreRequestScript(request.preRequestScript, context, allVars);
-      onLog(`[Pre-request] Executed script successfully`);
-    }
-
-    // Refresh active environment in case pre-request script modified it
-    const freshState = useStore.getState();
-    const freshEnv = freshState.environments.find(e => e.id === freshState.activeEnvironmentId);
-
-    let finalHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(context.request.headers)) {
-      finalHeaders[resolveEnvVariables(k, freshEnv, flowVariables)] = resolveEnvVariables(v as string, freshEnv, flowVariables);
-    }
-
-    let finalUrl = resolveEnvVariables(context.request.url, freshEnv, flowVariables);
-    const resolvedRequest = { ...request, body: context.request.body };
-    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody(resolvedRequest, freshEnv, flowVariables);
-    for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v as string;
-
-    if (request.auth) {
-      if (request.auth.type === 'bearer' && request.auth.bearerToken) {
-        finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(request.auth.bearerToken, freshEnv, flowVariables)}`;
-      } else if (request.auth.type === 'basic' && (request.auth.basicUsername || request.auth.basicPassword)) {
-        const user = resolveEnvVariables(request.auth.basicUsername || '', freshEnv, flowVariables);
-        const pass = resolveEnvVariables(request.auth.basicPassword || '', freshEnv, flowVariables);
-        finalHeaders['Authorization'] = `Basic ${btoa(`${user}:${pass}`)}`;
-      } else if (request.auth.type === 'api_key' && request.auth.apiKeyKey) {
-        const key = resolveEnvVariables(request.auth.apiKeyKey, freshEnv, flowVariables);
-        const val = resolveEnvVariables(request.auth.apiKeyValue || '', freshEnv, flowVariables);
-        if (request.auth.apiKeyIn === 'query') {
-          finalUrl = setQueryParams(finalUrl, { [key]: val });
-        } else {
-          finalHeaders[key] = val;
-        }
-      } else if (request.auth.type === 'oauth2_client_credentials') {
-        const oauthRes = await resolveOAuth2ClientCredentials({
-          auth: request.auth,
-          activeEnvironment: freshEnv,
-          localVars: flowVariables
-        });
-        finalHeaders['Authorization'] = `Bearer ${oauthRes.accessToken}`;
-      }
-    }
-
-    // Pigeon doesn't have queryParams in RequestItem yet. We extract them from the URL if needed, 
-    // but url already contains them. So no queryParams logic here.
-
-    const appSettings = useStore.getState().appSettings;
-    const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
-
-    const response = await fetch(finalUrl, {
-      method: context.request.method,
-      headers: finalHeaders,
-      body: finalBody as any,
-      connectTimeout: appSettings?.requestTimeout,
-      maxRedirections: appSettings?.maxRedirects,
-      ...(dangerOptions ? { danger: dangerOptions } : {})
+    const { executeRequest } = await import('./engine');
+    const envId = useStore.getState().activeEnvironmentId;
+    const environment = useStore.getState().environments.find(e => e.id === envId);
+    
+    const result = await executeRequest({
+      request,
+      environment,
+      localVars: flowVariables,
+      onLog,
+      saveSecretsToEnvironment: true
     });
-
-    const responseBuffer = await response.arrayBuffer();
-    let responseText = '';
-    try { responseText = new TextDecoder().decode(responseBuffer); } catch (e) {}
-
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((val, key) => { responseHeaders[key] = val; });
-
-    context.response = {
-      status: response.status,
-      headers: responseHeaders,
-      text: () => responseText,
-      json: () => {
-        try { return JSON.parse(responseText); } catch (e) { return null; }
-      }
-    };
-
-    let testError = '';
-    if (request.testScript) {
-      const allVars: Record<string, string> = {};
-      const envId = useStore.getState().activeEnvironmentId;
-      const envObj = useStore.getState().environments.find(e => e.id === envId);
-      envObj?.variables.forEach(v => {
-        allVars[v.key] = v.value; // Secrets shouldn't strictly be needed after response, but we might need them. Let's keep it simple for tests or load via promise if needed.
-      });
-      const results = await runTestScript(request.testScript, context, allVars);
-      onLog(`[Test] Ran ${results.length} tests`);
-      const failed = results.filter((r: any) => !r.passed);
-      if (failed.length > 0) {
-        testError = `Tests failed: ${failed.length}`;
-      }
-    }
+    
+    const testError = result.testResults.filter(t => !t.passed).length > 0 
+      ? `Tests failed: ${result.testResults.filter(t => !t.passed).length}` 
+      : '';
 
     return {
       nodeId: node.id,
       requestId: request.id,
       requestName: request.name,
-      status: response.ok && !testError ? 'success' : 'error',
-      statusCode: response.status,
-      timeMs: Math.round(performance.now() - startTime),
-      error: testError || (response.ok ? undefined : `HTTP ${response.status}`)
+      status: (result.status >= 200 && result.status < 300 && !testError) ? 'success' : 'error',
+      statusCode: result.status,
+      timeMs: result.timeMs,
+      error: testError || (result.status >= 200 && result.status < 300 ? undefined : `HTTP ${result.status}: ${result.error || result.statusText}`)
     };
-
   } catch (error: any) {
     return {
       nodeId: node.id,
       requestId: request.id,
       requestName: request.name,
       status: 'error',
-      timeMs: Math.round(performance.now() - startTime),
+      timeMs: 0,
       error: error.message || String(error)
     };
   }

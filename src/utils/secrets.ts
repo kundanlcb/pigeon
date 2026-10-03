@@ -4,26 +4,18 @@ export function createSecretReference(): string {
   return crypto.randomUUID();
 }
 
-export class KeychainError extends Error {
-  code: 'UNAVAILABLE' | 'ACCESS_DENIED' | 'ERROR';
-
-  constructor(code: 'UNAVAILABLE' | 'ACCESS_DENIED' | 'ERROR', message: string) {
-    super(message);
-    this.code = code;
-    this.name = 'KeychainError';
-  }
-}
+import { PigeonError, type PigeonErrorCode } from './errors';
 
 function handleKeychainError(err: unknown): never {
-  if (typeof err === 'string') {
-    if (err.startsWith('KEYCHAIN_UNAVAILABLE')) {
-      throw new KeychainError('UNAVAILABLE', 'No system keychain available — secret not saved');
-    }
-    if (err.startsWith('KEYCHAIN_ACCESS_DENIED')) {
-      throw new KeychainError('ACCESS_DENIED', 'Could not access stored credential — request not sent');
-    }
-    throw new KeychainError('ERROR', err.replace(/^KEYCHAIN_ERROR:\s*/, ''));
+  if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
+    const errorObj = err as { code: PigeonErrorCode; message: string; remediation?: string };
+    throw new PigeonError(errorObj.message, errorObj.code, errorObj.remediation);
   }
+  
+  if (typeof err === 'string') {
+    throw new PigeonError(err, 'KEYCHAIN_FAILURE');
+  }
+  
   throw err;
 }
 

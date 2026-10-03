@@ -23,7 +23,7 @@ let sandboxIframe: HTMLIFrameElement | null = null;
 let messageResolvers: Record<string, { resolve: (val: any) => void, reject: (err: any) => void }> = {};
 let messageIdCounter = 0;
 
-const sandboxScript = `
+export const sandboxScript = `
     window.addEventListener('message', async (event) => {
       const { id, script, contextData } = event.data;
       if (!id || !script) return;
@@ -93,6 +93,8 @@ const sandboxScript = `
       }
     });
 `;
+
+export const resetSandbox = () => { sandboxIframe = null; };
 
 function initSandbox() {
   if (sandboxIframe) return;

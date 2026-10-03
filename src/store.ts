@@ -791,7 +791,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'pigeon-store',
-      version: 1,
+      version: 2,
       partialize: (state) => {
         const { performanceHistory, securityHistory, runnerState, toast, ...rest } = state;
         return {
@@ -801,22 +801,28 @@ export const useStore = create<AppState>()(
             : collection)
         } as unknown as AppState;
       },
-      migrate: (persistedState: unknown) => {
-        const state = persistedState as AppState;
-        return {
-          ...state,
-          history: state.history || [],
-          collections: (state.collections || []).map(collection => ({
-            ...collection,
-            storageMode: collection.storageMode || 'local',
-            folders: collection.folders || [],
-            requests: (collection.requests || []).map((request, order) => ({
-              ...request,
-              folderId: request.folderId || null,
-              order: request.order ?? order
+      migrate: (persistedState: unknown, version: number) => {
+        let state = persistedState as any;
+        
+        if (version < 2) {
+          // Migration to v2: ensure history array exists, collection storageMode, folders, and request orders are set
+          state = {
+            ...state,
+            history: state.history || [],
+            collections: (state.collections || []).map((collection: any) => ({
+              ...collection,
+              storageMode: collection.storageMode || 'local',
+              folders: collection.folders || [],
+              requests: (collection.requests || []).map((request: any, order: number) => ({
+                ...request,
+                folderId: request.folderId || null,
+                order: request.order ?? order
+              }))
             }))
-          }))
-        };
+          };
+        }
+        
+        return state as AppState;
       },
     }
   )

@@ -25,7 +25,8 @@ import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman
 import { parseOpenAPI } from "./utils/openapi";
 import { secureImportedEnvironment } from './utils/authSecrets';
 import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
-import { formatRequestError, getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
+import { getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
+import { formatPigeonError } from "./utils/errors";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
@@ -218,282 +219,36 @@ export default function App() {
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    const startTime = performance.now();
     try {
+      const { executeRequest } = await import('./utils/engine');
       const stateAtSend = useStore.getState();
       const activeEnvironment = stateAtSend.environments.find(e => e.id === stateAtSend.activeEnvironmentId);
-      const scriptText = `${activeRequest?.preRequestScript || ''}\n${activeRequest?.testScript || ''}`;
-      const serializedRequest = JSON.stringify({ ...activeRequest, url: localUrl });
-      const referencedKeys = new Set<string>();
-      for (const match of serializedRequest.matchAll(/\{\{([^}]+)\}\}/g)) referencedKeys.add(match[1].trim());
-      for (const match of scriptText.matchAll(/pigeon\.env\.get\(\s*['"]([^'"]+)['"]\s*\)/g)) referencedKeys.add(match[1]);
-      const dynamicSecretLookup = /pigeon\.env\.get\(\s*[^'"]/.test(scriptText);
-      const localVars: Record<string, string> = {};
-      const pendingSecretWrites = new Map<string, string>();
-      if (activeEnvironment) {
-        for (const v of activeEnvironment.variables) {
-          if (v.secret && v.enabled && (referencedKeys.has(v.key) || dynamicSecretLookup)) {
-            const val = await getSecret(activeEnvironment.id, v.key);
-            if (val !== null && val !== undefined) {
-              localVars[v.key] = val;
-              if (v.secretStored === false) {
-                useStore.getState().updateEnvironment(activeEnvironment.id, {
-                  variables: activeEnvironment.variables.map(variable => variable.id === v.id
-                    ? { ...variable, secretStored: true }
-                    : variable)
-                });
-              }
-            } else if (referencedKeys.has(v.key)) {
-              useStore.getState().updateEnvironment(activeEnvironment.id, {
-                variables: activeEnvironment.variables.map(variable => variable.id === v.id
-                  ? { ...variable, secretStored: false }
-                  : variable)
-              });
-              throw new Error(`Secret variable "${v.key}" is missing from the system keychain.`);
-            }
-          }
-        }
-        const disabledSecret = activeEnvironment.variables.find(variable => variable.secret && !variable.enabled && referencedKeys.has(variable.key));
-        if (disabledSecret) throw new Error(`Secret variable "${disabledSecret.key}" is disabled.`);
-      }
-
-      const flushSecretWrites = async () => {
-        if (!activeEnvironment) return;
-        for (const [key, value] of pendingSecretWrites) {
-          await setSecret(activeEnvironment.id, key, value);
-          localVars[key] = value;
-          pendingSecretWrites.delete(key);
-          const state = useStore.getState();
-          const environment = state.environments.find(item => item.id === activeEnvironment.id);
-          const variable = environment?.variables.find(item => item.key === key && item.secret);
-          if (environment && variable && variable.secretStored !== true) {
-            state.updateEnvironment(environment.id, {
-              variables: environment.variables.map(item => item.id === variable.id ? { ...item, secretStored: true } : item)
-            });
-          }
-        }
-      };
-
-      const finalHeaders: Record<string, string> = {};
-      const baseHeaders = activeRequest ? getEnabledRequestHeaders(activeRequest) : {};
-      for (const [k, v] of Object.entries(baseHeaders)) {
-        finalHeaders[resolveEnvVariables(k, activeEnvironment, localVars)] = resolveEnvVariables(v, activeEnvironment, localVars);
-      }
-
-      const requestUrl = removeDisabledQueryParams(localUrl, activeRequest?.disabledParams);
-      let finalUrl = resolveEnvVariables(requestUrl, activeEnvironment, localVars);
-      const { body: finalBody, headers: bodyHeaders } = activeRequest ? prepareRequestBody({ ...activeRequest, method: localMethod }, activeEnvironment, localVars) : { body: undefined, headers: {} };
-      for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
-
-      const context: PigeonContext = {
-        env: {
-          get: (key: string) => {
-            const v = activeEnvironment?.variables.find(variable => variable.key === key);
-            if (v && v.secret) {
-              return localVars[key];
-            }
-            return v ? v.value : undefined;
-          },
-          set: (key: string, value: string) => {
-            if (!activeEnvironment) return;
-            const existing = activeEnvironment.variables.find(variable => variable.key === key);
-            if (existing) {
-              if (existing.secret) {
-                localVars[key] = value;
-                pendingSecretWrites.set(key, value);
-              } else {
-                const newVars = activeEnvironment.variables.map(variable => variable.key === key ? { ...variable, value } : variable);
-                useStore.getState().updateEnvironment(activeEnvironment.id, { variables: newVars });
-              }
-            } else {
-              const secret = /token|secret/i.test(key);
-              const newVars = [...activeEnvironment.variables, {
-                id: `var-${Date.now()}-${Math.random()}`,
-                key,
-                value: secret ? '' : value,
-                enabled: true,
-                secret,
-                secretStored: secret ? false : undefined
-              }];
-              if (secret) {
-                localVars[key] = value;
-                pendingSecretWrites.set(key, value);
-              }
-              useStore.getState().updateEnvironment(activeEnvironment.id, { variables: newVars });
-            }
-          }
-        },
-        request: {
-          headers: finalHeaders,
-          url: finalUrl,
-          method: localMethod,
-          body: finalBody
-        }
-      };
-
-      if (activeRequest?.preRequestScript) {
-        const allVars: Record<string, string> = {};
-        activeEnvironment?.variables.forEach(v => {
-          allVars[v.key] = v.secret ? (localVars[v.key] || '') : v.value;
-        });
-        await runPreRequestScript(activeRequest.preRequestScript, context, allVars);
-        finalUrl = context.request.url;
-      }
-      await flushSecretWrites();
-
-      if (activeRequest?.authorizationHeaderInKeychain) {
-        const authorization = await getSecret('request-auth', activeRequest.authorizationHeaderKeychainRef || '');
-        if (!authorization) throw new Error('Authorization header is missing from the system keychain. Re-enter it in the Headers tab.');
-        finalHeaders.Authorization = authorization;
-      }
-
-      const appSettings = useStore.getState().appSettings;
-      const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
-
-      let usedCachedOAuth = false;
-      let oauthResolution: OAuthResolutionResult | null = null;
-
-      if (activeRequest?.auth) {
-        if (activeRequest.auth.type === 'bearer' && (activeRequest.auth.bearerToken || activeRequest.auth.bearerTokenInKeychain)) {
-          const token = activeRequest.auth.bearerTokenInKeychain
-            ? await getSecret('request-auth', activeRequest.auth.bearerTokenKeychainRef || '')
-            : activeRequest.auth.bearerToken;
-          if (!token) throw new Error('Bearer token is missing from the system keychain. Re-enter it in the Auth tab.');
-          finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(token, activeEnvironment, localVars)}`;
-        } else if (activeRequest.auth.type === 'basic' && (activeRequest.auth.basicUsername || activeRequest.auth.basicPassword || activeRequest.auth.basicPasswordInKeychain)) {
-          const user = resolveEnvVariables(activeRequest.auth.basicUsername || '', activeEnvironment, localVars);
-          const storedPassword = activeRequest.auth.basicPasswordInKeychain
-            ? await getSecret('request-auth', activeRequest.auth.basicPasswordKeychainRef || '')
-            : activeRequest.auth.basicPassword || '';
-          if (activeRequest.auth.basicPasswordInKeychain && !storedPassword) {
-            throw new Error('Basic-auth password is missing from the system keychain. Re-enter it in the Auth tab.');
-          }
-          const pass = resolveEnvVariables(storedPassword || '', activeEnvironment, localVars);
-          const creds = btoa(`${user}:${pass}`);
-          finalHeaders['Authorization'] = `Basic ${creds}`;
-        } else if (activeRequest.auth.type === 'api_key' && activeRequest.auth.apiKeyKey) {
-          const key = resolveEnvVariables(activeRequest.auth.apiKeyKey, activeEnvironment, localVars);
-          const storedValue = activeRequest.auth.apiKeyValueInKeychain
-            ? await getSecret('request-auth', activeRequest.auth.apiKeyValueKeychainRef || '')
-            : activeRequest.auth.apiKeyValue || '';
-          if (activeRequest.auth.apiKeyValueInKeychain && !storedValue) {
-            throw new Error('API key value is missing from the system keychain. Re-enter it in the Auth tab.');
-          }
-          const val = resolveEnvVariables(storedValue || '', activeEnvironment, localVars);
-          if (activeRequest.auth.apiKeyIn === 'query') {
-            finalUrl = setQueryParams(finalUrl, { [key]: val });
-          } else {
-            finalHeaders[key] = val;
-          }
-        } else if (activeRequest.auth.type === 'oauth2_client_credentials') {
-          oauthResolution = await resolveOAuth2ClientCredentials({
-            auth: activeRequest.auth,
-            activeEnvironment,
-            localVars,
-            fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
-            dangerOptions,
-            timeout: appSettings?.requestTimeout
-          });
-          finalHeaders['Authorization'] = `Bearer ${oauthResolution.accessToken}`;
-          usedCachedOAuth = oauthResolution.fromCache;
-        }
-      }
-      context.request.headers = { ...context.request.headers, ...finalHeaders };
-      // the body is already computed into finalBody and context.request.body could have been modified by script
-      const reqBodyToUse = context.request.body;
-
-      const doSendHttp = async () => {
-        if ('__TAURI_INTERNALS__' in window) {
-          return await fetch(finalUrl, {
-            method: context.request.method,
-            headers: context.request.headers,
-            body: reqBodyToUse,
-            connectTimeout: appSettings?.requestTimeout,
-            maxRedirections: appSettings?.maxRedirects,
-            signal,
-            ...(dangerOptions ? { danger: dangerOptions } : {})
-          });
-        } else {
-          return await window.fetch(finalUrl, {
-            method: context.request.method,
-            headers: context.request.headers,
-            body: reqBodyToUse,
-            signal
-          });
-        }
-      };
-
-      let res = await doSendHttp();
-
-      if (res.status === 401 && usedCachedOAuth && oauthResolution && activeRequest?.auth) {
-        invalidateOAuthToken(oauthResolution.cacheKey);
-        const freshResolution = await resolveOAuth2ClientCredentials({
-          auth: activeRequest.auth,
-          activeEnvironment,
-          localVars,
-          fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
-          dangerOptions,
-          timeout: appSettings?.requestTimeout,
-          forceFresh: true
-        });
-        context.request.headers['Authorization'] = `Bearer ${freshResolution.accessToken}`;
-        finalHeaders['Authorization'] = `Bearer ${freshResolution.accessToken}`;
-        res = await doSendHttp();
-      }
-
-      const endTime = performance.now();
-      const timeMs = Math.round(endTime - startTime);
-
-      const text = await res.text();
-      let data = text;
-      try { data = JSON.parse(text); } catch { }
-
-      const headersRecord: Record<string, string> = {};
-      res.headers.forEach((value, key) => { headersRecord[key] = value; });
-
-      let testResults: any[] = [];
-
-      if (activeRequest?.testScript) {
-        context.response = {
-          status: res.status,
-          json: () => {
-            if (typeof data !== 'object') throw new Error('Response is not JSON');
-            return data;
-          },
-          text: () => text,
-          headers: headersRecord
-        };
-        const allVars: Record<string, string> = {};
-        activeEnvironment?.variables.forEach(v => {
-          allVars[v.key] = v.secret ? (localVars[v.key] || '') : v.value;
-        });
-        testResults = await runTestScript(activeRequest.testScript, context, allVars);
-        try {
-          await flushSecretWrites();
-        } catch (error) {
-          useStore.getState().showToast(`Failed to save script secret: ${String(error)}`, 'error');
-        }
-      }
-
-      setResponse({
-        status: res.status,
-        statusText: getResponseStatusText(res.status, res.statusText),
-        time: timeMs,
-        size: text.length,
-        headers: headersRecord,
-        data: typeof data === 'object' ? JSON.stringify(data, null, 2) : data,
-        testResults
+      
+      const result = await executeRequest({
+        request: { ...activeRequest, url: localUrl, method: localMethod } as any,
+        environment: activeEnvironment,
+        signal,
+        saveSecretsToEnvironment: true
       });
 
+      setResponse({
+        status: result.status,
+        statusText: result.statusText,
+        time: result.timeMs,
+        size: result.rawText.length,
+        headers: result.headers,
+        data: typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data,
+        testResults: result.testResults
+      });
+      
     } catch (error: any) {
-      const endTime = performance.now();
       setResponse({
         status: 0,
         statusText: error.name === 'AbortError' ? 'Cancelled' : 'Error',
-        time: Math.round(endTime - startTime),
+        time: 0,
         size: 0,
         headers: {},
-        data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatRequestError(error),
+        data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatPigeonError(error),
         testResults: []
       });
     } finally {

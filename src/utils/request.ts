@@ -32,18 +32,7 @@ export function getResponseStatusText(status: number, statusText: string): strin
   return statusText.trim() || HTTP_STATUS_LABELS[status] || `HTTP ${status}`;
 }
 
-export function formatRequestError(error: unknown): string {
-  const technicalMessage = error instanceof Error ? error.message : String(error);
-  const isConnectionFailure = /error sending request for url|failed to fetch/i.test(technicalMessage);
 
-  if (!isConnectionFailure) return technicalMessage;
-
-  return [
-    'The request failed before the server returned an HTTP response.',
-    'Check that the API host is reachable and that your network, VPN, proxy, firewall, or TLS settings allow the connection.',
-    `Technical details: ${technicalMessage}`,
-  ].join('\n\n');
-}
 
 export function prepareRequestBody(request: RequestItem, activeEnvironment?: Environment | null, localVars?: Record<string, string>): { body: any, headers: Record<string, string> } {
   const extraHeaders: Record<string, string> = {};

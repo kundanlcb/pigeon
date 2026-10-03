@@ -1,3 +1,4 @@
+pub mod error;
 mod secrets;
 mod git;
 pub mod load_test;

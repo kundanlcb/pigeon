@@ -1,100 +1,160 @@
-// @ts-nocheck
-import { describe, it, expect } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as vm from 'vm';
+import { runPreRequestScript, runTestScript, sandboxScript, type PigeonContext } from './sandbox';
 
-describe('Sandbox Inner Execution Logic', () => {
-  it('should correctly evaluate the sandbox HTML script and handle mutations', () => {
-    // Read sandbox.ts to extract the sandboxHTML content
-    const sandboxTs = fs.readFileSync(path.join(__dirname, 'sandbox.ts'), 'utf8');
-    const htmlMatch = sandboxTs.match(/const sandboxHTML = `([\s\S]*?)`;/);
-    expect(htmlMatch).toBeTruthy();
-    
-    const scriptMatch = htmlMatch![1].match(/<script>([\s\S]*?)<\/script>/s);
-    expect(scriptMatch).toBeTruthy();
-    
-    // This is the actual code that runs inside the iframe
-    const rawIframeScript = scriptMatch![1].replace(/\\\$/g, '$').replace(/\\`/g, '`');
-    
-    // We simulate the iframe environment using Node's vm module
-    let postedMessage: any = null;
-    const mockWindow = {
+describe('Sandbox API Execution', () => {
+  let originalWindow: any;
+  let originalDocument: any;
+  let originalURL: any;
+  let originalBlob: any;
+
+  beforeEach(() => {
+    originalWindow = global.window;
+    originalDocument = global.document;
+    originalURL = global.URL;
+    originalBlob = global.Blob;
+
+    const parentListeners: Record<string, Function[]> = {};
+    let iframeContentWindow: any = null;
+
+    global.window = {
       addEventListener: (evt: string, handler: Function) => {
-        if (evt === 'message') {
-          // Simulate the parent sending a script to execute
-          handler({
-            data: {
-              id: 'test-id-123',
-              script: `
-                pigeon.env.set("FOO", "baz");
-                pigeon.env.set("NEW", "val");
-              `,
-              contextData: {
-                env: { 'FOO': 'bar' },
-                request: { url: 'http://example.com' }
-              }
-            },
-            source: {
-              postMessage: (msg: any) => {
-                postedMessage = msg;
-              }
-            },
-            origin: '*'
-          });
-        }
+        if (!parentListeners[evt]) parentListeners[evt] = [];
+        parentListeners[evt].push(handler);
       }
-    };
+    } as any;
 
-    // Evaluate the sandbox logic
-    vm.runInNewContext(rawIframeScript, { window: mockWindow });
+    global.URL = {
+      createObjectURL: () => 'blob:mock-url'
+    } as any;
+    
+    global.Blob = class Blob {
+      constructor(public parts: any[], public options: any) {}
+    } as any;
 
-    // Verify the sandbox correctly executed the script and responded
-    expect(postedMessage).toBeTruthy();
-    expect(postedMessage.id).toBe('test-id-123');
-    expect(postedMessage.type).toBe('success');
-    expect(postedMessage.envDict).toEqual({ 'FOO': 'baz', 'NEW': 'val' });
-    expect(postedMessage.request.url).toBe('http://example.com');
+    global.document = {
+      createElement: (tag: string) => {
+        if (tag === 'iframe') {
+          const iframe = {
+            style: {},
+            sandbox: '',
+            src: '',
+            get contentWindow() {
+              return iframeContentWindow;
+            }
+          };
+          
+          iframeContentWindow = {
+            postMessage: (msg: any, _targetOrigin: string) => {
+              const mockIframeWindow = {
+                addEventListener: (evt: string, handler: Function) => {
+                  if (evt === 'message') {
+                    // Trigger the message event inside the iframe asynchronously 
+                    // to match real postMessage behavior
+                    Promise.resolve().then(() => {
+                      handler({
+                        data: JSON.parse(JSON.stringify(msg)),
+                        source: {
+                          postMessage: (responseMsg: any, _origin: string) => {
+                            Promise.resolve().then(() => {
+                              parentListeners['message']?.forEach(l => l({
+                                source: iframeContentWindow,
+                                data: JSON.parse(JSON.stringify(responseMsg))
+                              }));
+                            });
+                          }
+                        },
+                        origin: '*'
+                      });
+                    });
+                  }
+                }
+              };
+              vm.runInNewContext(sandboxScript, { window: mockIframeWindow });
+            }
+          };
+          return iframe;
+        }
+        return {};
+      },
+      body: {
+        appendChild: () => {}
+      }
+    } as any;
   });
 
-  it('should correctly evaluate test blocks and handle expects', () => {
-    const sandboxTs = fs.readFileSync(path.join(__dirname, 'sandbox.ts'), 'utf8');
-    const htmlMatch = sandboxTs.match(/const sandboxHTML = `([\s\S]*?)`;/);
-    const scriptMatch = htmlMatch![1].match(/<script>([\s\S]*?)<\/script>/s);
-    const rawIframeScript = scriptMatch![1].replace(/\\\$/g, '$').replace(/\\`/g, '`');
+  afterEach(() => {
+    global.window = originalWindow;
+    global.document = originalDocument;
+    global.URL = originalURL;
+    global.Blob = originalBlob;
     
-    let postedMessage: any = null;
-    const mockWindow = {
-      addEventListener: (_evt: string, handler: Function) => {
-        handler({
-          data: {
-            id: 'test-id-124',
-            script: `
-              pigeon.test("Success test", () => {
-                 pigeon.expect(200).toEqual(200);
-                 pigeon.expect("hello").toContain("ell");
-              });
-              pigeon.test("Failing test", () => {
-                 pigeon.expect(400).toEqual(200);
-              });
-            `,
-            contextData: {
-              env: {},
-              request: { url: 'http://example.com' }
-            }
-          },
-          source: { postMessage: (msg: any) => { postedMessage = msg; } }
-        });
+    // Reset internal sandbox state
+    import('./sandbox').then(m => m.resetSandbox());
+  });
+
+  it('should run pre-request script and mutate environment', async () => {
+    const context: PigeonContext = {
+      env: {
+        get: () => undefined,
+        set: vi.fn()
+      },
+      request: {
+        headers: {},
+        url: 'http://example.com',
+        method: 'GET',
+        body: null
       }
     };
 
-    vm.runInNewContext(rawIframeScript, { window: mockWindow });
+    const allVars = { 'FOO': 'bar' };
+    const script = `
+      pigeon.env.set("FOO", "baz");
+      pigeon.env.set("NEW", "val");
+    `;
 
-    expect(postedMessage).toBeTruthy();
-    expect(postedMessage.type).toBe('success');
-    expect(postedMessage.results).toHaveLength(2);
-    expect(postedMessage.results[0].passed).toBe(true);
-    expect(postedMessage.results[1].passed).toBe(false);
-    expect(postedMessage.results[1].error).toContain('Expected 200 but got 400');
+    await runPreRequestScript(script, context, allVars);
+
+    expect(allVars).toEqual({ 'FOO': 'baz', 'NEW': 'val' });
+    expect(context.env.set).toHaveBeenCalledWith('FOO', 'baz');
+    expect(context.env.set).toHaveBeenCalledWith('NEW', 'val');
+  });
+
+  it('should run test script and handle expects', async () => {
+    const context: PigeonContext = {
+      env: {
+        get: () => undefined,
+        set: vi.fn()
+      },
+      request: {
+        headers: {},
+        url: 'http://example.com',
+        method: 'GET',
+        body: null
+      },
+      response: {
+        status: 200,
+        text: () => '',
+        json: () => ({}),
+        headers: {}
+      }
+    };
+
+    const script = `
+      pigeon.test("Success test", () => {
+         pigeon.expect(200).toEqual(200);
+         pigeon.expect("hello").toContain("ell");
+      });
+      pigeon.test("Failing test", () => {
+         pigeon.expect(400).toEqual(200);
+      });
+    `;
+
+    const results = await runTestScript(script, context, {});
+
+    expect(results).toHaveLength(2);
+    expect(results[0].passed).toBe(true);
+    expect(results[1].passed).toBe(false);
+    expect(results[1].error).toContain('Expected 200 but got 400');
   });
 });

@@ -28,167 +28,22 @@ export function RunnerView() {
   }
 
   const runRequest = async (req: RequestItem): Promise<any> => {
+    const { executeRequest } = await import('../utils/engine');
     const activeEnvironment = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
     
-    const finalHeaders: Record<string, string> = {};
-    const baseHeaders = getEnabledRequestHeaders(req);
-    for (const [k, v] of Object.entries(baseHeaders)) {
-      finalHeaders[resolveEnvVariables(k, activeEnvironment)] = resolveEnvVariables(v, activeEnvironment);
-    }
+    const result = await executeRequest({
+      request: req,
+      environment: activeEnvironment,
+      saveSecretsToEnvironment: true
+    });
     
-    let finalUrl = resolveEnvVariables(removeDisabledQueryParams(req.url, req.disabledParams), activeEnvironment);
-    const { body: finalBody, headers: bodyHeaders } = prepareRequestBody(req, activeEnvironment);
-    for (const [k, v] of Object.entries(bodyHeaders)) finalHeaders[k] = v;
-    
-    const context: PigeonContext = {
-      env: {
-        get: (key: string) => {
-          const env = useStore.getState().environments.find(e => e.id === useStore.getState().activeEnvironmentId);
-          const v = env?.variables.find(v => v.key === key);
-          return v ? v.value : undefined;
-        },
-        set: (key: string, value: string) => {
-          const envId = useStore.getState().activeEnvironmentId;
-          if (!envId) return;
-          const env = useStore.getState().environments.find(e => e.id === envId);
-          if (!env) return;
-          const existing = env.variables.find(v => v.key === key);
-          let newVars = [...env.variables];
-          if (existing) {
-            newVars = newVars.map(v => v.key === key ? { ...v, value } : v);
-          } else {
-            newVars.push({ id: `var-${Date.now()}-${Math.random()}`, key, value, enabled: true });
-          }
-          useStore.getState().updateEnvironment(envId, { variables: newVars });
-        }
-      },
-      request: {
-        headers: finalHeaders,
-        url: finalUrl,
-        method: req.method,
-        body: finalBody
-      }
-    };
-
-    if (req.preRequestScript) {
-      const allVars: Record<string, string> = {};
-      for (const v of activeEnvironment?.variables || []) {
-        allVars[v.key] = v.secret ? (await getSecret(activeEnvironment!.id, v.key) || '') : v.value;
-      }
-      await runPreRequestScript(req.preRequestScript, context, allVars);
-      finalUrl = context.request.url;
-    }
-
-    const authorizationDisabled = (req.disabledHeaders || []).some(key => key.toLowerCase() === 'authorization');
-    if (req.authorizationHeaderInKeychain && !authorizationDisabled) {
-      const authorization = await getSecret('request-auth', req.authorizationHeaderKeychainRef || '');
-      if (!authorization) throw new Error('Authorization header is missing from the system keychain. Re-enter it in the Headers tab.');
-      finalHeaders.Authorization = authorization;
-    }
-    
-    const appSettings = useStore.getState().appSettings;
-    const dangerOptions = appSettings?.insecureSSL ? { acceptInvalidCerts: true, acceptInvalidHostnames: true } : undefined;
-
-    let usedCachedOAuth = false;
-    let oauthResolution: OAuthResolutionResult | null = null;
-    
-    if (req.auth) {
-      if (req.auth.type === 'bearer' && req.auth.bearerToken) {
-        finalHeaders['Authorization'] = `Bearer ${resolveEnvVariables(req.auth.bearerToken, activeEnvironment)}`;
-      } else if (req.auth.type === 'basic' && (req.auth.basicUsername || req.auth.basicPassword)) {
-        const user = resolveEnvVariables(req.auth.basicUsername || '', activeEnvironment);
-        const pass = resolveEnvVariables(req.auth.basicPassword || '', activeEnvironment);
-        const creds = btoa(`${user}:${pass}`);
-        finalHeaders['Authorization'] = `Basic ${creds}`;
-      } else if (req.auth.type === 'api_key' && req.auth.apiKeyKey) {
-        const key = resolveEnvVariables(req.auth.apiKeyKey, activeEnvironment);
-        const val = resolveEnvVariables(req.auth.apiKeyValue || '', activeEnvironment);
-        if (req.auth.apiKeyIn === 'query') {
-          finalUrl = setQueryParams(finalUrl, { [key]: val });
-        } else {
-          finalHeaders[key] = val;
-        }
-      } else if (req.auth.type === 'oauth2_client_credentials') {
-        oauthResolution = await resolveOAuth2ClientCredentials({
-          auth: req.auth,
-          activeEnvironment,
-          fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
-          dangerOptions,
-          timeout: appSettings?.requestTimeout
-        });
-        finalHeaders['Authorization'] = `Bearer ${oauthResolution.accessToken}`;
-        usedCachedOAuth = oauthResolution.fromCache;
-      }
-    }
-    context.request.headers = { ...context.request.headers, ...finalHeaders };
-
-    const reqBodyToUse = context.request.body;
-
-    const doExecute = async () => {
-      if ('__TAURI_INTERNALS__' in window) {
-        return await fetch(finalUrl, {
-          method: context.request.method,
-          headers: context.request.headers,
-          body: reqBodyToUse,
-          connectTimeout: appSettings?.requestTimeout,
-          maxRedirections: appSettings?.maxRedirects,
-          ...(dangerOptions ? { danger: dangerOptions } : {})
-        });
-      } else {
-        return await window.fetch(finalUrl, {
-          method: context.request.method,
-          headers: context.request.headers,
-          body: reqBodyToUse
-        });
-      }
-    };
-
-    let res = await doExecute();
-
-    if (res.status === 401 && usedCachedOAuth && oauthResolution && req.auth) {
-      invalidateOAuthToken(oauthResolution.cacheKey);
-      const freshResolution = await resolveOAuth2ClientCredentials({
-        auth: req.auth,
-        activeEnvironment,
-        fetchFn: ('__TAURI_INTERNALS__' in window) ? fetch : window.fetch,
-        dangerOptions,
-        timeout: appSettings?.requestTimeout,
-        forceFresh: true
-      });
-      context.request.headers['Authorization'] = `Bearer ${freshResolution.accessToken}`;
-      finalHeaders['Authorization'] = `Bearer ${freshResolution.accessToken}`;
-      res = await doExecute();
-    }
-
-    const text = await res.text();
-    let data = text;
-    try { data = JSON.parse(text); } catch {}
-
-    const headersRecord: Record<string, string> = {};
-    res.headers.forEach((value: any, key: any) => { headersRecord[key] = value; });
-    
-    let testResults: any[] = [];
-    
-    if (req.testScript) {
-      context.response = {
-        status: res.status,
-        json: () => {
-          if (typeof data !== 'object') throw new Error('Response is not JSON');
-          return data;
-        },
-        text: () => text,
-        headers: headersRecord
-      };
-      const allVars: Record<string, string> = {};
-      for (const v of activeEnvironment?.variables || []) {
-        allVars[v.key] = v.secret ? (await getSecret(activeEnvironment!.id, v.key) || '') : v.value;
-      }
-      testResults = await runTestScript(req.testScript, context, allVars);
+    if (result.error && !result.status) {
+      throw new Error(result.error);
     }
     
     return {
-      status: res.status,
-      testResults
+      status: result.status,
+      testResults: result.testResults
     };
   };
 

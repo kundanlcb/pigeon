@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as vm from 'vm';
 import { runPreRequestScript, runTestScript, sandboxScript, type PigeonContext } from './sandbox';

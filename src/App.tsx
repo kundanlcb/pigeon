@@ -18,23 +18,20 @@ import { EnvironmentSelector } from "./components/EnvironmentSelector";
 import { EnvironmentManager } from "./components/EnvironmentManager";
 import { HighlightedInput } from "./components/HighlightedInput";
 import { getMethodColor } from "./utils/styles";
-import { removeDisabledQueryParams, setQueryParams } from "./utils/url";
-import { resolveEnvVariables } from "./utils/env";
+
 import { downloadAsFile, openFilesAndRead, openFilesWithNames } from "./utils/file";
 import { parsePostmanCollection, parsePostmanEnvironment } from "./utils/postman";
 import { parseOpenAPI } from "./utils/openapi";
 import { secureImportedEnvironment } from './utils/authSecrets';
-import { runPreRequestScript, runTestScript, type PigeonContext } from "./utils/sandbox";
-import { getEnabledRequestHeaders, getResponseStatusText, prepareRequestBody } from "./utils/request";
+
 import { formatPigeonError } from "./utils/errors";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
-import { createSecretReference, getSecret, setSecret } from './utils/secrets';
-import { invalidateOAuthToken, resolveOAuth2ClientCredentials, type OAuthResolutionResult } from './utils/oauth';
+import { createSecretReference, setSecret } from './utils/secrets';
 
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { fetch } from '@tauri-apps/plugin-http';
+
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WhatsNewModal } from './components/WhatsNewModal';

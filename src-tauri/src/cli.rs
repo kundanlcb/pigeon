@@ -5,7 +5,12 @@ use serde_json::{Value, json};
 use std::process::Command;
 
 #[derive(Parser)]
-#[command(author, version, about = "Pigeon CLI", long_about = None)]
+#[command(
+    author, 
+    version, 
+    about = "Pigeon CLI", 
+    long_about = "Pigeon Headless CLI runner.\n\nNote: Executing requests that contain test/assertion scripts requires Node.js to be installed on the system."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -56,6 +61,14 @@ struct TestResult {
     name: String,
     passed: bool,
     error: Option<String>,
+}
+
+fn escape_xml(input: &str) -> String {
+    input.replace("&", "&amp;")
+         .replace("<", "&lt;")
+         .replace(">", "&gt;")
+         .replace("\"", "&quot;")
+         .replace("'", "&apos;")
 }
 
 #[tokio::main]
@@ -113,7 +126,8 @@ async fn main() {
                                 v.to_string()
                             } else {
                                 // Try keychain
-                                match keyring::Entry::new(&env_id, key) {
+                                let account = format!("{}:{}", env_id, key);
+                                match keyring::Entry::new("pigeon", &account) {
                                     Ok(entry) => match entry.get_password() {
                                         Ok(pw) => pw,
                                         Err(_) => {
@@ -303,13 +317,13 @@ async fn main() {
                 println!(r#"<testsuites>"#);
                 println!(r#"  <testsuite name="Pigeon Collection">"#);
                 for r in &results {
-                    println!(r#"    <testcase classname="{}" name="{}" time="{}">"#, r.method, r.name, r.time_ms as f64 / 1000.0);
+                    println!(r#"    <testcase classname="{}" name="{}" time="{}">"#, escape_xml(&r.method), escape_xml(&r.name), r.time_ms as f64 / 1000.0);
                     if let Some(err) = &r.error {
-                        println!(r#"      <failure message="HTTP Error">{}</failure>"#, err);
+                        println!(r#"      <failure message="HTTP Error">{}</failure>"#, escape_xml(err));
                     }
                     for t in &r.tests {
                         if !t.passed {
-                            println!(r#"      <failure message="Test Failed">Test '{}' failed: {}</failure>"#, t.name, t.error.as_deref().unwrap_or(""));
+                            println!(r#"      <failure message="Test Failed">Test '{}' failed: {}</failure>"#, escape_xml(&t.name), escape_xml(t.error.as_deref().unwrap_or("")));
                         }
                     }
                     println!(r#"    </testcase>"#);

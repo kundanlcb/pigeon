@@ -103,13 +103,13 @@ function initSandbox() {
   const scriptBlob = new Blob([sandboxScript], { type: 'application/javascript' });
   const scriptUrl = URL.createObjectURL(scriptBlob);
   
-  const sandboxHTML = \`<!DOCTYPE html>
+  const sandboxHTML = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body>
-  <script src="\${scriptUrl}"></script>
+  <script src="${scriptUrl}"></script>
 </body>
-</html>\`;
+</html>`;
 
   const blob = new Blob([sandboxHTML], { type: 'text/html' });
   sandboxIframe.src = URL.createObjectURL(blob);

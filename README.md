@@ -19,7 +19,9 @@ Pigeon is a powerful, local-first API testing and debugging client built with Ta
 ## Architecture
 - **Frontend**: React, Zustand (state), Vite
 - **Backend**: Rust, Tauri
-- **Security**: OS Keychain (`keyring` crate) for credential storage
+- **Security**: 
+  - OS Keychain (`keyring` crate) for credential storage
+  - **CSP (Content Security Policy)**: Pigeon uses a strict CSP. Note that `connect-src` is intentionally left permissive (`https: http: ws: wss:`) because the core function of the app is to make arbitrary user-specified network requests. `script-src` includes `'unsafe-eval'` strictly to support the sandboxed Javascript environment (which executes in an opaque-origin `blob:` iframe) for pre-request and test scripts.
 
 ## License
 MIT License

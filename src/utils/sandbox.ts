@@ -23,11 +23,7 @@ let sandboxIframe: HTMLIFrameElement | null = null;
 let messageResolvers: Record<string, { resolve: (val: any) => void, reject: (err: any) => void }> = {};
 let messageIdCounter = 0;
 
-const sandboxHTML = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body>
-  <script>
+const sandboxScript = `
     window.addEventListener('message', async (event) => {
       const { id, script, contextData } = event.data;
       if (!id || !script) return;
@@ -78,6 +74,10 @@ const sandboxHTML = `<!DOCTYPE html>
       });
 
       try {
+        // SECURITY NOTE (PIGEON-107): 'unsafe-eval' in script-src CSP is strictly required 
+        // to support this new Function call which powers the pre-request/test script engine.
+        // It executes untrusted code, but does so within an opaque origin (blob: URL) 
+        // iframe that lacks 'allow-same-origin'.
         const fn = new Function('pigeon', script);
         fn(context);
         
@@ -92,15 +92,25 @@ const sandboxHTML = `<!DOCTYPE html>
         event.source.postMessage({ id, type: 'error', error: e.message }, event.origin);
       }
     });
-  </script>
-</body>
-</html>`;
+`;
 
 function initSandbox() {
   if (sandboxIframe) return;
   sandboxIframe = document.createElement('iframe');
   sandboxIframe.style.display = 'none';
   sandboxIframe.sandbox = 'allow-scripts'; // Strict sandbox! No allow-same-origin
+  
+  const scriptBlob = new Blob([sandboxScript], { type: 'application/javascript' });
+  const scriptUrl = URL.createObjectURL(scriptBlob);
+  
+  const sandboxHTML = \`<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+  <script src="\${scriptUrl}"></script>
+</body>
+</html>\`;
+
   const blob = new Blob([sandboxHTML], { type: 'text/html' });
   sandboxIframe.src = URL.createObjectURL(blob);
   document.body.appendChild(sandboxIframe);

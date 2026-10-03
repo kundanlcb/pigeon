@@ -1,0 +1,41 @@
+name: API Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Pigeon CLI
+        run: cargo build --bin pigeon-cli --release
+        working-directory: ./src-tauri
+
+      - name: Create secret file from GitHub Secrets
+        run: |
+          echo "{\"api_token\": \"${{ secrets.API_TOKEN }}\"}" > secrets.json
+
+      - name: Run API Tests
+        run: ./src-tauri/target/release/pigeon-cli run collection.json --env environment.json --secret-file secrets.json --reporter junit > test-results.xml
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4
+        if: success() || failure() # always run even if the previous step fails
+        with:
+          report_paths: 'test-results.xml'

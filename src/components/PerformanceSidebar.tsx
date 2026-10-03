@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, CheckCircle2, Circle, Clock, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, Clock, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 
 export function PerformanceSidebar() {
   const collections = useStore(state => state.collections);
-  const selectedRequestId = useStore(state => state.selectedPerformanceRequestId);
-  const setSelectedRequestId = useStore(state => state.setSelectedPerformanceRequestId);
+  const selectedRequestIds = useStore(state => state.selectedPerformanceRequestIds);
+  const setSelectedRequestIds = useStore(state => state.setSelectedPerformanceRequestIds);
   const performanceHistory = useStore(state => state.performanceHistory);
   const activePerformanceTestId = useStore(state => state.activePerformanceTestId);
   const setActivePerformanceTestId = useStore(state => state.setActivePerformanceTestId);
@@ -22,15 +22,69 @@ export function PerformanceSidebar() {
     setExpandedColIds(next);
   };
 
-  const handleSelectRequest = (reqId: string) => {
-    setSelectedRequestId(reqId);
-    setActivePerformanceTestId(null); // Reset history view if selecting new test
+  const getCollectionSelectionState = (colId: string) => {
+    const col = collections.find(c => c.id === colId);
+    if (!col || col.requests.length === 0) return 'none';
+    const selectedCount = col.requests.filter(r => selectedRequestIds.includes(r.id)).length;
+    if (selectedCount === 0) return 'none';
+    if (selectedCount === col.requests.length) return 'all';
+    return 'partial';
+  };
+
+  const toggleCollectionSelection = (colId: string) => {
+    const col = collections.find(c => c.id === colId);
+    if (!col) return;
+    const reqIds = col.requests.map(r => r.id);
+    const state = getCollectionSelectionState(colId);
+    
+    let next = [...selectedRequestIds];
+    if (state === 'all') {
+      // Deselect all
+      next = next.filter(id => !reqIds.includes(id));
+    } else {
+      // Select all (add missing)
+      const missing = reqIds.filter(id => !next.includes(id));
+      next = [...next, ...missing];
+    }
+    setSelectedRequestIds(next);
+    setActivePerformanceTestId(null);
+  };
+
+  const toggleRequestSelection = (reqId: string) => {
+    let next = [...selectedRequestIds];
+    if (next.includes(reqId)) {
+      next = next.filter(id => id !== reqId);
+    } else {
+      next.push(reqId);
+    }
+    setSelectedRequestIds(next);
+    setActivePerformanceTestId(null);
+  };
+
+  const allRequestIds = collections.flatMap(c => c.requests.map(r => r.id));
+  const isAllSelected = collections.length > 0 && selectedRequestIds.length === allRequestIds.length;
+
+  const handleBulkToggle = () => {
+    if (isAllSelected) {
+      setSelectedRequestIds([]);
+    } else {
+      setSelectedRequestIds(allRequestIds);
+    }
+    setActivePerformanceTestId(null);
   };
 
   return (
     <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
       <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Performance Testing</span>
+        {collections.length > 0 && (
+          <button
+            onClick={handleBulkToggle}
+            className="text-[10px] font-medium text-text-muted hover:text-text-primary transition-colors"
+          >
+            {isAllSelected ? 'Deselect All' : 'Select All'}
+          </button>
+        )}
       </div>
       
       <Group orientation="vertical">
@@ -42,27 +96,45 @@ export function PerformanceSidebar() {
               return (
                 <div key={col.id} className="space-y-0.5">
                   <div
-                    className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group cursor-pointer"
-                    onClick={() => toggleCollectionExpand(col.id)}
+                    className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group"
                   >
-                    <div className="w-4 h-4 flex items-center justify-center text-text-muted group-hover:text-text-primary transition-colors">
+                    <div 
+                      className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                      onClick={() => toggleCollectionExpand(col.id)}
+                    >
                       {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </div>
-                    <span className="font-medium text-text-primary truncate">{col.name}</span>
-                    <span className="text-[10px] text-text-muted ml-auto bg-surface-bg px-1.5 py-0.5 rounded-md">
-                      {col.requests.length}
-                    </span>
+                    <div 
+                      className="flex-1 flex items-center justify-between cursor-pointer"
+                      onClick={() => toggleCollectionSelection(col.id)}
+                    >
+                      <span className="font-medium text-text-primary truncate">{col.name}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] text-text-muted bg-surface-bg px-1.5 py-0.5 rounded-md">
+                          {col.requests.length}
+                        </span>
+                        <div className="text-accent">
+                          {getCollectionSelectionState(col.id) === 'all' ? (
+                            <CheckSquare size={14} />
+                          ) : getCollectionSelectionState(col.id) === 'partial' ? (
+                            <MinusSquare size={14} />
+                          ) : (
+                            <Square size={14} className="text-text-muted" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {isExpanded && (
                     <div className="pl-5 space-y-0.5 mt-1">
                       {col.requests.map(req => {
-                        const isSelected = selectedRequestId === req.id;
+                        const isSelected = selectedRequestIds.includes(req.id);
                         
                         return (
                           <div 
                             key={req.id} 
-                            onClick={() => handleSelectRequest(req.id)}
+                            onClick={() => toggleRequestSelection(req.id)}
                             className={`flex items-center justify-between px-2 py-1.5 rounded-md text-[12px] cursor-pointer transition-colors ${
                               isSelected 
                                 ? 'bg-accent/10 text-accent font-medium' 
@@ -79,7 +151,7 @@ export function PerformanceSidebar() {
                               <span className="truncate">{req.name}</span>
                             </div>
                             <div className="ml-2 flex items-center justify-center text-accent shrink-0">
-                              {isSelected ? <CheckCircle2 size={14} /> : <Circle size={14} className="text-text-muted opacity-50" />}
+                              {isSelected ? <CheckSquare size={14} /> : <Square size={14} className="text-text-muted opacity-50" />}
                             </div>
                           </div>
                         );
@@ -119,7 +191,7 @@ export function PerformanceSidebar() {
                   No past tests. Run a load test to see history.
                 </div>
               ) : (
-                performanceHistory.map(record => {
+                [...performanceHistory].sort((a, b) => b.timestamp - a.timestamp).map(record => {
                   const isActive = activePerformanceTestId === record.id;
                   
                   return (
@@ -127,36 +199,29 @@ export function PerformanceSidebar() {
                       key={record.id}
                       onClick={() => {
                         setActivePerformanceTestId(record.id);
-                        setSelectedRequestId(null);
+                        setSelectedRequestIds([]);
                       }}
-                      className={`flex flex-col p-2 rounded-md cursor-pointer transition-colors border group ${
-                        isActive 
-                          ? 'bg-accent/5 border-accent text-accent' 
-                          : 'bg-surface-bg border-border-subtle hover:border-border-strong text-text-secondary hover:text-text-primary'
+                      className={`group flex items-center justify-between px-2 py-2 rounded-md cursor-pointer transition-colors ${
+                        isActive ? 'bg-surface-hover text-text-primary' : 'text-text-secondary hover:bg-surface-hover/50'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[12px] font-medium truncate pr-2">{record.name}</span>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); deletePerformanceTest(record.id); }}
-                          className={`opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-all ${
-                            isActive ? 'opacity-100 text-red-400' : ''
-                          }`}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-[10px] opacity-80">
-                        <span className="font-mono">{new Date(record.timestamp).toLocaleString(undefined, {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        })}</span>
-                        <div className="flex items-center space-x-2 font-medium">
-                          <span className={record.errorCount > 0 ? 'text-red-400' : 'text-green-500'}>
-                            {record.totalRequests} reqs
+                      <div className="flex items-center space-x-2 overflow-hidden">
+                        <Clock size={12} className="shrink-0 text-text-muted" />
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-[12px] font-medium truncate">
+                            {new Date(record.timestamp).toLocaleString()}
+                          </span>
+                          <span className="text-[10px] text-text-muted truncate">
+                            {record.name} • {record.totalRequests} reqs
                           </span>
                         </div>
                       </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deletePerformanceTest(record.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-text-muted transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   );
                 })

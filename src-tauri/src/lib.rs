@@ -21,12 +21,14 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_http::init())
+        .manage(load_test::LoadTestState::default())
         .invoke_handler(tauri::generate_handler![
             secrets::set_secret,
             secrets::get_secret,
             secrets::delete_secret,
             git::git_command,
             load_test::start_load_test,
+            load_test::stop_load_test,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

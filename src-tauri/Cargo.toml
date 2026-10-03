@@ -29,6 +29,9 @@ keyring = "3.6.3"
 tauri-plugin-fs = { version = "2.6.0", features = ["watch"] }
 tauri-plugin-dialog = "2.8.0"
 tauri-plugin-persisted-scope = "2"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+rand = "0.9.5"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2.13.0"

@@ -11,7 +11,7 @@ export function Sidebar() {
       <div className="w-full flex flex-col items-center gap-1">
         <button 
           onClick={() => setActiveView('editor')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
             activeView === 'editor' 
               ? 'bg-border-strong text-text-primary' 
               : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -22,7 +22,7 @@ export function Sidebar() {
         </button>
         <button 
           onClick={() => setActiveView('history')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
             activeView === 'history' 
               ? 'bg-border-strong text-text-primary' 
               : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -33,7 +33,7 @@ export function Sidebar() {
         </button>
         <button 
           onClick={() => setActiveView('security')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
             activeView === 'security' 
               ? 'bg-border-strong text-accent' 
               : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -44,7 +44,7 @@ export function Sidebar() {
         </button>
         <button 
           onClick={() => setActiveView('performance')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
             activeView === 'performance' 
               ? 'bg-border-strong text-accent' 
               : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -55,7 +55,7 @@ export function Sidebar() {
         </button>
         <button 
           onClick={() => setActiveView('automation')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
             activeView === 'automation' 
               ? 'bg-border-strong text-text-primary' 
               : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -66,7 +66,7 @@ export function Sidebar() {
         </button>
         <button 
           onClick={() => setActiveView('source-control')}
-          className={`w-9 h-9 flex items-center justify-center cursor-pointer transition-all rounded-lg outline-none mx-auto ${
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
             activeView === 'source-control' 
               ? 'bg-border-strong text-text-primary' 
               : 'text-text-secondary hover:text-text-primary hover:bg-white/5'

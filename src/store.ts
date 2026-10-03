@@ -18,6 +18,29 @@ export interface SecurityScanRecord {
   logs: string[];
 }
 
+export interface TargetMetrics {
+  total_requests: number;
+  success_count: number;
+  error_count: number;
+  rps: number;
+  p50_latency_ms: number;
+  p90_latency_ms: number;
+  p95_latency_ms: number;
+  p99_latency_ms: number;
+  status_codes: Record<number, number>;
+}
+
+export interface TelemetrySnapshot {
+  time: string;
+  path: string;
+  rps: number;
+  p50: number;
+  p95: number;
+  success: number;
+  error: number;
+  target_metrics?: Record<string, TargetMetrics>;
+}
+
 export interface LoadTestRecord {
   id: string;
   name: string;
@@ -30,6 +53,7 @@ export interface LoadTestRecord {
   errorCount: number;
   rps: number;
   p95LatencyMs: number;
+  telemetryLogs: TelemetrySnapshot[];
 }
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -230,8 +254,8 @@ interface AppState {
   addSecurityScan: (scan: SecurityScanRecord) => void;
   deleteSecurityScan: (id: string) => void;
   clearSecurityHistory: () => void;
-  selectedPerformanceRequestId: string | null;
-  setSelectedPerformanceRequestId: (id: string | null) => void;
+  selectedPerformanceRequestIds: string[];
+  setSelectedPerformanceRequestIds: (ids: string[]) => void;
   performanceHistory: LoadTestRecord[];
   activePerformanceTestId: string | null;
   setActivePerformanceTestId: (id: string | null) => void;
@@ -266,7 +290,7 @@ export const useStore = create<AppState>()(
       selectedSecurityRequestIds: [],
       securityHistory: [],
       activeSecurityScanId: null,
-      selectedPerformanceRequestId: null,
+      selectedPerformanceRequestIds: [],
       performanceHistory: [],
       activePerformanceTestId: null,
       runnerState: { collectionId: null, isRunning: false, results: [], currentIndex: 0 },
@@ -715,7 +739,7 @@ export const useStore = create<AppState>()(
         activeSecurityScanId: state.activeSecurityScanId === id ? null : state.activeSecurityScanId
       })),
       clearSecurityHistory: () => set({ securityHistory: [], activeSecurityScanId: null }),
-      setSelectedPerformanceRequestId: (id) => set({ selectedPerformanceRequestId: id }),
+      setSelectedPerformanceRequestIds: (ids) => set({ selectedPerformanceRequestIds: ids }),
       setActivePerformanceTestId: (id) => set({ activePerformanceTestId: id }),
       addPerformanceTest: (record) => set(state => ({ performanceHistory: [record, ...state.performanceHistory] })),
       deletePerformanceTest: (id) => set(state => ({ performanceHistory: state.performanceHistory.filter(r => r.id !== id) })),

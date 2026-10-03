@@ -1,37 +1,13 @@
-import { useState, useRef } from 'react';
-import { Shield, AlertTriangle, CheckCircle2, Info, XCircle, Settings2, Play, ChevronRight, CheckSquare, Square, StopCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Shield, Settings2, Play, CheckSquare, Square, StopCircle } from 'lucide-react';
+import { SecurityOutcomeUI } from './SecurityOutcomeUI';
 import { Dropdown } from './Dropdown';
 import { runSecurityAudit } from '../utils/security/engine';
-import type { AuditFinding, SecurityAuditContext, RiskLevel, SecurityAuditConfig } from '../utils/security/engine';
+import type { AuditFinding, SecurityAuditContext, SecurityAuditConfig } from '../utils/security/engine';
 
 interface SecurityPanelProps {
   requestContext: SecurityAuditContext | null;
 }
-
-const RiskIcon = ({ risk }: { risk: RiskLevel }) => {
-  switch (risk) {
-    case 'CRITICAL': return <XCircle size={14} className="text-red-500" />;
-    case 'HIGH': return <AlertTriangle size={14} className="text-orange-500" />;
-    case 'MEDIUM': return <AlertTriangle size={14} className="text-yellow-500" />;
-    case 'LOW': return <Info size={14} className="text-blue-500" />;
-    case 'PASS': return <CheckCircle2 size={14} className="text-green-500" />;
-  }
-};
-
-const RiskBadge = ({ risk }: { risk: RiskLevel }) => {
-  const colors = {
-    CRITICAL: 'bg-red-500/15 text-red-500 border-red-500/20',
-    HIGH: 'bg-orange-500/15 text-orange-500 border-orange-500/20',
-    MEDIUM: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20',
-    LOW: 'bg-blue-500/15 text-blue-500 border-blue-500/20',
-    PASS: 'bg-green-500/15 text-green-500 border-green-500/20'
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize border ${colors[risk]}`}>
-      {risk.toLowerCase()}
-    </span>
-  );
-};
 
 export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   const [config, setConfig] = useState<SecurityAuditConfig>({
@@ -47,7 +23,31 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [findings, setFindings] = useState<AuditFinding[] | null>(null);
+  const [isLogsExpanded, setIsLogsExpanded] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const [expandedFindingIds, setExpandedFindingIds] = useState<Set<string>>(new Set(['single-request']));
+  const toggleFindingExpand = (reqId: string) => {
+    const next = new Set(expandedFindingIds);
+    if (next.has(reqId)) next.delete(reqId);
+    else next.add(reqId);
+    setExpandedFindingIds(next);
+  };
+
+  const groupedFindings = findings ? [{
+    requestId: 'single-request',
+    requestName: requestContext?.url || 'Current Request',
+    requestMethod: requestContext?.method || 'GET',
+    findings
+  }] : null;
+
+  const terminalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   const handleRunAudit = async () => {
     if (!requestContext) return;
@@ -59,7 +59,8 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
 
     setIsRunning(true);
     setFindings(null);
-    setLogs([]);
+    setLogs(['[*] Initializing DevSecOps Audit for current request...']);
+    setIsLogsExpanded(false);
     
     abortControllerRef.current = new AbortController();
 
@@ -80,6 +81,8 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
   };
 
   const criticalCount = findings?.filter(f => f.risk === 'CRITICAL' || f.risk === 'HIGH').length || 0;
+
+  
   
   const renderConfigToggle = (label: string, description: string, checked: boolean, onChange: (val: boolean) => void) => (
     <div 
@@ -118,7 +121,7 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
         <div className="flex items-center space-x-3">
           {findings && !isRunning && (
             <button
-              onClick={() => setFindings(null)}
+              onClick={() => { setFindings(null); setIsLogsExpanded(false); }}
               className="text-[12px] font-medium text-text-secondary hover:text-text-primary flex items-center space-x-1"
             >
               <Settings2 size={14} />
@@ -141,148 +144,95 @@ export function SecurityPanel({ requestContext }: SecurityPanelProps) {
         </div>
       </div>
 
-      {/* Progress Terminal */}
-      {isRunning && (
-        <div className="flex-1 p-4 bg-[#0a0a0a] overflow-y-auto custom-scrollbar font-mono text-xs flex flex-col space-y-1.5">
-          {logs.map((log, i) => (
-            <div key={i} className={`flex items-start ${log.includes('[!]') ? 'text-red-400' : log.includes('[✓]') ? 'text-green-400' : log.includes('[-]') ? 'text-text-muted' : 'text-blue-300'}`}>
-              <ChevronRight size={14} className="mt-[2px] shrink-0 opacity-50 mr-2" />
-              <span className="leading-relaxed">{log}</span>
-            </div>
-          ))}
-          <div className="flex items-center text-blue-300 opacity-50">
-            <ChevronRight size={14} className="shrink-0 mr-2" />
-            <span className="animate-pulse">_</span>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      {!isRunning && (
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-hidden flex flex-col p-4">
         {!findings && !isRunning ? (
           // Configuration Matrix
-          <div className="p-4 md:p-6 space-y-6 w-full">
-            <div>
-              <h3 className="text-sm font-semibold mb-1">Audit Configuration</h3>
-              <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
-            </div>
-
-            <div className="border border-border-strong rounded-md overflow-hidden bg-surface-bg shadow-sm">
-              <div className="grid grid-cols-[200px_1fr] border-b border-border-strong text-[11px] font-medium text-text-muted bg-panel-bg">
-                <div className="border-r border-border-strong px-4 py-2">Target Auth Header</div>
-                <div className="px-4 py-2">Secondary Attacker Token (For BOLA)</div>
+          <div className="w-full flex flex-col h-full overflow-y-auto custom-scrollbar">
+            <div className="space-y-6 w-full">
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Audit Configuration</h3>
+                <p className="text-xs text-text-secondary">Select the attack vectors to execute against the current endpoint.</p>
               </div>
-              <div className="grid grid-cols-[200px_1fr]">
-                <div className="border-r border-border-strong h-[36px]">
-                  <Dropdown 
-                    value={config.authHeaderName} 
-                    onChange={val => setConfig({...config, authHeaderName: val})}
-                    options={Array.from(new Set([...Object.keys(requestContext?.headers || {}), 'Authorization', 'X-API-Key'])).map(h => ({ value: h, label: h }))}
-                    className="w-full h-full text-[13px] font-mono px-4 !border-0 !rounded-none bg-transparent"
-                  />
+
+              <div className="border border-border-strong rounded-md overflow-hidden bg-surface-bg shadow-sm">
+                <div className="grid grid-cols-[200px_1fr] border-b border-border-strong text-[11px] font-medium text-text-muted bg-panel-bg">
+                  <div className="border-r border-border-strong px-4 py-2">Target Auth Header</div>
+                  <div className="px-4 py-2">Secondary Attacker Token (For BOLA)</div>
                 </div>
-                <div className="h-[36px]">
-                  <input 
-                    type="text" 
-                    value={config.attackerAuthHeader}
-                    onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
-                    disabled={!config.testBOLA}
-                    placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
-                    className="w-full h-full bg-transparent px-4 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
-                  />
+                <div className="grid grid-cols-[200px_1fr]">
+                  <div className="border-r border-border-strong h-[36px]">
+                    <Dropdown 
+                      value={config.authHeaderName} 
+                      onChange={val => setConfig({...config, authHeaderName: val})}
+                      options={Array.from(new Set([...Object.keys(requestContext?.headers || {}), 'Authorization', 'X-API-Key'])).map(h => ({ value: h, label: h }))}
+                      className="w-full h-full text-[13px] font-mono px-4 !border-0 !rounded-none bg-transparent"
+                    />
+                  </div>
+                  <div className="h-[36px]">
+                    <input 
+                      type="text" 
+                      value={config.attackerAuthHeader}
+                      onChange={e => setConfig({...config, attackerAuthHeader: e.target.value})}
+                      disabled={!config.testBOLA}
+                      placeholder={config.testBOLA ? "Bearer eyJhbG..." : "Enable BOLA test to enter token..."}
+                      className="w-full h-full bg-transparent px-4 text-[13px] font-mono focus:outline-none placeholder-text-muted disabled:opacity-50"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-0">
-              {renderConfigToggle(
-                "Broken Authentication", 
-                `Strips ${config.authHeaderName} headers to ensure endpoint rejects unauthenticated access.`, 
-                config.testBrokenAuth,  
-                (v) => setConfig({ ...config, testBrokenAuth: v })
-              )}
               
-              {renderConfigToggle(
-                "Broken Object Level Auth (BOLA)", 
-                "Tests if a different user can access this resource. Requires a secondary token above.", 
-                config.testBOLA, 
-                (v) => setConfig({ ...config, testBOLA: v })
-              )}
+              <div className="grid grid-cols-1 gap-0">
+                {renderConfigToggle(
+                  "Broken Authentication", 
+                  `Strips ${config.authHeaderName} headers to ensure endpoint rejects unauthenticated access.`, 
+                  config.testBrokenAuth,  
+                  (v) => setConfig({ ...config, testBrokenAuth: v })
+                )}
+                
+                {renderConfigToggle(
+                  "Broken Object Level Auth (BOLA)", 
+                  "Tests if a different user can access this resource. Requires a secondary token above.", 
+                  config.testBOLA, 
+                  (v) => setConfig({ ...config, testBOLA: v })
+                )}
 
-              {renderConfigToggle(
-                "Mass Assignment", 
-                "Injects elevated privilege properties (e.g. is_admin) into JSON payloads.", 
-                config.testMassAssignment, 
-                (v) => setConfig({ ...config, testMassAssignment: v })
-              )}
-              
-              {renderConfigToggle(
-                "Verb Tampering", 
-                "Attempts to bypass routing restrictions using alternate HTTP methods.", 
-                config.testVerbTampering, 
-                (v) => setConfig({ ...config, testVerbTampering: v })
-              )}
-              
-              {renderConfigToggle(
-                "1-Click Fuzzer", 
-                "Fires malformed payloads and edge-cases to detect 500 Internal Server Errors.", 
-                config.testFuzzing, 
-                (v) => setConfig({ ...config, testFuzzing: v })
-              )}
+                {renderConfigToggle(
+                  "Mass Assignment", 
+                  "Injects elevated privilege properties (e.g. is_admin) into JSON payloads.", 
+                  config.testMassAssignment, 
+                  (v) => setConfig({ ...config, testMassAssignment: v })
+                )}
+                
+                {renderConfigToggle(
+                  "Verb Tampering", 
+                  "Attempts to bypass routing restrictions using alternate HTTP methods.", 
+                  config.testVerbTampering, 
+                  (v) => setConfig({ ...config, testVerbTampering: v })
+                )}
+                
+                {renderConfigToggle(
+                  "1-Click Fuzzer", 
+                  "Fires malformed payloads and edge-cases to detect 500 Internal Server Errors.", 
+                  config.testFuzzing, 
+                  (v) => setConfig({ ...config, testFuzzing: v })
+                )}
+              </div>
             </div>
           </div>
-        ) : (findings && (
-          // Security Report
-          <div className="w-full flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto bg-app-bg">
-              <table className="w-full text-left text-[12px] border-collapse">
-                <thead>
-                  <tr className="bg-panel-bg border-b border-border-strong text-[11px] font-medium text-text-muted sticky top-0 z-10">
-                    <th className="px-6 py-2 w-8"></th>
-                    <th className="px-3 py-2 w-[250px]">Attack Vector</th>
-                    <th className="px-3 py-2 w-24">Risk</th>
-                    <th className="px-3 py-2">Forensic Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {findings.map((finding) => (
-                    <tr key={finding.id} className="border-b border-border-subtle hover:bg-surface-hover/30 group align-top">
-                      <td className="pl-6 pr-3 py-3 pt-[14px]">
-                        <RiskIcon risk={finding.risk} />
-                      </td>
-                      <td className="px-3 py-3 font-semibold text-text-primary text-[13px]">
-                        {finding.title}
-                      </td>
-                      <td className="px-3 py-3">
-                        <RiskBadge risk={finding.risk} />
-                      </td>
-                      <td className="pr-6 pl-3 py-3 space-y-1.5 max-w-[450px]">
-                        <div className="text-text-primary leading-relaxed">{finding.description}</div>
-                        
-                        {finding.payloadSent && (
-                          <div className="text-[11px] font-mono whitespace-pre-wrap">
-                            <span className="text-text-muted font-semibold">Evidence: </span>
-                            <span className="text-red-400">{finding.payloadSent}</span>
-                          </div>
-                        )}
-
-                        {finding.remediation && finding.risk !== 'PASS' && (
-                          <div className="text-[11px] leading-relaxed">
-                            <span className="text-text-muted font-semibold">Remediation: </span>
-                            <span className="text-blue-400">{finding.remediation}</span>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
+        ) : (
+          <div className="flex-1 flex flex-col gap-6 min-h-0 w-full h-full">
+                          <SecurityOutcomeUI 
+                isRunning={isRunning}
+                logs={logs}
+                groupedFindings={groupedFindings}
+                isLogsExpanded={isLogsExpanded}
+                setIsLogsExpanded={setIsLogsExpanded}
+                expandedFindingIds={expandedFindingIds}
+                toggleFindingExpand={toggleFindingExpand}
+              />
+</div>
+        )}
       </div>
-      )}
     </div>
   );
 }

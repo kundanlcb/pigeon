@@ -329,7 +329,7 @@ export function PerformanceHub() {
 
                 {/* Outcome Chart (Only shown in History mode) */}
                 {(!isRunning && !liveMetrics && activeTest && activeTest.telemetryLogs && activeTest.telemetryLogs.length > 0) && (
-                  <div className="px-6 py-4 border-b border-border-strong bg-[#141414]">
+                  <div className="px-6 py-4 border-b border-border-strong bg-panel-bg">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-4">
                         <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wider">Test Outcome Graph</span>
@@ -345,30 +345,30 @@ export function PerformanceHub() {
                         <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#eab308" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="var(--color-method-put)" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="var(--color-method-put)" stopOpacity={0}/>
                             </linearGradient>
                             <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="var(--color-method-post)" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="var(--color-method-post)" stopOpacity={0}/>
                             </linearGradient>
                             <linearGradient id="colorError" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="var(--color-method-delete)" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="var(--color-method-delete)" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
-                          <XAxis dataKey="time" stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
-                          <YAxis yAxisId="left" stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
-                          <YAxis yAxisId="right" orientation="right" stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-strong)" />
+                          <XAxis dataKey="time" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis yAxisId="left" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis yAxisId="right" orientation="right" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
                           <Tooltip 
-                            contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', fontSize: '11px', color: '#fff' }}
-                            itemStyle={{ color: '#ccc' }}
-                            labelStyle={{ color: '#999', marginBottom: '4px' }}
+                            contentStyle={{ backgroundColor: 'var(--color-surface-bg)', border: '1px solid var(--color-border-strong)', fontSize: '11px', color: 'var(--color-text-primary)' }}
+                            itemStyle={{ color: 'var(--color-text-secondary)' }}
+                            labelStyle={{ color: 'var(--color-text-muted)', marginBottom: '4px' }}
                           />
-                          <Area isAnimationActive={false} connectNulls={true} yAxisId="left" type="monotone" dataKey="p95" name="Latency (p95)" stroke="#eab308" strokeWidth={1.5} fillOpacity={1} fill="url(#colorLatency)" />
-                          <Area isAnimationActive={false} connectNulls={true} yAxisId="right" type="monotone" dataKey="success" name="Success Count" stroke="#22c55e" strokeWidth={1.5} fillOpacity={1} fill="url(#colorSuccess)" />
-                          <Area isAnimationActive={false} connectNulls={true} yAxisId="right" type="monotone" dataKey="error" name="Error Count" stroke="#ef4444" strokeWidth={1.5} fillOpacity={1} fill="url(#colorError)" />
+                          <Area isAnimationActive={false} connectNulls={true} yAxisId="left" type="monotone" dataKey="p95" name="Latency (p95)" stroke="var(--color-method-put)" strokeWidth={1.5} fillOpacity={1} fill="url(#colorLatency)" />
+                          <Area isAnimationActive={false} connectNulls={true} yAxisId="right" type="monotone" dataKey="success" name="Success Count" stroke="var(--color-method-post)" strokeWidth={1.5} fillOpacity={1} fill="url(#colorSuccess)" />
+                          <Area isAnimationActive={false} connectNulls={true} yAxisId="right" type="monotone" dataKey="error" name="Error Count" stroke="var(--color-method-delete)" strokeWidth={1.5} fillOpacity={1} fill="url(#colorError)" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
@@ -435,19 +435,19 @@ export function PerformanceHub() {
                       </div>
                       <div className="flex flex-col items-start border-l-2 border-border-strong pl-4">
                         <span className="text-[10px] text-text-muted uppercase mb-1.5 font-medium tracking-wider">Success <span className="lowercase text-[9px]">(2xx/3xx)</span></span>
-                        <span className="text-[28px] font-bold font-mono tracking-tight text-green-400 leading-none">{liveMetrics?.success_count || activeTest?.successCount || 0}</span>
+                        <span className="text-[28px] font-bold font-mono tracking-tight text-method-post leading-none">{liveMetrics?.success_count || activeTest?.successCount || 0}</span>
                       </div>
                       <div className="flex flex-col items-start border-l-2 border-border-strong pl-4">
                         <span className="text-[10px] text-text-muted uppercase mb-1.5 font-medium tracking-wider">Errors <span className="lowercase text-[9px]">(4xx/5xx)</span></span>
-                        <span className="text-[28px] font-bold font-mono tracking-tight text-red-400 leading-none">{liveMetrics?.error_count || activeTest?.errorCount || 0}</span>
+                        <span className="text-[28px] font-bold font-mono tracking-tight text-method-delete leading-none">{liveMetrics?.error_count || activeTest?.errorCount || 0}</span>
                       </div>
                       <div className="flex flex-col items-start border-l-2 border-border-strong pl-4">
                         <span className="text-[10px] text-text-muted uppercase mb-1.5 font-medium tracking-wider">Median Latency</span>
-                        <span className="text-[28px] font-bold font-mono tracking-tight text-green-400 leading-none">{Math.round(liveMetrics?.p50_latency_ms || 0)}<span className="text-[14px] text-text-muted ml-1">ms</span></span>
+                        <span className="text-[28px] font-bold font-mono tracking-tight text-method-post leading-none">{Math.round(liveMetrics?.p50_latency_ms || 0)}<span className="text-[14px] text-text-muted ml-1">ms</span></span>
                       </div>
                       <div className="flex flex-col items-start border-l-2 border-border-strong pl-4">
                         <span className="text-[10px] text-text-muted uppercase mb-1.5 font-medium tracking-wider">Tail Latency <span className="lowercase text-[9px]">(p95)</span></span>
-                        <span className="text-[28px] font-bold font-mono tracking-tight text-yellow-400 leading-none">{Math.round(liveMetrics?.p95_latency_ms || activeTest?.p95LatencyMs || 0)}<span className="text-[14px] text-text-muted ml-1">ms</span></span>
+                        <span className="text-[28px] font-bold font-mono tracking-tight text-method-put leading-none">{Math.round(liveMetrics?.p95_latency_ms || activeTest?.p95LatencyMs || 0)}<span className="text-[14px] text-text-muted ml-1">ms</span></span>
                       </div>
                     </div>
                   </div>
@@ -459,8 +459,8 @@ export function PerformanceHub() {
               <div className="w-full h-[1px] bg-border-strong group-hover:bg-accent transition-colors" />
             </Separator>
 
-            <Panel defaultSize={40} minSize={20} className="flex flex-col bg-[#0d0d0d] border-t border-border-strong relative">
-              <div className="flex items-center justify-between px-3 py-1.5 bg-[#141414] border-b border-border-strong shrink-0">
+            <Panel defaultSize={40} minSize={20} className="flex flex-col bg-app-bg border-t border-border-strong relative">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-panel-bg border-b border-border-strong shrink-0">
                 <div className="flex items-center text-[11px] font-medium text-text-muted uppercase tracking-wider">
                   <Terminal size={12} className="mr-1.5" />
                   Telemetry Logs
@@ -472,14 +472,14 @@ export function PerformanceHub() {
                   <div className="text-text-muted italic opacity-50 text-center mt-4">No telemetry data yet. Run a test to see live logs.</div>
                 ) : (
                   <div className="flex flex-col">
-                    <div className="grid grid-cols-7 gap-2 text-text-muted border-b border-[#222] pb-1 mb-1 font-bold">
+                    <div className="grid grid-cols-7 gap-2 text-text-muted border-b border-border-strong pb-1 mb-1 font-bold">
                       <div className="col-span-1">TIME</div>
                       <div className="col-span-1">PATH</div>
                       <div className="col-span-1 text-right">RPS</div>
                       <div className="col-span-1 text-right">p50 (ms)</div>
                       <div className="col-span-1 text-right">p95 (ms)</div>
-                      <div className="col-span-1 text-right text-green-500/70">2XX/3XX</div>
-                      <div className="col-span-1 text-right text-red-500/70">4XX/5XX</div>
+                      <div className="col-span-1 text-right text-method-post opacity-80">2XX/3XX</div>
+                      <div className="col-span-1 text-right text-method-delete opacity-80">4XX/5XX</div>
                     </div>
                     {telemetryLogs.flatMap((log, idx) => {
                       if (selectedRequests.length > 1 && log.target_metrics && Object.keys(log.target_metrics).length > 0) {
@@ -487,28 +487,28 @@ export function PerformanceHub() {
                           const tm = log.target_metrics![rIdx];
                           if (!tm || tm.total_requests === 0) return null;
                           return (
-                            <div key={`${idx}-${rIdx}`} className="grid grid-cols-7 gap-2 hover:bg-[#1a1a1a] px-1 -mx-1 rounded transition-colors py-0.5">
+                            <div key={`${idx}-${rIdx}`} className="grid grid-cols-7 gap-2 hover:bg-surface-hover px-1 -mx-1 rounded transition-colors py-0.5">
                               <div className="col-span-1 text-text-secondary">{log.time}</div>
                               <div className="col-span-1 text-text-muted truncate" title={req.name}>{req.name}</div>
-                              <div className="col-span-1 text-right text-blue-300">{Math.round(tm.rps)}</div>
-                              <div className="col-span-1 text-right text-green-300">{Math.round(tm.p50_latency_ms)}</div>
-                              <div className="col-span-1 text-right text-yellow-300">{Math.round(tm.p95_latency_ms)}</div>
-                              <div className="col-span-1 text-right text-green-400">{tm.success_count}</div>
-                              <div className="col-span-1 text-right text-red-400">{tm.error_count}</div>
+                              <div className="col-span-1 text-right text-method-get">{Math.round(tm.rps)}</div>
+                              <div className="col-span-1 text-right text-method-post">{Math.round(tm.p50_latency_ms)}</div>
+                              <div className="col-span-1 text-right text-method-put">{Math.round(tm.p95_latency_ms)}</div>
+                              <div className="col-span-1 text-right text-method-post">{tm.success_count}</div>
+                              <div className="col-span-1 text-right text-method-delete">{tm.error_count}</div>
                             </div>
                           );
                         });
                       }
                       
                       return (
-                        <div key={idx} className="grid grid-cols-7 gap-2 hover:bg-[#1a1a1a] px-1 -mx-1 rounded transition-colors py-0.5">
+                        <div key={idx} className="grid grid-cols-7 gap-2 hover:bg-surface-hover px-1 -mx-1 rounded transition-colors py-0.5">
                           <div className="col-span-1 text-text-secondary">{log.time}</div>
                           <div className="col-span-1 text-text-muted truncate" title={log.path}>{log.path}</div>
-                          <div className="col-span-1 text-right text-blue-300">{log.rps}</div>
-                          <div className="col-span-1 text-right text-green-300">{log.p50}</div>
-                          <div className="col-span-1 text-right text-yellow-300">{log.p95}</div>
-                          <div className="col-span-1 text-right text-green-400">{log.success}</div>
-                          <div className="col-span-1 text-right text-red-400">{log.error}</div>
+                          <div className="col-span-1 text-right text-method-get">{log.rps}</div>
+                          <div className="col-span-1 text-right text-method-post">{log.p50}</div>
+                          <div className="col-span-1 text-right text-method-put">{log.p95}</div>
+                          <div className="col-span-1 text-right text-method-post">{log.success}</div>
+                          <div className="col-span-1 text-right text-method-delete">{log.error}</div>
                         </div>
                       );
                     })}

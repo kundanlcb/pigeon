@@ -105,9 +105,7 @@ export function HistoryPanel() {
                               onClick={() => setActiveRequest(item.id)}
                               className="w-full flex items-center h-[24px] pl-[30px] pr-2 cursor-pointer transition-colors relative group hover:bg-surface-hover select-none"
                             >
-                              <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
-                                <MethodIcon method={item.request.method} size={13} />
-                              </span>
+                                <MethodIcon method={item.request.method} className="mr-1.5" />
                               <span className={`text-[12.5px] tracking-[-0.01em] truncate flex-1 leading-[24px] ${isActive ? 'text-text-primary font-semibold' : 'text-text-secondary group-hover:text-text-primary'}`}>
                                 {item.request.url || 'Unnamed Request'}
                               </span>

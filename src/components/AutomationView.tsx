@@ -111,12 +111,7 @@ function RequestNodeComponent({ data, id, selected }: { data: any, id: string, s
       {/* Request Selector row with inline Method Icon and optional continueOnError badge */}
       <div className="flex items-center gap-1.5 mb-1.5 min-w-0 w-full overflow-hidden">
         {request && (
-          <div 
-            className="shrink-0 flex items-center justify-center w-6 h-6 bg-surface-bg rounded-[4px] border border-border-subtle" 
-            title={request.method}
-          >
-            <MethodIcon method={request.method} size={12} />
-          </div>
+          <MethodIcon method={request.method} className="mr-1.5" />
         )}
         <select 
           className="nodrag flex-1 min-w-0 max-w-full bg-surface-bg text-text-primary border border-border-strong rounded-[4px] px-2 py-1 text-xs outline-none focus:border-accent cursor-pointer transition-colors truncate"
@@ -732,7 +727,7 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
                 {targetNodeRequest ? targetNodeRequest.name : 'Request Node'}
               </span>
               {targetNodeRequest && (
-                <MethodIcon method={targetNodeRequest.method} size={12} />
+                <MethodIcon method={targetNodeRequest.method} className="mr-1.5" />
               )}
             </div>
 

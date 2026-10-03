@@ -12,6 +12,7 @@ import { resolveEnvVariables } from '../utils/env';
 import { getSecret } from '../utils/secrets';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { Terminal, Settings2, Activity, Play, StopCircle } from 'lucide-react';
+import { DangerConfirmationModal } from './DangerConfirmationModal';
 
 interface MetricsBatch {
   total_requests: number;
@@ -43,9 +44,14 @@ export function PerformanceHub() {
     vus: 10,
     durationSec: 30,
     strategy: 'sequential',
+    allowInsecureCerts: false,
+    bypassSafetyLimits: false,
   });
   
   const [filterPathIndex, setFilterPathIndex] = useState<string | null>(null);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTargetUrls, setModalTargetUrls] = useState<string[]>([]);
   
   const [liveMetrics, setLiveMetrics] = useState<MetricsBatch | null>(null);
   const [telemetryLogs, setTelemetryLogs] = useState<TelemetrySnapshot[]>([]);
@@ -133,6 +139,24 @@ export function PerformanceHub() {
     }
   }, [selectedRequestIds, activeTestId]);
 
+  const onStartClick = () => {
+    if (selectedRequests.length === 0) return;
+    
+    const env = environments.find(e => e.id === activeEnvironmentId);
+    const resolvedUrls = Array.from(new Set(selectedRequests.map(req => {
+      let url = resolveEnvVariables(req.url || '', env);
+      try {
+        const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
+        return urlObj.hostname;
+      } catch (e) {
+        return url;
+      }
+    })));
+
+    setModalTargetUrls(resolvedUrls);
+    setIsModalOpen(true);
+  };
+
   const startTest = async () => {
     if (selectedRequests.length === 0) return;
     
@@ -185,7 +209,9 @@ export function PerformanceHub() {
           targets,
           strategy: config.strategy,
           vus: config.vus,
-          duration_sec: config.durationSec
+          duration_sec: config.durationSec,
+          allow_insecure_certs: config.allowInsecureCerts,
+          bypass_safety_limits: config.bypassSafetyLimits
         }
       });
     } catch (err) {
@@ -252,7 +278,7 @@ export function PerformanceHub() {
         ) : (
           <div className="flex items-center space-x-3">
             <button
-              onClick={startTest}
+              onClick={onStartClick}
               disabled={selectedRequests.length === 0}
               className={`flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm ${
                 selectedRequests.length === 0
@@ -324,6 +350,28 @@ export function PerformanceHub() {
                   <div className="w-px h-4 bg-border-strong" />
                   <div className="text-[11px] text-text-muted flex-1 truncate">
                     Targeting: <span className="font-mono text-text-primary ml-1">{selectedRequests.length} API(s)</span>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center space-x-1.5 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={config.allowInsecureCerts}
+                        onChange={e => setConfig({...config, allowInsecureCerts: e.target.checked})}
+                        disabled={isRunning}
+                        className="accent-accent"
+                      />
+                      <span className="text-[11px] text-text-secondary">Allow self-signed certs</span>
+                    </label>
+                    <label className="flex items-center space-x-1.5 cursor-pointer" title="Unlock >500 VUs">
+                      <input 
+                        type="checkbox" 
+                        checked={config.bypassSafetyLimits}
+                        onChange={e => setConfig({...config, bypassSafetyLimits: e.target.checked})}
+                        disabled={isRunning}
+                        className="accent-red-500"
+                      />
+                      <span className="text-[11px] text-red-400/80">Override Limits</span>
+                    </label>
                   </div>
                 </div>
 
@@ -520,6 +568,20 @@ export function PerformanceHub() {
           </Group>
         )}
       </div>
+      <DangerConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={() => {
+          setIsModalOpen(false);
+          startTest();
+        }}
+        title="Confirm Load Test Target"
+        warningText={config.vus > 500 && config.bypassSafetyLimits 
+          ? `WARNING: You are about to send ${config.vus} concurrent requests to these targets. This exceeds safe local thresholds and may degrade network performance or be flagged as an attack.` 
+          : `You are about to simulate concurrent load against these targets using ${config.vus} virtual users. Ensure you have permission to load test these endpoints.`}
+        targetUrls={modalTargetUrls}
+        confirmButtonText="Start Load Test"
+      />
     </div>
   );
 }

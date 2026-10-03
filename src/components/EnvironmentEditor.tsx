@@ -318,7 +318,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                          void saveSecretDraft(v);
                       }
                     }}
-                    placeholder={v.secret ? (v.secretStored === false ? 'Not stored in keychain' : '••••••') : "Value"}
+                    placeholder={v.secret ? (v.secretStored === false ? 'Secret not set — click to add' : '••••••') : "Value"}
                     className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
                   {v.secret && secretDrafts[v.id] !== undefined && (

@@ -12,7 +12,7 @@ export function MethodIcon({ method, className = '' }: MethodIconProps) {
 
   return (
     <span 
-      className={`inline-block font-bold text-[10px] shrink-0 text-left ${colorClass} ${className}`}
+      className={`inline-block font-bold text-[10px] shrink-0 text-left w-12 ${colorClass} ${className}`}
       title={m}
     >
       {m}

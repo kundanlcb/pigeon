@@ -125,4 +125,28 @@ describe('Keychain secret boundaries', () => {
     expect(unchangedSecond.auth).toEqual(second.auth);
     useStore.setState({ collections: [] });
   });
+
+  it('does not duplicate secret variables when duplicating an environment', async () => {
+    const environment: Environment = {
+      id: 'env-1',
+      name: 'Test Env',
+      variables: [
+        { id: 'var-1', key: 'plain_var', value: 'plain-value', enabled: true },
+        { id: 'var-2', key: 'secret_var', value: '', secret: true, secretStored: true, enabled: true },
+        { id: 'var-3', key: 'another_secret', value: '', secret: true, secretStored: true, enabled: true },
+      ]
+    };
+    keychain.values.set('env-1:secret_var', 'secret-val-1');
+    keychain.values.set('env-1:another_secret', 'secret-val-2');
+
+    const duplicate = await duplicateEnvironmentWithSecrets(environment);
+    expect(duplicate.variables).toHaveLength(3);
+    const plain = duplicate.variables.find(v => v.key === 'plain_var');
+    const secret1 = duplicate.variables.find(v => v.key === 'secret_var');
+    const secret2 = duplicate.variables.find(v => v.key === 'another_secret');
+
+    expect(plain?.value).toBe('plain-value');
+    expect(secret1?.secretStored).toBe(true);
+    expect(secret2?.secretStored).toBe(true);
+  });
 });

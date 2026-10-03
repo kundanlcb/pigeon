@@ -792,6 +792,15 @@ export const useStore = create<AppState>()(
     {
       name: 'pigeon-store',
       version: 1,
+      partialize: (state) => {
+        const { performanceHistory, securityHistory, runnerState, toast, ...rest } = state;
+        return {
+          ...rest,
+          collections: rest.collections.map(collection => collection.storageMode === 'folder'
+            ? { ...collection, requests: [] }
+            : collection)
+        } as unknown as AppState;
+      },
       migrate: (persistedState: unknown) => {
         const state = persistedState as AppState;
         return {
@@ -808,15 +817,6 @@ export const useStore = create<AppState>()(
             }))
           }))
         };
-      },
-      partialize: (state) => {
-        const { toast, ...rest } = state;
-        return {
-          ...rest,
-          collections: rest.collections.map(collection => collection.storageMode === 'folder'
-            ? { ...collection, requests: [] }
-            : collection)
-        } as unknown as AppState;
       },
     }
   )

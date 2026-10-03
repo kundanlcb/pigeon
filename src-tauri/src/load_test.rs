@@ -1,4 +1,4 @@
-use reqwest::{Client, Method};
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -34,6 +34,8 @@ pub struct LoadTestConfig {
     pub strategy: String, // "sequential" or "random"
     pub vus: usize,
     pub duration_sec: u64,
+    pub allow_insecure_certs: Option<bool>,
+    pub bypass_safety_limits: Option<bool>,
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -70,11 +72,13 @@ pub async fn start_load_test(app: AppHandle, state: State<'_, LoadTestState>, co
         return Err("No targets provided".to_string());
     }
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .danger_accept_invalid_certs(true)
-        .build()
-        .map_err(|e| e.to_string())?;
+    if config.vus > 500 && !config.bypass_safety_limits.unwrap_or(false) {
+        return Err("VU count exceeds safety limit of 500. You must explicitly acknowledge the risk to proceed.".to_string());
+    }
+
+    let accept_invalid = config.allow_insecure_certs.unwrap_or(false);
+
+    let client = crate::http::build_client(accept_invalid)?;
 
     let mut parsed_targets = vec![];
     for t in &config.targets {

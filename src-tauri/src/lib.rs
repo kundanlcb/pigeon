@@ -1,6 +1,7 @@
 mod secrets;
 mod git;
-mod load_test;
+pub mod load_test;
+pub mod http;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

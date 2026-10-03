@@ -80,7 +80,6 @@ export async function duplicateEnvironmentWithSecrets(environment: Environment):
       if (value === null) throw new Error(`Secret variable "${variable.key}" is missing from the system keychain.`);
       await setSecret(id, variable.key, value);
       copiedKeys.push(variable.key);
-      variables.push({ ...variable, id: `var-${crypto.randomUUID()}`, value: '' });
       variables.push({ ...variable, id: `var-${crypto.randomUUID()}`, value: '', secretStored: true });
     }
     return { ...environment, id, name: `${environment.name} Copy`, variables };

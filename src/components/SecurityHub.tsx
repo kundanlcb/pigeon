@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { runSecurityAudit, type SecurityAuditConfig } from '../utils/security/engine';
 import { resolveEnvVariables } from '../utils/env';
 import { EnvironmentSelector } from './EnvironmentSelector';
+import { DangerConfirmationModal } from './DangerConfirmationModal';
 
 interface SecurityHubProps {
   onManageEnvClick: () => void;
@@ -43,6 +44,10 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTargetUrls, setModalTargetUrls] = useState<string[]>([]);
+  const [modalExpectedMatch, setModalExpectedMatch] = useState('');
+
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
@@ -69,6 +74,28 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     if (next.has(reqId)) next.delete(reqId);
     else next.add(reqId);
     setExpandedFindingIds(next);
+  };
+
+  const onStartClick = () => {
+    if (selectedRequestIds.length === 0) return;
+    
+    const targetRequests = (collections || [])
+      .flatMap(col => col?.requests || [])
+      .filter(req => req && selectedRequestIds.includes(req.id));
+      
+    const resolvedUrls = Array.from(new Set(targetRequests.map(req => {
+      let url = resolveEnvVariables(req.url, activeEnvironment);
+      try {
+        const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
+        return urlObj.hostname;
+      } catch (e) {
+        return url;
+      }
+    })));
+
+    setModalTargetUrls(resolvedUrls);
+    setModalExpectedMatch(resolvedUrls[0] || '');
+    setIsModalOpen(true);
   };
 
   const startFleetAudit = async () => {
@@ -239,7 +266,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           <div className="flex items-center space-x-3">
 
             <button
-              onClick={startFleetAudit}
+              onClick={onStartClick}
               disabled={selectedRequestIds.length === 0}
               className={`flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm ${
                 selectedRequestIds.length === 0
@@ -275,7 +302,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                     <div className="flex items-center flex-1 min-w-0 mr-4">
                       <span className="text-text-secondary mr-2 shrink-0">Auditing:</span>
                       {progress.currentMethod && (
-                        <span className={`font-bold text-[10px] mr-1.5 shrink-0 ${
+                        <span className={`font-bold text-[10px] mr-1.5 w-12 text-left shrink-0 ${
                           progress.currentMethod === 'GET' ? 'text-method-get' :
                           progress.currentMethod === 'POST' ? 'text-method-post' :
                           progress.currentMethod === 'PUT' ? 'text-method-put' :
@@ -403,6 +430,20 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
 
         </div>
       </div>
+      <DangerConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={() => {
+          setIsModalOpen(false);
+          startFleetAudit();
+        }}
+        title="Confirm Security Audit"
+        warningText="This sends live attack payloads (SQL injection, privilege escalation, verb tampering) to this URL. Only run against systems you own or have permission to test."
+        targetUrls={modalTargetUrls}
+        requireTyping={true}
+        expectedTypeMatch={modalExpectedMatch}
+        confirmButtonText="I understand the risk, Start Audit"
+      />
     </div>
   );
 }

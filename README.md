@@ -1,115 +1,25 @@
-<div align="center">
-  <img src="./app-icon.png" alt="Pigeon Logo" width="160" />
-</div>
+# Pigeon
 
-# Pigeon 🐦
-
-Pigeon is a blazingly fast, lightweight, and modern API testing client built as an open-source alternative to Postman. Designed with a focus on speed, beautiful aesthetics, and developer experience, Pigeon uses the power of Tauri to deliver native desktop performance with a web technology stack.
-
+Pigeon is a powerful, local-first API testing and debugging client built with Tauri and React. It provides a dense, developer-focused interface designed for efficiency, speed, and privacy. 
 
 ## Features
-
-- **Blazing Fast**: Built on Rust via Tauri, providing minimal memory footprint compared to Electron alternatives.
-- **Modern UI/UX**: A sleek, responsive, and beautifully crafted interface supporting both Light and Dark modes.
-- **Advanced Code Editing**: Integrated Monaco Editor (the engine behind VS Code) for precise JSON formatting, syntax highlighting, line numbers, and expand/collapse folding.
-- **Environment Management**: Robust environment variable support (`{{variable_name}}`) seamlessly integrated throughout the app.
-- **Postman Compatibility**: Seamlessly import your existing Postman Collections and Environment files.
-- **Local Secret Storage**: Environment secrets and request credentials are stored in the operating system keychain instead of collection JSON or the persisted app store.
-- **Git-Native Collections**: Store a collection in a folder with one deterministic JSON file per request, nested folders, autosave, and external Git-change detection.
-- **cURL Integration**: Instantly copy requests as cURL commands to share with your team.
-- **Cross-Platform**: Available natively on macOS, Windows, and Linux.
-
-## Tech Stack
-
-- **Framework**: [Tauri](https://tauri.app/) (Rust core)
-- **Frontend**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- **Build Tool**: [Vite](https://vitejs.dev/)
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Editor**: [@monaco-editor/react](https://github.com/suren-atoyan/monaco-react)
+- **Local-first**: All data stays on your machine. Secrets are securely stored in the native OS keychain.
+- **High Performance**: Built with Rust (Tauri) and React for minimal overhead and blazing fast execution.
+- **Security Scanner**: Built-in automated checks for SQL injection, XSS, SSRF, verb tampering, and broken access controls.
+- **Load Testing**: Integrated load testing to verify API performance under stress.
+- **Advanced Authentication**: Full support for OAuth 2.0, Bearer, Basic, and API Key authentication schemes.
 
 ## Getting Started
 
-### Prerequisites
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Run the development server: `npm run tauri dev`
+4. Build for production: `npm run tauri build`
 
-Before you begin, ensure you have the following installed on your machine:
-- **Node.js** (v18 or higher)
-- **npm** (or yarn/pnpm)
-- **Rust** (Required for Tauri). Install via [rustup](https://rustup.rs/):
-  ```bash
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-  ```
-
-> For Windows and Linux specific Tauri prerequisites (like C++ build tools or webkit2gtk), check the [Official Tauri Setup Guide](https://v2.tauri.app/start/prerequisites/).
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/pigeon.git
-   cd pigeon
-   ```
-
-2. **Install frontend dependencies:**
-   ```bash
-   npm install
-   ```
-
-### Development
-
-To start the development server and open the native Tauri application window:
-
-```bash
-npm run tauri dev
-```
-*Note: The first time you run this command, Cargo will download and compile the Rust dependencies which may take a few minutes. Subsequent builds will be much faster.*
-
-### Building for Production
-
-To build the optimized, standalone executable for your operating system:
-
-```bash
-npm run tauri build
-```
-
-Once the build finishes, you can find the binaries in the `src-tauri/target/release/bundle` directory:
-- **macOS**: `.dmg` and `.app` files
-- **Windows**: `.msi` and `.exe` files
-- **Linux**: `.AppImage` and `.deb` files
-
-## Secrets and Git-Native Collections
-
-Environment variables marked **Secret** and literal request credentials are written to the operating system credential store. Pigeon does not fall back to local storage if the keychain is unavailable. Existing plaintext environment and request credentials are migrated on startup only after the keychain confirms a successful write; a failed migration retains the original value and reports the error.
-
-Collection storage remains local by default. Use a collection's menu to choose **Use Git Folder** and select an empty folder, or use **Open Collection Folder** to open an existing Pigeon folder. The collection manifest records its name, stable ID, format version, and nested folders. Each request is stored as its own JSON file under `requests/`; edits are debounced and written atomically. The selected folder is watched for external changes, including edits from Git operations. Conflicts offer **Reload from disk** or **Keep my edits**; malformed request files are reported independently so other requests remain available.
-
-Nested folders are represented in the collection manifest, and moving requests changes their folder assignment and file path. Existing flat collections remain local and appear at the collection root until moved. Switching a collection back to local storage leaves its folder files untouched.
-
-Collection and environment exports omit secret values. Keychain references in a Git-backed collection are local references, not shared credentials; collaborators must enter their own credentials in their own OS keychain. Folder mode is available in the native desktop app, while local storage remains available in browser previews.
-
-## Project Structure
-
-The codebase is highly modular and adheres to industry-standard patterns:
-
-```text
-src/
-├── components/       # Reusable React components (UI and editors)
-├── utils/            # Helper functions (URL parsing, syntax highlighters, file parsing)
-├── store.ts          # Global Zustand state (Requests, Environments, Tabs)
-├── App.tsx           # Main application layout and routing
-├── index.css         # Global Tailwind v4 styles and theme definitions
-```
-
-## Contributing
-
-We welcome contributions! Whether you're fixing a bug, adding a new feature, or improving documentation, your help is appreciated. 
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Architecture
+- **Frontend**: React, Zustand (state), Vite
+- **Backend**: Rust, Tauri
+- **Security**: OS Keychain (`keyring` crate) for credential storage
 
 ## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License

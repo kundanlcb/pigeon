@@ -177,7 +177,7 @@ export function SecurityOutcomeUI({
                           <Check size={14} className="text-green-500" />
                         )}
                       </div>
-                      <span className={`font-bold text-[10px] shrink-0 ${
+                      <span className={`font-bold text-[10px] w-12 text-left shrink-0 ${
                         group.requestMethod === 'GET' ? 'text-blue-400' :
                         group.requestMethod === 'POST' ? 'text-green-400' :
                         group.requestMethod === 'PUT' ? 'text-yellow-400' :

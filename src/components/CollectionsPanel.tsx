@@ -352,8 +352,8 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                        onClick={() => handleSearchResultClick(result)}
                        className="px-3 py-2 border-b border-border-subtle last:border-0 cursor-pointer hover:bg-surface-hover flex flex-col"
                      >
-                       <div className="flex items-center space-x-2">
-                         <MethodIcon method={result.request.method} size={11} />
+                       <div className="flex items-center">
+                         <MethodIcon method={result.request.method} className="mr-1.5" />
                          <span className="text-xs text-text-primary font-medium truncate flex-1">{result.request.name}</span>
                        </div>
                        <div className="text-[10px] text-text-muted mt-0.5 truncate flex items-center space-x-1">

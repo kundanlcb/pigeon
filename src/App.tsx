@@ -649,138 +649,144 @@ export default function App() {
         <ResizeHandle />
 
         <Panel defaultSize={70} className="flex flex-col min-w-0 bg-panel-bg z-0 rounded-tl-xl border-l border-t border-border-strong overflow-hidden shadow-2xl relative">
-          {activeView === 'runner' ? (
+          <div className={activeView === 'runner' ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
             <ErrorBoundary name="Collection Runner">
               <RunnerView />
             </ErrorBoundary>
-          ) : activeView === 'automation' ? (
+          </div>
+          
+          <div className={activeView === 'automation' ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
             <ErrorBoundary name="Automation Builder">
               <AutomationView onManageEnvClick={() => setIsEnvManagerOpen(true)} />
             </ErrorBoundary>
-          ) : activeView === 'security' ? (
+          </div>
+          
+          <div className={activeView === 'security' ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
             <ErrorBoundary name="Security Hub">
               <SecurityHub onManageEnvClick={() => setIsEnvManagerOpen(true)} />
             </ErrorBoundary>
-          ) : activeView === 'performance' ? (
+          </div>
+          
+          <div className={activeView === 'performance' ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
             <ErrorBoundary name="Performance Hub">
               <PerformanceHub />
             </ErrorBoundary>
-          ) : (
-            <>
-              <div data-tauri-drag-region className="flex items-end justify-between bg-panel-bg pr-4 pl-0 h-[44px] border-b border-border-strong">
-                <div className="flex-1 overflow-hidden h-full">
-                  <RequestTabs />
-                </div>
-                <div className="flex items-center h-full">
-                  <div
-                    className="flex items-center justify-center w-6 h-6 mr-1 rounded cursor-pointer text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
-                    onClick={() => {
-                      const el = document.getElementById('request-tabs-container');
-                      if (el) el.scrollBy({ left: 200, behavior: 'smooth' });
-                    }}
-                    title="Scroll Tabs Right"
-                  >
-                    <ChevronRight size={14} />
-                  </div>
-                  <EnvironmentSelector onManageClick={() => setIsEnvManagerOpen(true)} />
-                </div>
+          </div>
+
+          <div className={!['runner', 'automation', 'security', 'performance'].includes(activeView) ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
+            <div data-tauri-drag-region className="flex items-end justify-between bg-panel-bg pr-4 pl-0 h-[44px] border-b border-border-strong shrink-0">
+              <div className="flex-1 overflow-hidden h-full">
+                <RequestTabs />
               </div>
+              <div className="flex items-center h-full">
+                <div
+                  className="flex items-center justify-center w-6 h-6 mr-1 rounded cursor-pointer text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+                  onClick={() => {
+                    const el = document.getElementById('request-tabs-container');
+                    if (el) el.scrollBy({ left: 200, behavior: 'smooth' });
+                  }}
+                  title="Scroll Tabs Right"
+                >
+                  <ChevronRight size={14} />
+                </div>
+                <EnvironmentSelector onManageClick={() => setIsEnvManagerOpen(true)} />
+              </div>
+            </div>
 
-              {activeRequestId?.startsWith('env-') ? (
-                <ErrorBoundary name="Environment Editor">
-                  <EnvironmentEditor environmentId={activeRequestId} />
-                </ErrorBoundary>
-              ) : activeRequest ? (
+            {activeRequestId?.startsWith('env-') ? (
+              <ErrorBoundary name="Environment Editor">
+                <EnvironmentEditor environmentId={activeRequestId} />
+              </ErrorBoundary>
+            ) : activeRequest ? (
 
-                <ErrorBoundary name="Request Editor">
-                  <div className="flex-1 min-h-0 flex flex-col">
-                    <div className="pl-3 pr-4 h-[54px] flex items-center space-x-3 border-b border-border-subtle shrink-0 min-w-0">
-                      <div className="flex-1 min-w-0 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
-                        <div className="relative border-r border-border-strong flex items-center w-[100px] shrink-0 h-full">
-                          <Dropdown
-                            value={localMethod}
-                            onChange={(val) => {
-                              setLocalMethod(val as any);
-                              updateActiveRequest({ method: val as any });
-                            }}
-                            options={[
-                              { value: 'GET', label: 'GET' },
-                              { value: 'POST', label: 'POST' },
-                              { value: 'PUT', label: 'PUT' },
-                              { value: 'PATCH', label: 'PATCH' },
-                              { value: 'DELETE', label: 'DELETE' }
-                            ]}
-                            className={`bg-transparent font-bold text-xs px-2 h-full w-full ${getMethodColor(localMethod)}`}
-                          />
-                        </div>
-                        <HighlightedInput
-                          singleLineEllipsis
-                          value={localUrl}
-                          onChange={(e: any) => {
-                            setLocalUrl(e.target.value);
-                            updateActiveRequest({ url: e.target.value });
+              <ErrorBoundary name="Request Editor">
+                <div className="flex-1 min-h-0 flex flex-col">
+                  <div className="pl-3 pr-4 h-[54px] flex items-center space-x-3 border-b border-border-subtle shrink-0 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center bg-transparent border border-border-strong rounded-md focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all h-[36px]">
+                      <div className="relative border-r border-border-strong flex items-center w-[100px] shrink-0 h-full">
+                        <Dropdown
+                          value={localMethod}
+                          onChange={(val) => {
+                            setLocalMethod(val as any);
+                            updateActiveRequest({ method: val as any });
                           }}
-                          onKeyDown={(e: any) => e.key === 'Enter' && handleSend()}
-                          className="flex-1 min-w-0 overflow-hidden text-sm font-mono placeholder-text-muted h-full"
-                          placeholder="Enter request URL"
+                          options={[
+                            { value: 'GET', label: 'GET' },
+                            { value: 'POST', label: 'POST' },
+                            { value: 'PUT', label: 'PUT' },
+                            { value: 'PATCH', label: 'PATCH' },
+                            { value: 'DELETE', label: 'DELETE' }
+                          ]}
+                          className={`bg-transparent font-bold text-xs px-2 h-full w-full ${getMethodColor(localMethod)}`}
                         />
-                        <button
-                          onClick={() => {
-                            setCurlModalRequest(activeRequest);
-                            setCurlModalMode('export');
-                            setIsCurlModalOpen(true);
-                          }}
-                          title="Export as cURL"
-                          className="flex shrink-0 items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-hover px-2 h-full transition-all active:scale-95 rounded-r-md"
-                        >
-                          <Code2 size={16} />
-                        </button>
                       </div>
+                      <HighlightedInput
+                        singleLineEllipsis
+                        value={localUrl}
+                        onChange={(e: any) => {
+                          setLocalUrl(e.target.value);
+                          updateActiveRequest({ url: e.target.value });
+                        }}
+                        onKeyDown={(e: any) => e.key === 'Enter' && handleSend()}
+                        className="flex-1 min-w-0 overflow-hidden text-sm font-mono placeholder-text-muted h-full"
+                        placeholder="Enter request URL"
+                      />
                       <button
-                        onClick={handleSend}
-                        className={`flex shrink-0 items-center justify-center space-x-1.5 px-4 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 ${
-                          isLoading 
-                            ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" 
-                            : "bg-accent hover:bg-accent-hover text-white"
-                        }`}
+                        onClick={() => {
+                          setCurlModalRequest(activeRequest);
+                          setCurlModalMode('export');
+                          setIsCurlModalOpen(true);
+                        }}
+                        title="Export as cURL"
+                        className="flex shrink-0 items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-hover px-2 h-full transition-all active:scale-95 rounded-r-md"
                       >
-                        {isLoading ? (
-                          <>
-                            <span>Cancel</span>
-                            <Loader2 size={14} className="animate-spin" />
-                          </>
-                        ) : (
-                          <>
-                            <span>Send</span>
-                            <Send size={14} />
-                          </>
-                        )}
+                        <Code2 size={16} />
                       </button>
                     </div>
-
-                    <div className="flex-1 min-h-0">
-                      <Group orientation="vertical">
-                        <RequestEditor 
-                          setLocalUrl={setLocalUrl} 
-                          localUrl={localUrl}
-                          localMethod={localMethod}
-                        />
-
-                        <ResizeHandle vertical />
-
-                        <ResponseViewer response={response} isLoading={isLoading} />
-                      </Group>
-                    </div>
+                    <button
+                      onClick={handleSend}
+                      className={`flex shrink-0 items-center justify-center space-x-1.5 px-4 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 ${
+                        isLoading 
+                          ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" 
+                          : "bg-accent hover:bg-accent-hover text-white"
+                      }`}
+                    >
+                      {isLoading ? (
+                        <>
+                          <span>Cancel</span>
+                          <Loader2 size={14} className="animate-spin" />
+                        </>
+                      ) : (
+                        <>
+                          <span>Send</span>
+                          <Send size={14} />
+                        </>
+                      )}
+                    </button>
                   </div>
-                </ErrorBoundary>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-text-muted bg-app-bg">
-                  <Activity size={48} className="mb-4 opacity-20" />
-                  <p>Select or create a request to get started</p>
+
+                  <div className="flex-1 min-h-0">
+                    <Group orientation="vertical">
+                      <RequestEditor 
+                        setLocalUrl={setLocalUrl} 
+                        localUrl={localUrl}
+                        localMethod={localMethod}
+                      />
+
+                      <ResizeHandle vertical />
+
+                      <ResponseViewer response={response} isLoading={isLoading} />
+                    </Group>
+                  </div>
                 </div>
-              )}
-            </>
-          )}
+              </ErrorBoundary>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-text-muted bg-app-bg">
+                <Activity size={48} className="mb-4 opacity-20" />
+                <p>Select or create a request to get started</p>
+              </div>
+            )}
+          </div>
         </Panel>
       </Group>
       {toast && (

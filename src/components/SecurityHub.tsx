@@ -62,7 +62,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       setGroupedFindings(null);
       setLogs([]);
     }
-  }, [activeSecurityScanId, securityHistory]);
+  }, [activeSecurityScanId, securityHistory, isRunning]);
 
   const toggleFindingExpand = (reqId: string) => {
     const next = new Set(expandedFindingIds);
@@ -85,15 +85,16 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     const signal = abortControllerRef.current.signal;
     let allGroupedFindings: RequestFindings[] = [];
 
-    const targetRequests = collections
-      .flatMap(col => col.requests)
-      .filter(req => selectedRequestIds.includes(req.id));
+    try {
+      const targetRequests = (collections || [])
+        .flatMap(col => col?.requests || [])
+        .filter(req => req && selectedRequestIds.includes(req.id));
 
-    setProgress({ current: 0, total: targetRequests.length, currentName: '', currentMethod: '', currentUrl: '' });
-    runLogs.push(`[*] Target Scope: ${targetRequests.length} endpoints.`);
-    setLogs([...runLogs]);
+      setProgress({ current: 0, total: targetRequests.length, currentName: '', currentMethod: '', currentUrl: '' });
+      runLogs.push(`[*] Target Scope: ${targetRequests.length} endpoints.`);
+      setLogs([...runLogs]);
 
-    let currentIndex = 0;
+      let currentIndex = 0;
     for (const req of targetRequests) {
       if (signal.aborted) break;
       currentIndex++;
@@ -142,25 +143,30 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
       }
     }
 
-    if (!signal.aborted) {
-      runLogs.push('__SECTION__COMPLETED__Fleet Audit Completed.');
-      setLogs([...runLogs]);
-    }
+      if (!signal.aborted) {
+        runLogs.push('__SECTION__COMPLETED__Fleet Audit Completed.');
+        setLogs([...runLogs]);
+      }
 
-    setGroupedFindings(allGroupedFindings);
-    setIsRunning(false);
-    
-    // Save to history automatically
-    if (allGroupedFindings.length > 0 || !signal.aborted) {
-      const newScan = {
-        id: `scan-${Date.now()}`,
-        timestamp: Date.now(),
-        requestIds: targetRequests.map(r => r.id),
-        findings: allGroupedFindings,
-        logs: runLogs
-      };
-      addSecurityScan(newScan);
-      setActiveSecurityScanId(newScan.id);
+      setGroupedFindings(allGroupedFindings);
+    } catch (err: any) {
+      runLogs.push(`[!] Critical Error during initialization: ${err.message}`);
+      setLogs([...runLogs]);
+    } finally {
+      setIsRunning(false);
+      
+      // Save to history automatically
+      if (allGroupedFindings.length > 0 || !signal.aborted) {
+        const newScan = {
+          id: `scan-${Date.now()}`,
+          timestamp: Date.now(),
+          requestIds: selectedRequestIds,
+          findings: allGroupedFindings,
+          logs: runLogs
+        };
+        addSecurityScan(newScan);
+        setActiveSecurityScanId(newScan.id);
+      }
     }
   };
 
@@ -266,27 +272,27 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
               {isRunning && (
                 <div className="flex flex-col space-y-3 bg-panel-bg border border-border-strong rounded-md p-4 shrink-0 shadow-sm">
                   <div className="flex items-center justify-between text-[12px] font-medium">
-                    <div className="flex items-center">
-                      <span className="text-text-secondary mr-2">Auditing:</span>
+                    <div className="flex items-center flex-1 min-w-0 mr-4">
+                      <span className="text-text-secondary mr-2 shrink-0">Auditing:</span>
                       {progress.currentMethod && (
-                        <span className={`font-bold text-[10px] mr-1.5 ${
-                          progress.currentMethod === 'GET' ? 'text-blue-400' :
-                          progress.currentMethod === 'POST' ? 'text-green-400' :
-                          progress.currentMethod === 'PUT' ? 'text-yellow-400' :
-                          progress.currentMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                        <span className={`font-bold text-[10px] mr-1.5 shrink-0 ${
+                          progress.currentMethod === 'GET' ? 'text-method-get' :
+                          progress.currentMethod === 'POST' ? 'text-method-post' :
+                          progress.currentMethod === 'PUT' ? 'text-method-put' :
+                          progress.currentMethod === 'DELETE' ? 'text-method-delete' : 'text-purple-400'
                         }`}>{progress.currentMethod}</span>
                       )}
-                      <span>{progress.currentName || 'Initializing...'}</span>
+                      <span className="truncate font-semibold">{progress.currentName || 'Initializing...'}</span>
                       {progress.currentUrl && (
-                        <span className="ml-1.5 text-[11px] text-text-secondary font-mono truncate max-w-[300px]">
+                        <span className="ml-1.5 text-[11px] text-text-secondary font-mono truncate max-w-[250px] shrink-0">
                           ({progress.currentUrl})
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-4 shrink-0">
                       <div className="flex items-center space-x-3 text-text-secondary">
                         <span>{progress.current} of {progress.total}</span>
-                        <span className="text-accent font-bold w-8 text-right">{Math.round((progress.current / progress.total) * 100)}%</span>
+                        <span className="text-accent font-bold w-8 text-right">{progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}%</span>
                       </div>
                       <div className="w-px h-3.5 bg-border-strong" />
                       <div className="flex items-center text-accent font-semibold animate-pulse">
@@ -298,7 +304,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
                   <div className="h-1.5 w-full bg-app-bg rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-accent transition-all duration-300"
-                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                      style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
                     />
                   </div>
                 </div>

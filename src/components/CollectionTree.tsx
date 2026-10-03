@@ -85,9 +85,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
         className={`w-full flex items-center h-[24px] cursor-pointer hover:bg-surface-hover transition-colors group relative pr-2 select-none ${menuId === request.id ? 'bg-surface-hover' : ''} ${isActive ? 'bg-accent/10 text-accent font-medium' : 'text-text-secondary hover:text-text-primary'}`}
         style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
       >
-        <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0">
-          <MethodIcon method={request.method} size={13} />
-        </span>
+        <MethodIcon method={request.method} className="mr-1.5" />
         {editingRequestId === request.id ? (
           <input
             autoFocus

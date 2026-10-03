@@ -169,21 +169,21 @@ export function SecurityOutcomeUI({
                       hasVulns ? 'cursor-pointer hover:bg-surface-hover/50' : 'opacity-70'
                     } transition-colors`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 flex items-center justify-center text-text-muted">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                      <div className="w-4 h-4 flex items-center justify-center text-text-muted shrink-0">
                         {hasVulns ? (
                           isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
                         ) : (
                           <Check size={14} className="text-green-500" />
                         )}
                       </div>
-                      <span className={`font-bold text-[10px] w-12 ${
+                      <span className={`font-bold text-[10px] shrink-0 ${
                         group.requestMethod === 'GET' ? 'text-blue-400' :
                         group.requestMethod === 'POST' ? 'text-green-400' :
                         group.requestMethod === 'PUT' ? 'text-yellow-400' :
                         group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
                       }`}>{group.requestMethod}</span>
-                      <span className={`font-medium ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
+                      <span className={`font-medium truncate ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       {hasVulns ? (

@@ -9,6 +9,23 @@ pub mod dataset_parser;
 pub mod sandbox;
 
 use std::collections::HashMap;
+
+pub fn find_safe_boundary(bytes: &[u8], cut: usize) -> usize {
+    if cut >= bytes.len() {
+        return bytes.len();
+    }
+    
+    match std::str::from_utf8(&bytes[..cut]) {
+        Ok(_) => cut,
+        Err(e) => {
+            if e.error_len().is_none() {
+                e.valid_up_to()
+            } else {
+                cut
+            }
+        }
+    }
+}
 use reqwest::{Client, ClientBuilder};
 use std::time::{Duration, Instant};
 use models::{RequestItem, Environment, RequestExecutionResult, AppSettings};
@@ -63,11 +80,8 @@ pub async fn execute_request(
     let max_size = 5 * 1024 * 1024; // 5 MB ceiling
     let is_truncated = size_bytes > max_size;
     
-    let byte_slice = if is_truncated {
-        &bytes[..max_size]
-    } else {
-        &bytes[..]
-    };
+    let boundary = find_safe_boundary(&bytes, max_size);
+    let byte_slice = &bytes[..boundary];
     
     let (raw_text, data, is_binary) = match std::str::from_utf8(byte_slice) {
         Ok(s) => {
@@ -103,4 +117,30 @@ pub async fn execute_request(
     }
     
     Ok(res)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncation_never_splits_utf8_char() {
+        let text = "a".repeat(100) + "café" + &"b".repeat(100) + "日本語" + &"c".repeat(100) + "🎉" + &"d".repeat(100);
+        let bytes = text.as_bytes();
+
+        for cut in 0..bytes.len() {
+            let boundary = find_safe_boundary(bytes, cut);
+            assert!(std::str::from_utf8(&bytes[..boundary]).is_ok(),
+                "Truncation at swept cut point {} produced boundary {} that still fails UTF-8 decode", cut, boundary);
+        }
+    }
+
+    #[test]
+    fn test_binary_still_fails() {
+        let mut binary = vec![0xFF, 0xFE, 0xFD]; // Invalid UTF-8 bytes
+        binary.extend_from_slice("café".as_bytes());
+        
+        let boundary = find_safe_boundary(&binary, 5);
+        assert!(std::str::from_utf8(&binary[..boundary]).is_err(), "Binary payload should still fail UTF-8 decode");
+    }
 }

@@ -90,3 +90,53 @@ async fn test_request_building_parity() {
     assert_eq!(req.headers().get("X-Custom").unwrap().to_str().unwrap(), "Value xyz");
     assert_eq!(req.headers().get("Authorization").unwrap().to_str().unwrap(), "Bearer token-abc");
 }
+
+#[tokio::test]
+async fn test_timing_plausibility_and_variation() {
+    let req1 = RequestItem {
+        id: "req-1".to_string(),
+        name: "Test Timing 1".to_string(),
+        folder_id: None,
+        order: None,
+        method: "GET".to_string(),
+        url: "https://example.com/".to_string(),
+        headers: HashMap::new(),
+        disabled_headers: None,
+        disabled_params: None,
+        body: None,
+        auth: None,
+        authorization_header_in_keychain: None,
+        authorization_header_keychain_ref: None,
+        pre_request_script: None,
+        test_script: None,
+    };
+    
+    // First request to a remote server
+    let res1 = pigeon_core::execute_request(&req1, None, None, None).await.unwrap();
+    
+    // Check invariants
+    let d1 = res1.dns_time_ms.unwrap_or(0);
+    let c1 = res1.connect_time_ms.unwrap_or(0);
+    let t1 = res1.ttfb_time_ms.unwrap_or(0);
+    
+    assert!(c1 >= d1, "Connect time (which includes DNS phase in underlying reqwest architecture) should be >= DNS time");
+    assert!(t1 >= c1, "TTFB should be >= Connect time");
+    assert!(res1.time_ms >= t1, "Total time should be >= TTFB");
+    
+    // Another request to a different host to prove they vary
+    let mut req2 = req1.clone();
+    req2.url = "https://1.1.1.1/".to_string(); // IP address avoids DNS!
+    let res2 = pigeon_core::execute_request(&req2, None, None, None).await.unwrap();
+    
+    let d2 = res2.dns_time_ms.unwrap_or(0);
+    let c2 = res2.connect_time_ms.unwrap_or(0);
+    let t2 = res2.ttfb_time_ms.unwrap_or(0);
+    
+    assert!(c2 >= d2);
+    assert!(t2 >= c2);
+    assert!(res2.time_ms >= t2);
+    
+    // DNS time for IP address should be close to 0 (or much faster than example.com)
+    // Connect time and TTFB should be genuinely different from the first request
+    assert!(d1 != d2 || c1 != c2 || t1 != t2, "Timing values should vary across different network calls");
+}

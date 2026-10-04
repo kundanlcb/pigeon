@@ -26,11 +26,95 @@ pub fn find_safe_boundary(bytes: &[u8], cut: usize) -> usize {
         }
     }
 }
+use std::sync::{Arc, Mutex};
 use reqwest::{Client, ClientBuilder};
 use std::time::{Duration, Instant};
 use models::{RequestItem, Environment, RequestExecutionResult, AppSettings};
 use error::CoreError;
 use request_builder::build_request;
+use reqwest::dns::{Resolve, Addrs, Name};
+use std::future::Future;
+use tower::{Layer, Service};
+use std::task::{Context, Poll};
+use std::pin::Pin;
+
+struct TimedResolver {
+    dns_time: Arc<Mutex<Option<u128>>>,
+}
+
+impl Resolve for TimedResolver {
+    fn resolve(&self, name: Name) -> reqwest::dns::Resolving {
+        let dns_time = self.dns_time.clone();
+        let name_str = name.as_str().to_string();
+        Box::pin(async move {
+            let start = Instant::now();
+            let mut addrs = vec![];
+            if let Ok(lookup) = tokio::net::lookup_host((name_str.as_str(), 0)).await {
+                for addr in lookup {
+                    addrs.push(addr);
+                }
+            }
+            if let Ok(mut lock) = dns_time.lock() {
+                if lock.is_none() {
+                    *lock = Some(start.elapsed().as_millis());
+                }
+            }
+            Ok(Box::new(addrs.into_iter()) as Addrs)
+        })
+    }
+}
+
+#[derive(Clone)]
+struct TimingLayer {
+    connect_time: Arc<Mutex<Option<u128>>>,
+}
+
+impl<S> Layer<S> for TimingLayer {
+    type Service = TimingService<S>;
+    fn layer(&self, inner: S) -> Self::Service {
+        TimingService {
+            inner,
+            connect_time: self.connect_time.clone(),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct TimingService<S> {
+    inner: S,
+    connect_time: Arc<Mutex<Option<u128>>>,
+}
+
+impl<S, Req> Service<Req> for TimingService<S>
+where
+    S: Service<Req>,
+    S::Future: Send + 'static,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: Req) -> Self::Future {
+        let connect_time = self.connect_time.clone();
+        let start = Instant::now();
+        let fut = self.inner.call(req);
+        Box::pin(async move {
+            let res = fut.await;
+            if res.is_ok() {
+                if let Ok(mut lock) = connect_time.lock() {
+                    if lock.is_none() {
+                        *lock = Some(start.elapsed().as_millis());
+                    }
+                }
+            }
+            res
+        })
+    }
+}
 
 pub async fn execute_request(
     request: &RequestItem,
@@ -39,8 +123,14 @@ pub async fn execute_request(
     settings: Option<&AppSettings>,
 ) -> Result<RequestExecutionResult, CoreError> {
     
+    let dns_time = Arc::new(Mutex::new(None));
+    let connect_time = Arc::new(Mutex::new(None));
+    
     // Configure client
-    let mut cb = ClientBuilder::new();
+    let mut cb = ClientBuilder::new()
+        .dns_resolver(Arc::new(TimedResolver { dns_time: dns_time.clone() }))
+        .connector_layer(TimingLayer { connect_time: connect_time.clone() });
+        
     if let Some(s) = settings {
         if s.insecure_ssl {
             cb = cb.danger_accept_invalid_certs(true);
@@ -65,7 +155,7 @@ pub async fn execute_request(
     let response = req_builder.send().await
         .map_err(|e| CoreError::Network(format!("Request failed: {}", e)))?;
         
-    let elapsed = start_time.elapsed().as_millis();
+    let ttfb_ms = start_time.elapsed().as_millis();
     
     let status = response.status().as_u16();
     let status_text = response.status().canonical_reason().unwrap_or("").to_string();
@@ -76,6 +166,8 @@ pub async fn execute_request(
     }
     
     let bytes = response.bytes().await.unwrap_or_default();
+    
+    let elapsed = start_time.elapsed().as_millis();
     let size_bytes = bytes.len();
     let max_size = 5 * 1024 * 1024; // 5 MB ceiling
     let is_truncated = size_bytes > max_size;
@@ -93,10 +185,16 @@ pub async fn execute_request(
         }
     };
     
+    let d_time = *dns_time.lock().unwrap();
+    let c_time = *connect_time.lock().unwrap();
+
     let mut res = RequestExecutionResult {
         status,
         status_text,
         time_ms: elapsed,
+        dns_time_ms: d_time,
+        connect_time_ms: c_time,
+        ttfb_time_ms: Some(ttfb_ms),
         headers,
         data,
         raw_text,

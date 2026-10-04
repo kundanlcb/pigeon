@@ -25,6 +25,9 @@ export interface RequestExecutionResult {
   isBinary?: boolean;
   sizeBytes?: number;
   isTruncated?: boolean;
+  dnsTimeMs?: number;
+  connectTimeMs?: number;
+  ttfbTimeMs?: number;
   error?: string;
   isCancelled?: boolean;
 }
@@ -164,6 +167,9 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
       isBinary: res.isBinary,
       sizeBytes: res.sizeBytes,
       isTruncated: res.isTruncated,
+      dnsTimeMs: res.dnsTimeMs,
+      connectTimeMs: res.connectTimeMs,
+      ttfbTimeMs: res.ttfbTimeMs,
       error: res.error,
       isCancelled: res.isCancelled
     };
@@ -181,6 +187,9 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
       isBinary: false,
       sizeBytes: 0,
       isTruncated: false,
+      dnsTimeMs: 0,
+      connectTimeMs: 0,
+      ttfbTimeMs: 0,
       error: error.message || String(error),
       isCancelled: error.name === 'AbortError'
     };

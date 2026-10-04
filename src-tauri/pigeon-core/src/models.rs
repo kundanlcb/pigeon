@@ -111,6 +111,12 @@ pub struct RequestExecutionResult {
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_cancelled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dns_time_ms: Option<u128>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connect_time_ms: Option<u128>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ttfb_time_ms: Option<u128>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

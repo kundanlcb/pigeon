@@ -46,11 +46,31 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
               {response ? `${response.status} ${response.statusText}` : '---'}
             </span>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-text-muted">Time</span>
-            <span className={`${response ? 'text-text-primary' : 'text-border-strong'} font-mono font-medium`}>
-              {response ? `${response.time} ms` : '0 ms'}
-            </span>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-text-muted">DNS</span>
+              <span className={`${response ? 'text-text-primary' : 'text-border-strong'} font-mono font-medium`}>
+                {response ? (response.dnsTimeMs != null ? `${response.dnsTimeMs} ms` : 'Reused') : '---'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-text-muted" title="Connect (TCP + TLS)">Connect</span>
+              <span className={`${response ? 'text-text-primary' : 'text-border-strong'} font-mono font-medium`}>
+                {response ? (response.connectTimeMs != null ? `${response.connectTimeMs} ms` : 'Reused') : '---'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-text-muted">TTFB</span>
+              <span className={`${response ? 'text-text-primary' : 'text-border-strong'} font-mono font-medium`}>
+                {response ? (response.ttfbTimeMs != null ? `${response.ttfbTimeMs} ms` : '---') : '---'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-text-muted">Total</span>
+              <span className={`${response ? 'text-text-primary' : 'text-border-strong'} font-mono font-medium`}>
+                {response ? `${response.time} ms` : '0 ms'}
+              </span>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-text-muted">Size</span>

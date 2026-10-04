@@ -14,3 +14,4 @@ keyring = "3.6.3"
 base64 = "0.22.1"
 csv = "1.4.0"
 rquickjs = { version = "0.14.0", features = ["classes", "macro"] }
+tower = "0.5.3"

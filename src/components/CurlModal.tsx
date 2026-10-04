@@ -161,7 +161,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
               {parsedPreview && parsedPreview.url ? (
                 <div className="p-2.5 bg-panel-bg border border-border-strong rounded-lg flex items-center justify-between shadow-sm">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <MethodIcon method={parsedPreview.method || 'GET'} size={12} />
+                    <MethodIcon method={parsedPreview.method || 'GET'} size={12} tabular={false} />
                     <span className="text-[11.5px] font-mono text-zinc-200 truncate" title={parsedPreview.url}>
                       {parsedPreview.url}
                     </span>

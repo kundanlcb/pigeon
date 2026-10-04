@@ -189,6 +189,12 @@ export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', 
         hideCursorInOverviewRuler: true,
         overviewRulerBorder: false,
         lineHeight: 22,
+        scrollbar: {
+          verticalScrollbarSize: 8,
+          horizontalScrollbarSize: 8,
+          verticalSliderSize: 8,
+          horizontalSliderSize: 8,
+        },
       }}
       loading={<div className="p-4 text-text-muted text-sm flex items-center justify-center h-full">Loading Editor...</div>}
     />

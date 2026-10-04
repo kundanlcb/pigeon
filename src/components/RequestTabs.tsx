@@ -112,7 +112,7 @@ export function RequestTabs() {
             {isEnv ? (
               <span className="text-[10px] font-bold mr-2 text-accent">ENV</span>
             ) : (
-              <MethodIcon method={(item as any).method} className="shrink-0 mr-1.5" />
+              <MethodIcon method={(item as any).method} className="shrink-0 mr-1.5" tabular={false} />
             )}
             <span className="text-[13px] font-medium truncate flex-1">{item.name}</span>
             <div 

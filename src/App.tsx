@@ -404,7 +404,7 @@ export default function App() {
 
         <ResizeHandle />
 
-        <Panel defaultSize={70} className="flex flex-col min-w-0 bg-panel-bg z-0 rounded-tl-xl border-l border-t border-border-strong overflow-hidden shadow-2xl relative">
+        <Panel defaultSize={70} className="flex flex-col min-w-0 bg-panel-bg z-0 rounded-tl-xl border-l border-t border-border-strong overflow-hidden relative">
           <div className={activeView === 'runner' ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
             <ErrorBoundary name="Collection Runner">
               <RunnerView />

@@ -186,8 +186,8 @@ export function SourceControlPanel() {
   const data = activeColId ? gitData[activeColId] : null;
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
-      <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
+      <div className="h-[44px] px-4 flex items-center justify-between shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Source Control</span>
         {activeCol && (
           <div className="flex space-x-1">

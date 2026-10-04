@@ -7,7 +7,7 @@ export function Sidebar() {
   const setActiveView = useStore(state => state.setActiveView);
 
   return (
-    <nav className="w-12 bg-panel-bg border-r border-t border-border-strong flex flex-col items-center py-2 z-50 relative shrink-0 select-none">
+    <nav className="w-12 bg-panel-bg border-r border-border-strong flex flex-col items-center py-2 z-50 relative shrink-0 select-none">
       <div className="w-full flex flex-col items-center gap-1">
         <button 
           onClick={() => setActiveView('editor')}

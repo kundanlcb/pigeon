@@ -251,7 +251,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
       <Group orientation="vertical">
         <Panel defaultSize={70} minSize={20} className="flex flex-col">
           {/* Header matching request detail section height */}
@@ -567,9 +567,9 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
           </div>
         </Panel>
 
-        <Separator className="flex items-center justify-center h-[1px] bg-border-subtle hover:bg-accent cursor-row-resize transition-colors shrink-0 group relative z-50">
+        <Separator className="flex items-center justify-center h-[1px] bg-border-subtle hover:bg-border-strong cursor-row-resize transition-colors shrink-0 group relative z-50">
           <div className="absolute w-full h-4 -top-1.5 bg-transparent" />
-          <div className="w-8 h-[2px] bg-text-muted/40 rounded-full group-hover:bg-white/50 transition-colors" />
+          <div className="w-8 h-[2px] bg-text-muted/40 rounded-full group-hover:bg-border-strong transition-colors" />
         </Separator>
 
         <Panel

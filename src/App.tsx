@@ -46,9 +46,8 @@ import {
 import { useStore } from './store';
 
 const ResizeHandle = ({ vertical = false }) => (
-  <Separator className={`flex items-center justify-center group relative transition-colors ${vertical ? 'hover:bg-accent/50 bg-border-subtle h-[1px] cursor-row-resize z-50' : 'bg-transparent w-1 cursor-col-resize z-10'}`}>
-    <div className={`absolute bg-transparent ${vertical ? 'w-full h-4 -top-1.5' : 'w-4 h-full -left-0.5'}`} />
-    {!vertical && <div className="w-[1px] h-full bg-transparent group-hover:bg-accent/50 transition-colors" />}
+  <Separator className={`flex items-center justify-center group relative transition-colors ${vertical ? 'hover:bg-border-strong bg-border-strong h-[1px] cursor-row-resize z-50' : 'bg-border-strong w-[1px] cursor-col-resize z-10'}`}>
+    <div className={`absolute bg-transparent ${vertical ? 'w-full h-4 -top-1.5' : 'w-4 h-full -left-1.5'}`} />
   </Separator>
 );
 
@@ -267,7 +266,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-app-bg text-text-primary overflow-hidden font-sans">
-      <div className="h-[32px] w-full shrink-0 z-50 bg-app-bg flex items-center relative">
+      <div className="h-[32px] w-full shrink-0 z-50 bg-panel-bg border-b border-border-strong flex items-center relative">
         <div className="absolute inset-0" data-tauri-drag-region />
       </div>
       <div className="flex flex-1 min-h-0 relative">
@@ -404,7 +403,7 @@ export default function App() {
 
         <ResizeHandle />
 
-        <Panel defaultSize={70} className="flex flex-col min-w-0 bg-panel-bg z-0 rounded-tl-xl border-l border-t border-border-strong overflow-hidden relative">
+        <Panel defaultSize={70} className="flex flex-col min-w-0 bg-app-bg z-0 overflow-hidden relative">
           <div className={activeView === 'runner' ? "h-full w-full flex flex-col min-h-0" : "hidden"}>
             <ErrorBoundary name="Collection Runner">
               <RunnerView />

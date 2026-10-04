@@ -58,10 +58,10 @@ export function HistoryPanel() {
   }, [history]);
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none rounded-tr-xl border-r border-t border-border-strong overflow-hidden relative shadow-2xl">
+    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
       <Group orientation="vertical">
         <Panel defaultSize={100} minSize={20} className="flex flex-col">
-          <div className="h-[44px] px-4 flex items-center justify-between border-b border-border-subtle shrink-0 select-none">
+          <div className="h-[44px] px-4 flex items-center justify-between shrink-0 select-none">
             <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">History</span>
             <div className="flex items-center space-x-0.5">
               <button

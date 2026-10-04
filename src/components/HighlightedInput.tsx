@@ -35,6 +35,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
   const [hoveredVar, setHoveredVar] = useState<{name: string, id: string, value: string, secret: boolean, top: number, left: number} | null>(null);
   const [isPopoverPinned, setIsPopoverPinned] = useState(false);
   const [editVarValue, setEditVarValue] = useState('');
+  const [replaceAll, setReplaceAll] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseMoveHandlerRef = useRef<(event: MouseEvent) => void>(() => {});
@@ -201,6 +202,52 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
           }]
         });
       }
+      if (replaceAll && editVarValue) {
+        const state = useStore.getState();
+        const activeCollection = state.collections.find(c => 
+          c.requests.some(r => r.id === state.activeRequestId)
+        );
+        if (activeCollection) {
+          const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const replaceRegex = new RegExp(escapeRegex(editVarValue), 'g');
+          const replacement = `{{${hoveredVar.name}}}`;
+          
+          activeCollection.requests.forEach(req => {
+            let updated = false;
+            let newReq = { ...req };
+            
+            if (newReq.url?.includes(editVarValue)) {
+              newReq.url = newReq.url.replace(replaceRegex, replacement);
+              updated = true;
+            }
+            
+            if (newReq.headers) {
+              const newHeaders = { ...newReq.headers };
+              let headersUpdated = false;
+              for (const [k, v] of Object.entries(newHeaders)) {
+                if (v.includes(editVarValue)) {
+                  newHeaders[k] = v.replace(replaceRegex, replacement);
+                  headersUpdated = true;
+                }
+              }
+              if (headersUpdated) {
+                newReq.headers = newHeaders;
+                updated = true;
+              }
+            }
+            
+            if (typeof newReq.body === 'string' && newReq.body.includes(editVarValue)) {
+              newReq.body = newReq.body.replace(replaceRegex, replacement);
+              updated = true;
+            }
+            
+            if (updated) {
+              state.updateRequest(req.id, newReq);
+            }
+          });
+        }
+      }
+
       setHoveredVar(null);
       setIsPopoverPinned(false);
     } catch (error) {
@@ -371,7 +418,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       {/* Variable Hover Popover */}
       {hoveredVar && createPortal(
         <div
-          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-auto min-w-[256px] max-w-[400px]"
+          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-[450px] max-w-[95vw]"
           style={{ top: hoveredVar.top, left: hoveredVar.left }}
           onMouseEnter={() => {
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -449,6 +496,12 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
             </div>
           ) : (
             <div className="text-xs text-text-muted">Select an environment to create this variable.</div>
+          )}
+          {activeEnvironmentId && (
+            <label className="flex items-start space-x-2 text-[11px] text-text-secondary cursor-pointer mt-1 hover:text-text-primary transition-colors">
+              <input type="checkbox" checked={replaceAll} onChange={e => setReplaceAll(e.target.checked)} className="mt-0.5 rounded border-border-strong bg-surface-bg accent-accent" />
+              <span className="leading-tight">Replace all occurrences of this value in the active collection with {'{{'}{hoveredVar.name}{'}}'}</span>
+            </label>
           )}
         </div>,
         document.body

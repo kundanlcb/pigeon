@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use std::time::{SystemTime, Duration};
 use tokio::sync::Mutex;
 use base64::{engine::general_purpose, Engine as _};
-use crate::models::{Auth, Environment, AppSettings};
+use crate::models::{Auth, Environment};
 use crate::error::CoreError;
 use crate::variable_resolver::resolve_variables;
 use crate::secret_resolver::get_secret;

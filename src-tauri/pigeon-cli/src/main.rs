@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use std::fs;
 use std::collections::HashMap;
 use serde_json::{Value, json};
-use std::process::Command;
 use pigeon_core::models::{RequestItem, Environment, AppSettings};
 
 #[derive(Parser)]

@@ -27,7 +27,7 @@ pub fn find_safe_boundary(bytes: &[u8], cut: usize) -> usize {
     }
 }
 use std::sync::{Arc, Mutex};
-use reqwest::{Client, ClientBuilder};
+use reqwest::ClientBuilder;
 use std::time::{Duration, Instant};
 use models::{RequestItem, Environment, RequestExecutionResult, AppSettings};
 use error::CoreError;

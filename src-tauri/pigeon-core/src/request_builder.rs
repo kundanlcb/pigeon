@@ -15,7 +15,7 @@ pub async fn build_request(
 ) -> Result<RequestBuilder, CoreError> {
     
     // 1. Resolve URL
-    let mut resolved_url = resolve_variables(&request.url, env, local_vars);
+    let resolved_url = resolve_variables(&request.url, env, local_vars);
     let mut url = Url::parse(&resolved_url).map_err(|e| CoreError::Other(format!("Invalid URL: {}", e)))?;
 
     // Apply disabled query params

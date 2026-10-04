@@ -4,9 +4,9 @@ import { useStore } from '../store';
 
 // Bundle Monaco locally instead of fetching from CDN to support offline/corporate proxy environments
 import * as monacoLocal from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker.js?worker';
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker.js?worker';
+import editorWorker from 'monaco-editor/editor/editor.worker.js?worker';
+import jsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
+import htmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
 
 self.MonacoEnvironment = {
   getWorker(_, label) {

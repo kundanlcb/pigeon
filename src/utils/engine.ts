@@ -1,5 +1,5 @@
 import { useStore, type RequestItem, type Environment } from '../store';
-import { runPreRequestScript, runTestScript, type PigeonContext } from './sandbox';
+import { runPreRequestScript, type PigeonContext } from './sandbox';
 import { getResponseStatusText } from './request';
 import { formatPigeonError } from './errors';
 import { setSecret } from './secrets';
@@ -127,33 +127,27 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
     }
 
     let testResults: any[] = [];
-
-    if (request.testScript) {
-      context.response = {
-        status: res.status,
-        json: () => {
-          if (typeof res.data !== 'object') throw new Error('Response is not JSON');
-          return res.data;
-        },
-        text: () => res.rawText || '',
-        headers: res.headers || {}
-      };
-      
-      const allVars: Record<string, string> = { ...localVars };
-      environment?.variables.forEach(v => {
-        if (!allVars[v.key]) {
-          allVars[v.key] = v.secret ? (localVars[v.key] || '') : v.value;
+    if (res.testResults) {
+        testResults = res.testResults;
+        
+        if (onLog) {
+            onLog(`[Test] Ran ${testResults.length} tests`);
         }
-      });
-      testResults = await runTestScript(request.testScript, context, allVars);
-      if (onLog) {
-        onLog(`[Test] Ran ${testResults.length} tests`);
-      }
-      try {
-        await flushSecretWrites();
-      } catch (error) {
-        useStore.getState().showToast(`Failed to save script secret: ${String(error)}`, 'error');
-      }
+        
+        if (res.envMutations) {
+            for (const [k, v] of Object.entries(res.envMutations)) {
+                if (localVars[k] !== v) {
+                    context.env.set(k, v as string);
+                    localVars[k] = v as string;
+                }
+            }
+        }
+        
+        try {
+            await flushSecretWrites();
+        } catch (error) {
+            useStore.getState().showToast(`Failed to save script secret: ${String(error)}`, 'error');
+        }
     }
 
     return {

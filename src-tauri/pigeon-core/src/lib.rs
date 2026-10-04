@@ -6,6 +6,8 @@ pub mod auth_resolver;
 pub mod request_builder;
 pub mod dataset_parser;
 
+pub mod sandbox;
+
 use std::collections::HashMap;
 use reqwest::{Client, ClientBuilder};
 use std::time::{Duration, Instant};
@@ -52,7 +54,7 @@ pub async fn execute_request(
     let raw_text = response.text().await.unwrap_or_default();
     let data = serde_json::from_str(&raw_text).unwrap_or(serde_json::Value::String(raw_text.clone()));
     
-    Ok(RequestExecutionResult {
+    let mut res = RequestExecutionResult {
         status,
         status_text,
         time_ms: elapsed,
@@ -60,7 +62,17 @@ pub async fn execute_request(
         data,
         raw_text,
         test_results: vec![],
+        env_mutations: None,
         error: None,
         is_cancelled: Some(false),
-    })
+    };
+    
+    if let Some(script) = &request.test_script {
+        let env_vars = local_vars.cloned().unwrap_or_default();
+        let (tests, mutations) = sandbox::execute_test_script(script, request, &res, &env_vars);
+        res.test_results = tests;
+        res.env_mutations = Some(mutations);
+    }
+    
+    Ok(res)
 }

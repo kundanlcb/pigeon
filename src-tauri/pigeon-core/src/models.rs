@@ -100,6 +100,8 @@ pub struct RequestExecutionResult {
     pub raw_text: String,
     pub test_results: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub env_mutations: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_cancelled: Option<bool>,

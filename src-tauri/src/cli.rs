@@ -178,15 +178,15 @@ async fn main() {
                     
                     let res = pigeon_core::execute_request(&request_item, env_model.as_ref(), Some(&local_vars), Some(&settings)).await;
                 
-                let (status, time_ms, err_msg, resp_text) = match res {
+                let (status, time_ms, err_msg, _resp_text) = match &res {
                     Ok(r) => {
-                        let mut status = r.status;
+                        let status = r.status;
                         let mut err_msg = None;
                         if status >= 400 {
                             exit_code = 1;
                             err_msg = Some(format!("HTTP {}", status));
                         }
-                        (status, r.time_ms, err_msg, r.raw_text)
+                        (status, r.time_ms, err_msg, r.raw_text.clone())
                     }
                     Err(e) => {
                         exit_code = 1;
@@ -194,85 +194,15 @@ async fn main() {
                     }
                 };
 
-                if let Some(script) = request_item.test_script {
-                    let env_vars_for_script = env_model.as_ref().map(|e| {
-                        let mut map = HashMap::new();
-                        for v in &e.variables {
-                            map.insert(v.key.clone(), v.value.clone());
-                        }
-                        map
-                    }).unwrap_or_default();
-
-                    let node_script = format!(r#"
-                        const script = {script_json};
-                        const contextData = {{
-                            response: {{ status: {status}, bodyText: {resp_json} }},
-                            env: {env_json}
-                        }};
-                        const results = [];
-                        const context = {{
-                            response: {{
-                                status: contextData.response.status,
-                                json: () => JSON.parse(contextData.response.bodyText || '{{}}'),
-                                text: () => contextData.response.bodyText || ''
-                            }},
-                            env: {{
-                                get: (k) => contextData.env[k],
-                                set: () => {{}}
-                            }},
-                            test: (name, fn) => {{
-                                try {{ fn(); results.push({{ name, passed: true }}); }}
-                                catch (e) {{ results.push({{ name, passed: false, error: e.message }}); }}
-                            }},
-                            expect: (val) => ({{
-                                toEqual: (expected) => {{ if (val !== expected) throw new Error(`Expected ${{expected}} but got ${{val}}`); }}
-                            }})
-                        }};
-                        try {{
-                            const fn = new Function('pigeon', script);
-                            fn(context);
-                            console.log(JSON.stringify(results));
-                        }} catch (e) {{
-                            console.log(JSON.stringify([{{ name: 'Script Execution', passed: false, error: e.message }}]));
-                        }}
-                    "#, 
-                    script_json = serde_json::to_string(&script).unwrap(),
-                    status = status,
-                    resp_json = serde_json::to_string(&resp_text).unwrap(),
-                    env_json = serde_json::to_string(&env_vars_for_script).unwrap()
-                    );
-
-                    let output = Command::new("node")
-                        .arg("--experimental-permission")
-                        .arg("--allow-fs-read=none")
-                        .arg("--allow-fs-write=none")
-                        .arg("--allow-net=none")
-                        .arg("--allow-child-process=none")
-                        .arg("-e")
-                        .arg(&node_script)
-                        .output();
-                    match output {
-                        Ok(out) => {
-                            if let Ok(parsed) = serde_json::from_slice::<Vec<Value>>(&out.stdout) {
-                                for t in parsed {
-                                    let passed = t["passed"].as_bool().unwrap_or(false);
-                                    if !passed { exit_code = 1; }
-                                    test_results.push(TestResult {
-                                        name: t["name"].as_str().unwrap_or("Test").to_string(),
-                                        passed,
-                                        error: t["error"].as_str().map(|s| s.to_string()),
-                                    });
-                                }
-                            }
-                        }
-                        Err(_) => {
-                            test_results.push(TestResult {
-                                name: "Node.js Environment".to_string(),
-                                passed: false,
-                                error: Some("Failed to execute test script because Node.js is not installed".to_string())
-                            });
-                            exit_code = 1;
-                        }
+                if let Ok(ref core_res) = res {
+                    for t in &core_res.test_results {
+                        let passed = t["passed"].as_bool().unwrap_or(false);
+                        if !passed { exit_code = 1; }
+                        test_results.push(TestResult {
+                            name: t["name"].as_str().unwrap_or("Test").to_string(),
+                            passed,
+                            error: t["error"].as_str().map(|s| s.to_string()),
+                        });
                     }
                 }
 

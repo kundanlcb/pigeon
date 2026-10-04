@@ -127,11 +127,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       </div>
                     </div>
                     <button 
-                      onClick={() => updateAppSettings({ insecureSSL: !appSettings?.insecureSSL })}
-                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-app-bg ${appSettings?.insecureSSL ? 'bg-accent' : 'bg-surface-hover border border-border-strong'}`}
+                      onClick={() => updateAppSettings({ insecureSsl: !appSettings?.insecureSsl })}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-app-bg ${appSettings?.insecureSsl ? 'bg-accent' : 'bg-surface-hover border border-border-strong'}`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${appSettings?.insecureSSL ? 'translate-x-6' : 'translate-x-1'}`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${appSettings?.insecureSsl ? 'translate-x-6' : 'translate-x-1'}`}
                       />
                     </button>
                   </div>

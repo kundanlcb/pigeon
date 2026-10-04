@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface DangerConfirmationModalProps {
   isOpen: boolean;
@@ -36,8 +37,8 @@ export function DangerConfirmationModal({
 
   const isConfirmDisabled = requireTyping && typedValue !== expectedTypeMatch;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-panel-bg border border-border-strong rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-strong bg-surface-bg">
           <div className="flex items-center space-x-2 text-red-400 font-semibold text-sm">
@@ -102,6 +103,7 @@ export function DangerConfirmationModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Sparkles, Shield, Zap, CheckCircle2 } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
+import { createPortal } from 'react-dom';
 
 const RELEASE_NOTES: Record<string, { title: string; date: string; features: { icon: any; title: string; desc: string }[] }> = {
   '2.0.12': {
@@ -60,7 +61,7 @@ export function WhatsNewModal() {
 
   const notes = RELEASE_NOTES[currentVersion] || RELEASE_NOTES['2.0.12'];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div 
         className="bg-panel-bg border border-border-strong rounded-xl shadow-2xl flex flex-col w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200"
@@ -119,6 +120,7 @@ export function WhatsNewModal() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

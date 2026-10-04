@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, AlertTriangle, Terminal } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { parseCurl, exportCurl } from '../utils/curl';
 import { useStore } from '../store';
 import type { RequestItem } from '../store';
@@ -92,7 +93,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
     setTimeout(() => setCopied(false), 2000);
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-panel-bg border border-border-strong rounded-xl w-[600px] max-w-[90vw] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
@@ -205,6 +206,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

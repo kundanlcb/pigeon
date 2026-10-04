@@ -214,7 +214,7 @@ export interface CollectionFolder {
 }
 
 export interface AppSettings {
-  insecureSSL: boolean;
+  insecureSsl: boolean;
   requestTimeout: number;
   maxRedirects: number;
 }
@@ -297,7 +297,7 @@ interface AppState {
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      appSettings: { insecureSSL: true, requestTimeout: 30000, maxRedirects: 10 },
+      appSettings: { insecureSsl: true, requestTimeout: 30000, maxRedirects: 10 },
       theme: "dark",
       activeView: 'editor',
       selectedSecurityRequestIds: [],

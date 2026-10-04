@@ -308,35 +308,36 @@ export function PerformanceHub() {
               <div className="flex-1 overflow-y-auto flex flex-col">
                 
                 {/* Configuration Row */}
-                <div className="flex items-center space-x-5 bg-panel-bg px-5 py-3 shrink-0 border-b border-border-strong">
-                  <div className="flex items-center space-x-2 text-text-muted">
-                    <Settings2 size={14} />
-                    <span className="text-[11px] font-medium uppercase tracking-wider">Config</span>
+                <div className="flex items-center gap-4 bg-panel-bg px-4 py-2 shrink-0 border-b border-border-strong overflow-x-auto scrollbar-hide text-[11px] whitespace-nowrap">
+                  <div className="flex items-center space-x-1.5 text-text-muted shrink-0 pr-2 border-r border-border-strong">
+                    <Settings2 size={13} />
+                    <span className="font-semibold uppercase tracking-wider text-[10px]">Config</span>
                   </div>
-                  <div className="w-px h-4 bg-border-strong" />
-                  <div className="flex items-center space-x-3">
-                    <label className="text-[11px] text-text-secondary">VUs:</label>
+                  
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <span className="text-text-secondary">VUs:</span>
                     <input 
                       type="number" 
                       value={config.vus}
                       onChange={e => setConfig({...config, vus: parseInt(e.target.value) || 1})}
                       disabled={isRunning}
-                      className="bg-transparent border-b border-border-strong px-1 py-0.5 text-[12px] w-16 focus:outline-none focus:border-accent disabled:opacity-50 text-text-primary text-center font-mono"
+                      className="bg-surface-bg border border-border-subtle hover:border-border-strong rounded px-1.5 py-0.5 w-14 focus:outline-none focus:border-accent disabled:opacity-50 text-text-primary font-mono text-center transition-colors"
                     />
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <label className="text-[11px] text-text-secondary">Duration (s):</label>
+                  
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <span className="text-text-secondary">Duration (s):</span>
                     <input 
                       type="number" 
                       value={config.durationSec}
                       onChange={e => setConfig({...config, durationSec: parseInt(e.target.value) || 1})}
                       disabled={isRunning}
-                      className="bg-transparent border-b border-border-strong px-1 py-0.5 text-[12px] w-16 focus:outline-none focus:border-accent disabled:opacity-50 text-text-primary text-center font-mono"
+                      className="bg-surface-bg border border-border-subtle hover:border-border-strong rounded px-1.5 py-0.5 w-14 focus:outline-none focus:border-accent disabled:opacity-50 text-text-primary font-mono text-center transition-colors"
                     />
                   </div>
-                  <div className="w-px h-4 bg-border-strong" />
-                  <div className="flex items-center space-x-2">
-                    <label className="text-[11px] text-text-secondary">Strategy:</label>
+                  
+                  <div className="flex items-center space-x-2 shrink-0 pl-2 border-l border-border-strong">
+                    <span className="text-text-secondary">Strategy:</span>
                     <Dropdown
                       value={config.strategy}
                       onChange={val => setConfig({...config, strategy: val})}
@@ -344,33 +345,36 @@ export function PerformanceHub() {
                         { value: 'sequential', label: 'Sequential Flow' },
                         { value: 'random', label: 'Random Target' }
                       ]}
-                      className="text-[12px] w-32 border-b border-border-strong px-1 py-0.5"
+                      className="w-28 border border-border-subtle bg-surface-bg hover:border-border-strong rounded px-1.5 py-0.5 transition-colors text-[11px]"
                     />
                   </div>
-                  <div className="w-px h-4 bg-border-strong" />
-                  <div className="text-[11px] text-text-muted flex-1 truncate">
-                    Targeting: <span className="font-mono text-text-primary ml-1">{selectedRequests.length} API(s)</span>
+                  
+                  <div className="flex-1 shrink-0 px-4 text-center">
+                    <span className="text-text-muted">
+                      Targeting: <span className="font-mono text-text-primary ml-1">{selectedRequests.length} API(s)</span>
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center space-x-1.5 cursor-pointer">
+
+                  <div className="flex items-center space-x-4 shrink-0 pl-4 border-l border-border-strong">
+                    <label className="flex items-center space-x-1.5 cursor-pointer hover:opacity-80 transition-opacity">
                       <input 
                         type="checkbox" 
                         checked={config.allowInsecureCerts}
                         onChange={e => setConfig({...config, allowInsecureCerts: e.target.checked})}
                         disabled={isRunning}
-                        className="accent-accent"
+                        className="accent-accent w-3 h-3"
                       />
-                      <span className="text-[11px] text-text-secondary">Allow self-signed certs</span>
+                      <span className="text-text-secondary">Allow self-signed certs</span>
                     </label>
-                    <label className="flex items-center space-x-1.5 cursor-pointer" title="Unlock >500 VUs">
+                    <label className="flex items-center space-x-1.5 cursor-pointer hover:opacity-80 transition-opacity" title="Unlock >500 VUs">
                       <input 
                         type="checkbox" 
                         checked={config.bypassSafetyLimits}
                         onChange={e => setConfig({...config, bypassSafetyLimits: e.target.checked})}
                         disabled={isRunning}
-                        className="accent-red-500"
+                        className="accent-red-500 w-3 h-3"
                       />
-                      <span className="text-[11px] text-red-400/80">Override Limits</span>
+                      <span className="text-red-400/90">Override Limits</span>
                     </label>
                   </div>
                 </div>

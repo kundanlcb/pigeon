@@ -118,14 +118,19 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
     
     await flushSecretWrites();
 
-    const appSettings = useStore.getState().appSettings;
+    const rawSettings = useStore.getState().appSettings;
+    const settings = rawSettings ? {
+      insecureSsl: (rawSettings as any).insecureSsl ?? (rawSettings as any).insecureSSL ?? true,
+      requestTimeout: rawSettings.requestTimeout ?? 30000,
+      maxRedirects: rawSettings.maxRedirects ?? 10
+    } : null;
 
     // Delegate core execution to Rust (PIGEON-110 Unification)
     const res: any = await invoke('execute_request', {
       request,
       environment: environment || null,
       localVars: Object.keys(localVars).length > 0 ? localVars : null,
-      settings: appSettings || null
+      settings
     });
     
     if (res.error) {

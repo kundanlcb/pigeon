@@ -165,8 +165,14 @@ async fn main() {
 
                     let mut test_results = Vec::new();
                     
-                    let mut local_vars = manual_secrets.clone();
+                    let mut local_vars = HashMap::new();
                     for (k, v) in row_vars.iter() {
+                        local_vars.insert(k.clone(), v.clone());
+                    }
+                    for (k, v) in manual_secrets.iter() {
+                        if local_vars.contains_key(k) {
+                            eprintln!("Warning: Dataset variable '{}' is being overridden by an explicitly provided secret.", k);
+                        }
                         local_vars.insert(k.clone(), v.clone());
                     }
                     
@@ -236,7 +242,15 @@ async fn main() {
                     env_json = serde_json::to_string(&env_vars_for_script).unwrap()
                     );
 
-                    let output = Command::new("node").arg("-e").arg(&node_script).output();
+                    let output = Command::new("node")
+                        .arg("--experimental-permission")
+                        .arg("--allow-fs-read=none")
+                        .arg("--allow-fs-write=none")
+                        .arg("--allow-net=none")
+                        .arg("--allow-child-process=none")
+                        .arg("-e")
+                        .arg(&node_script)
+                        .output();
                     match output {
                         Ok(out) => {
                             if let Ok(parsed) = serde_json::from_slice::<Vec<Value>>(&out.stdout) {

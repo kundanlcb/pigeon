@@ -14,14 +14,6 @@ export interface RequestExecutionOptions {
   saveSecretsToEnvironment?: boolean; // App.tsx saves to env, RunnerView/Automation often don't save back unless it's a persistent var
 }
 
-export interface TimingBreakdown {
-  dnsLookup: number;
-  tcpConnect: number;
-  tlsHandshake?: number;
-  ttfb: number;
-  total: number;
-}
-
 export interface RequestExecutionResult {
   status: number;
   statusText: string;
@@ -32,7 +24,6 @@ export interface RequestExecutionResult {
   testResults: any[];
   error?: string;
   isCancelled?: boolean;
-  timing?: TimingBreakdown;
 }
 
 export async function executeRequest(options: RequestExecutionOptions): Promise<RequestExecutionResult> {

@@ -30,14 +30,6 @@ export interface TargetMetrics {
   status_codes: Record<number, number>;
 }
 
-export interface TimingBreakdown {
-  dnsLookup: number;
-  tcpConnect: number;
-  tlsHandshake?: number;
-  ttfb: number;
-  total: number;
-}
-
 export interface TelemetrySnapshot {
   time: string;
   path: string;

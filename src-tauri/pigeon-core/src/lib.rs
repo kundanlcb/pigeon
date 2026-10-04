@@ -52,19 +52,6 @@ pub async fn execute_request(
     let raw_text = response.text().await.unwrap_or_default();
     let data = serde_json::from_str(&raw_text).unwrap_or(serde_json::Value::String(raw_text.clone()));
     
-    let dns_time = (elapsed as f64 * 0.1) as u64;
-    let tcp_time = (elapsed as f64 * 0.2) as u64;
-    let tls_time = if request.url.starts_with("https") { Some((elapsed as f64 * 0.3) as u64) } else { None };
-    let ttfb = elapsed as u64 - (dns_time + tcp_time + tls_time.unwrap_or(0));
-    
-    let timing = models::TimingBreakdown {
-        dns_lookup: dns_time,
-        tcp_connect: tcp_time,
-        tls_handshake: tls_time,
-        ttfb,
-        total: elapsed as u64,
-    };
-    
     Ok(RequestExecutionResult {
         status,
         status_text,
@@ -75,6 +62,5 @@ pub async fn execute_request(
         test_results: vec![],
         error: None,
         is_cancelled: Some(false),
-        timing: Some(timing),
     })
 }

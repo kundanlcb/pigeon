@@ -91,16 +91,6 @@ pub struct RequestItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TimingBreakdown {
-    pub dns_lookup: u64,
-    pub tcp_connect: u64,
-    pub tls_handshake: Option<u64>,
-    pub ttfb: u64,
-    pub total: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RequestExecutionResult {
     pub status: u16,
     pub status_text: String,
@@ -113,8 +103,6 @@ pub struct RequestExecutionResult {
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_cancelled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timing: Option<TimingBreakdown>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

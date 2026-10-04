@@ -2941,6 +2941,7 @@ dependencies = [
  "tauri-plugin-persisted-scope",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "tempfile",
  "tokio",
 ]
 

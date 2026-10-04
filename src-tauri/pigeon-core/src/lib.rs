@@ -26,7 +26,7 @@ pub fn find_safe_boundary(bytes: &[u8], cut: usize) -> usize {
         }
     }
 }
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use reqwest::ClientBuilder;
 use std::time::{Duration, Instant};
 use models::{RequestItem, Environment, RequestExecutionResult, AppSettings};
@@ -38,13 +38,46 @@ use tower::{Layer, Service};
 use std::task::{Context, Poll};
 use std::pin::Pin;
 
-struct TimedResolver {
-    dns_time: Arc<Mutex<Option<u128>>>,
+#[derive(Default, Clone, Copy, Debug)]
+pub struct TimingData {
+    pub dns_time_ms: Option<u128>,
+    pub connect_time_ms: Option<u128>,
 }
+
+tokio::task_local! {
+    static TIMING: Arc<Mutex<TimingData>>;
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+struct ClientKey {
+    insecure_ssl: Option<bool>,
+    request_timeout: Option<u64>,
+    max_redirects: Option<usize>,
+}
+
+impl From<Option<&AppSettings>> for ClientKey {
+    fn from(settings: Option<&AppSettings>) -> Self {
+        match settings {
+            Some(s) => ClientKey {
+                insecure_ssl: Some(s.insecure_ssl),
+                request_timeout: Some(s.request_timeout),
+                max_redirects: Some(s.max_redirects),
+            },
+            None => ClientKey {
+                insecure_ssl: None,
+                request_timeout: None,
+                max_redirects: None,
+            },
+        }
+    }
+}
+
+static CLIENT_CACHE: OnceLock<Mutex<HashMap<ClientKey, reqwest::Client>>> = OnceLock::new();
+
+struct TimedResolver;
 
 impl Resolve for TimedResolver {
     fn resolve(&self, name: Name) -> reqwest::dns::Resolving {
-        let dns_time = self.dns_time.clone();
         let name_str = name.as_str().to_string();
         Box::pin(async move {
             let start = Instant::now();
@@ -54,27 +87,28 @@ impl Resolve for TimedResolver {
                     addrs.push(addr);
                 }
             }
-            if let Ok(mut lock) = dns_time.lock() {
-                if lock.is_none() {
-                    *lock = Some(start.elapsed().as_millis());
+            
+            let _ = TIMING.try_with(|timing| {
+                if let Ok(mut lock) = timing.lock() {
+                    if lock.dns_time_ms.is_none() {
+                        lock.dns_time_ms = Some(start.elapsed().as_millis());
+                    }
                 }
-            }
+            });
+            
             Ok(Box::new(addrs.into_iter()) as Addrs)
         })
     }
 }
 
 #[derive(Clone)]
-struct TimingLayer {
-    connect_time: Arc<Mutex<Option<u128>>>,
-}
+struct TimingLayer;
 
 impl<S> Layer<S> for TimingLayer {
     type Service = TimingService<S>;
     fn layer(&self, inner: S) -> Self::Service {
         TimingService {
             inner,
-            connect_time: self.connect_time.clone(),
         }
     }
 }
@@ -82,7 +116,6 @@ impl<S> Layer<S> for TimingLayer {
 #[derive(Clone)]
 struct TimingService<S> {
     inner: S,
-    connect_time: Arc<Mutex<Option<u128>>>,
 }
 
 impl<S, Req> Service<Req> for TimingService<S>
@@ -99,16 +132,20 @@ where
     }
 
     fn call(&mut self, req: Req) -> Self::Future {
-        let connect_time = self.connect_time.clone();
         let start = Instant::now();
         let fut = self.inner.call(req);
         Box::pin(async move {
             let res = fut.await;
             if res.is_ok() {
-                if let Ok(mut lock) = connect_time.lock() {
-                    if lock.is_none() {
-                        *lock = Some(start.elapsed().as_millis());
+                let err = TIMING.try_with(|timing| {
+                    if let Ok(mut lock) = timing.lock() {
+                        if lock.connect_time_ms.is_none() {
+                            lock.connect_time_ms = Some(start.elapsed().as_millis());
+                        }
                     }
+                });
+                if err.is_err() {
+                    println!("TIMING.try_with failed in TimingService!");
                 }
             }
             res
@@ -122,40 +159,58 @@ pub async fn execute_request(
     local_vars: Option<&HashMap<String, String>>,
     settings: Option<&AppSettings>,
 ) -> Result<RequestExecutionResult, CoreError> {
+    let key = ClientKey::from(settings);
     
-    let dns_time = Arc::new(Mutex::new(None));
-    let connect_time = Arc::new(Mutex::new(None));
+    let cache = CLIENT_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     
-    // Configure client
-    let mut cb = ClientBuilder::new()
-        .dns_resolver(Arc::new(TimedResolver { dns_time: dns_time.clone() }))
-        .connector_layer(TimingLayer { connect_time: connect_time.clone() });
-        
-    if let Some(s) = settings {
-        if s.insecure_ssl {
-            cb = cb.danger_accept_invalid_certs(true);
+    let client = {
+        let mut lock = cache.lock().unwrap();
+        if !lock.contains_key(&key) {
+            if lock.len() >= 100 {
+                lock.clear(); // Simple eviction to prevent unbounded growth
+            }
+            let mut cb = ClientBuilder::new()
+                .dns_resolver(Arc::new(TimedResolver))
+                .connector_layer(TimingLayer);
+                
+            if let Some(s) = settings {
+                if s.insecure_ssl {
+                    cb = cb.danger_accept_invalid_certs(true);
+                }
+                cb = cb.connect_timeout(Duration::from_millis(s.request_timeout));
+                cb = cb.timeout(Duration::from_millis(s.request_timeout));
+                
+                let policy = if s.max_redirects == 0 {
+                    reqwest::redirect::Policy::none()
+                } else {
+                    reqwest::redirect::Policy::limited(s.max_redirects)
+                };
+                cb = cb.redirect(policy);
+            }
+            
+            let c = cb.build().map_err(|e| CoreError::Other(format!("Failed to build client: {}", e)))?;
+            lock.insert(key.clone(), c);
         }
-        cb = cb.connect_timeout(Duration::from_millis(s.request_timeout));
-        cb = cb.timeout(Duration::from_millis(s.request_timeout));
-        
-        let policy = if s.max_redirects == 0 {
-            reqwest::redirect::Policy::none()
-        } else {
-            reqwest::redirect::Policy::limited(s.max_redirects)
-        };
-        cb = cb.redirect(policy);
-    }
-    
-    let client = cb.build().map_err(|e| CoreError::Other(format!("Failed to build client: {}", e)))?;
+        lock.get(&key).unwrap().clone()
+    };
     
     let req_builder = build_request(&client, request, environment, local_vars).await?;
     
-    let start_time = Instant::now();
+    let timing_data = Arc::new(Mutex::new(TimingData::default()));
     
-    let response = req_builder.send().await
-        .map_err(|e| CoreError::Network(format!("Request failed: {}", e)))?;
+    let response_result = TIMING.scope(timing_data.clone(), async {
+        let start_time = Instant::now();
         
-    let ttfb_ms = start_time.elapsed().as_millis();
+        let response = req_builder.send().await
+            .map_err(|e| CoreError::Network(format!("Request failed: {}", e)))?;
+            
+        let ttfb_ms = start_time.elapsed().as_millis();
+        let elapsed = start_time.elapsed().as_millis();
+        
+        Ok::<_, CoreError>((response, ttfb_ms, elapsed))
+    }).await;
+    
+    let (response, ttfb_ms, elapsed) = response_result?;
     
     let status = response.status().as_u16();
     let status_text = response.status().canonical_reason().unwrap_or("").to_string();
@@ -167,7 +222,6 @@ pub async fn execute_request(
     
     let bytes = response.bytes().await.unwrap_or_default();
     
-    let elapsed = start_time.elapsed().as_millis();
     let size_bytes = bytes.len();
     let max_size = 5 * 1024 * 1024; // 5 MB ceiling
     let is_truncated = size_bytes > max_size;
@@ -185,8 +239,10 @@ pub async fn execute_request(
         }
     };
     
-    let d_time = *dns_time.lock().unwrap();
-    let c_time = *connect_time.lock().unwrap();
+    let (d_time, c_time) = {
+        let lock = timing_data.lock().unwrap();
+        (lock.dns_time_ms, lock.connect_time_ms)
+    };
 
     let mut res = RequestExecutionResult {
         status,

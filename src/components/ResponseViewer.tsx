@@ -55,7 +55,7 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
           <div className="flex items-center space-x-2">
             <span className="text-text-muted">Size</span>
             <span className={`${response ? 'text-text-primary' : 'text-border-strong'} font-mono font-medium`}>
-              {response ? (response.size > 1024 ? `${(response.size / 1024).toFixed(1)} KB` : `${response.size} B`) : '0 B'}
+              {response ? (response.sizeBytes > 1024 ? `${(response.sizeBytes / 1024).toFixed(1)} KB` : `${response.sizeBytes} B`) : '0 B'}
             </span>
           </div>
         </div>
@@ -132,23 +132,41 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
       <div className="flex-1 overflow-y-auto font-mono text-[13px] leading-relaxed relative">
         {response ? (
           activeResponseTab === 'preview' ? (
-            previewMode === 'visual' && language === 'html' ? (
-              <div className="w-full h-full bg-white absolute inset-0">
-                <iframe
-                  srcDoc={response.data}
-                  title="Response Preview"
-                  className="w-full h-full border-0 bg-white"
-                  sandbox="allow-scripts allow-same-origin"
-                />
-              </div>
-            ) : previewMode === 'pretty' ? (
-              <div className="w-full h-full bg-panel-bg absolute inset-0">
-                <JsonEditor value={response.data} readOnly={true} bgType="panel" language={language} autoFormat={true} />
+            response.isBinary ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-text-secondary space-y-3">
+                <Code2 size={48} className="text-border-strong" />
+                <div className="font-medium">Binary Response</div>
+                <div className="text-text-muted text-xs">Content-Type: {response.headers?.['content-type'] || response.headers?.['Content-Type'] || 'Unknown'}</div>
+                <div className="text-text-muted text-xs">{response.sizeBytes > 1024 * 1024 ? `${(response.sizeBytes / 1024 / 1024).toFixed(1)} MB` : `${response.sizeBytes} bytes`}</div>
               </div>
             ) : (
-              <pre className="text-text-primary m-0 whitespace-pre-wrap p-4 w-full h-full">
-                {response.data}
-              </pre>
+              <div className="w-full h-full absolute inset-0 flex flex-col">
+                {response.isTruncated && (
+                  <div className="bg-yellow-500/10 text-yellow-600 text-[11px] py-1.5 px-4 border-b border-yellow-500/20">
+                    Response was too large and has been truncated ({Math.round(response.sizeBytes / 1024 / 1024 * 10) / 10} MB).
+                  </div>
+                )}
+                <div className="flex-1 relative">
+                  {previewMode === 'visual' && language === 'html' ? (
+                    <div className="w-full h-full bg-white absolute inset-0">
+                      <iframe
+                        srcDoc={response.data}
+                        title="Response Preview"
+                        className="w-full h-full border-0 bg-white"
+                        sandbox="allow-scripts allow-same-origin"
+                      />
+                    </div>
+                  ) : previewMode === 'pretty' ? (
+                    <div className="w-full h-full bg-panel-bg absolute inset-0">
+                      <JsonEditor value={response.data} readOnly={true} bgType="panel" language={language} autoFormat={true} />
+                    </div>
+                  ) : (
+                    <pre className="text-text-primary m-0 whitespace-pre-wrap p-4 w-full h-full">
+                      {response.data}
+                    </pre>
+                  )}
+                </div>
+              </div>
             )
           ) : activeResponseTab === 'headers' ? (
             <div className="w-full text-[13px] font-mono">

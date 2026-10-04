@@ -29,7 +29,14 @@ pub async fn execute_request(
             cb = cb.danger_accept_invalid_certs(true);
         }
         cb = cb.connect_timeout(Duration::from_millis(s.request_timeout));
-        // We'll keep default redirects, setting max redirects if reqwest supports it easily
+        cb = cb.timeout(Duration::from_millis(s.request_timeout));
+        
+        let policy = if s.max_redirects == 0 {
+            reqwest::redirect::Policy::none()
+        } else {
+            reqwest::redirect::Policy::limited(s.max_redirects)
+        };
+        cb = cb.redirect(policy);
     }
     
     let client = cb.build().map_err(|e| CoreError::Other(format!("Failed to build client: {}", e)))?;
@@ -51,8 +58,26 @@ pub async fn execute_request(
         headers.insert(k.as_str().to_string(), v.to_str().unwrap_or("").to_string());
     }
     
-    let raw_text = response.text().await.unwrap_or_default();
-    let data = serde_json::from_str(&raw_text).unwrap_or(serde_json::Value::String(raw_text.clone()));
+    let bytes = response.bytes().await.unwrap_or_default();
+    let size_bytes = bytes.len();
+    let max_size = 5 * 1024 * 1024; // 5 MB ceiling
+    let is_truncated = size_bytes > max_size;
+    
+    let byte_slice = if is_truncated {
+        &bytes[..max_size]
+    } else {
+        &bytes[..]
+    };
+    
+    let (raw_text, data, is_binary) = match std::str::from_utf8(byte_slice) {
+        Ok(s) => {
+            let parsed = serde_json::from_str(s).unwrap_or(serde_json::Value::String(s.to_string()));
+            (s.to_string(), parsed, false)
+        },
+        Err(_) => {
+            (String::new(), serde_json::Value::Null, true)
+        }
+    };
     
     let mut res = RequestExecutionResult {
         status,
@@ -63,6 +88,9 @@ pub async fn execute_request(
         raw_text,
         test_results: vec![],
         env_mutations: None,
+        is_binary: Some(is_binary),
+        size_bytes: Some(size_bytes),
+        is_truncated: Some(is_truncated),
         error: None,
         is_cancelled: Some(false),
     };

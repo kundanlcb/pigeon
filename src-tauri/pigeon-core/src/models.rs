@@ -102,6 +102,12 @@ pub struct RequestExecutionResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_mutations: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_binary: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size_bytes: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_truncated: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_cancelled: Option<bool>,

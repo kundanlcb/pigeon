@@ -232,7 +232,9 @@ export default function App() {
         status: result.status,
         statusText: result.statusText,
         time: result.timeMs,
-        size: result.rawText.length,
+        sizeBytes: result.sizeBytes ?? result.rawText.length,
+        isBinary: result.isBinary,
+        isTruncated: result.isTruncated,
         headers: result.headers,
         data: typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data,
         testResults: result.testResults
@@ -243,7 +245,9 @@ export default function App() {
         status: 0,
         statusText: error.name === 'AbortError' ? 'Cancelled' : 'Error',
         time: 0,
-        size: 0,
+        sizeBytes: 0,
+        isBinary: false,
+        isTruncated: false,
         headers: {},
         data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatPigeonError(error),
         testResults: []

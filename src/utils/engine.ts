@@ -22,6 +22,9 @@ export interface RequestExecutionResult {
   data: any;
   rawText: string;
   testResults: any[];
+  isBinary?: boolean;
+  sizeBytes?: number;
+  isTruncated?: boolean;
   error?: string;
   isCancelled?: boolean;
 }
@@ -158,6 +161,9 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
       data: res.data,
       rawText: res.rawText || '',
       testResults,
+      isBinary: res.isBinary,
+      sizeBytes: res.sizeBytes,
+      isTruncated: res.isTruncated,
       error: res.error,
       isCancelled: res.isCancelled
     };
@@ -172,6 +178,9 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
       data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatPigeonError(error),
       rawText: '',
       testResults: [],
+      isBinary: false,
+      sizeBytes: 0,
+      isTruncated: false,
       error: error.message || String(error),
       isCancelled: error.name === 'AbortError'
     };

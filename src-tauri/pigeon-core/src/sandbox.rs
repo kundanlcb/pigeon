@@ -177,6 +177,9 @@ mod tests {
             raw_text: "{\"foo\":\"bar\"}".to_string(),
             test_results: vec![],
             env_mutations: None,
+            is_binary: Some(false),
+            size_bytes: Some(13),
+            is_truncated: Some(false),
             error: None,
             is_cancelled: Some(false),
         }

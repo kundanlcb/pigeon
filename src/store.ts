@@ -30,6 +30,14 @@ export interface TargetMetrics {
   status_codes: Record<number, number>;
 }
 
+export interface TimingBreakdown {
+  dnsLookup: number;
+  tcpConnect: number;
+  tlsHandshake?: number;
+  ttfb: number;
+  total: number;
+}
+
 export interface TelemetrySnapshot {
   time: string;
   path: string;
@@ -146,6 +154,7 @@ export interface HistoryItem {
 export interface RunnerResult {
   requestId: string;
   requestName: string;
+  iteration?: number;
   status: 'success' | 'error' | 'pending' | 'running';
   statusCode?: number;
   responseTime?: number;
@@ -160,11 +169,23 @@ export interface RunnerState {
   currentIndex: number;
 }
 
+export interface FlowNodeExtraction {
+  id: string;
+  path: string;
+  variableName: string;
+  source: 'body' | 'header';
+}
+
 export interface FlowNode {
   id: string;
   type: string; // 'requestNode', 'delayNode'
   position: { x: number; y: number };
-  data: any;
+  data: {
+    requestId?: string;
+    continueOnError?: boolean;
+    extractions?: FlowNodeExtraction[];
+    [key: string]: any;
+  };
 }
 
 export interface FlowEdge {

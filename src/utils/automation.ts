@@ -5,10 +5,12 @@ export interface FlowRunResult {
   nodeId: string;
   requestId: string;
   requestName: string;
-  status: 'success' | 'error';
+  status: 'success' | 'error' | 'pending';
   statusCode?: number;
   timeMs?: number;
   error?: string;
+  data?: any;
+  headers?: Record<string, string>;
 }
 
 export function topologicalSort(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
@@ -141,6 +143,53 @@ export async function executeRequestNode(
       saveSecretsToEnvironment: true
     });
     
+    // PIGEON-111: Process variable extractions
+    if (node.data?.extractions && node.data.extractions.length > 0) {
+      for (const ext of node.data.extractions) {
+        let extractedVal: any = undefined;
+        
+        if (ext.source === 'header') {
+          // Headers are case-insensitive, we'll try to match exact or lowercase
+          const headers = result.headers || {};
+          const lowerPath = ext.path.toLowerCase();
+          const key = Object.keys(headers).find(k => k.toLowerCase() === lowerPath);
+          if (key) {
+            extractedVal = headers[key];
+          }
+        } else {
+          // Body extraction
+          if (result.data) {
+            if (ext.path === '') {
+              extractedVal = result.data;
+            } else {
+              // Simple JSONPath resolver for dot and bracket notation
+              const parts = ext.path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+              let curr = result.data;
+              let found = true;
+              for (const p of parts) {
+                if (curr && typeof curr === 'object' && p in curr) {
+                  curr = curr[p];
+                } else {
+                  found = false;
+                  break;
+                }
+              }
+              if (found) {
+                extractedVal = curr;
+              }
+            }
+          }
+        }
+
+        if (extractedVal !== undefined) {
+          flowVariables[ext.variableName] = typeof extractedVal === 'object' ? JSON.stringify(extractedVal) : String(extractedVal);
+          onLog(`[Extraction] Extracted variable '${ext.variableName}' from ${ext.source} path '${ext.path}'`);
+        } else {
+          throw new Error(`\`{{${ext.variableName}}}\` — field '${ext.path}' not found in Step '${request.name}' response`);
+        }
+      }
+    }
+
     const testError = result.testResults.filter(t => !t.passed).length > 0 
       ? `Tests failed: ${result.testResults.filter(t => !t.passed).length}` 
       : '';
@@ -152,7 +201,9 @@ export async function executeRequestNode(
       status: (result.status >= 200 && result.status < 300 && !testError) ? 'success' : 'error',
       statusCode: result.status,
       timeMs: result.timeMs,
-      error: testError || (result.status >= 200 && result.status < 300 ? undefined : `HTTP ${result.status}: ${result.error || result.statusText}`)
+      error: testError || (result.status >= 200 && result.status < 300 ? undefined : `HTTP ${result.status}: ${result.error || result.statusText}`),
+      data: result.data,
+      headers: result.headers
     };
   } catch (error: any) {
     return {

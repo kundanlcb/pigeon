@@ -36,14 +36,11 @@ import {
   RotateCcw,
   Link
 } from 'lucide-react';
-import { 
-  topologicalSort, 
-  getFlowExecutionStages, 
-  executeRequestNode, 
-  type FlowRunResult 
-} from '../utils/automation';
+import { topologicalSort, getFlowExecutionStages, executeRequestNode, type FlowRunResult } from '../utils/automation';
 import { MethodIcon } from './MethodIcon';
 import { EnvironmentSelector } from './EnvironmentSelector';
+import { JsonPathExtractor } from './JsonPathExtractor';
+import { VariableInspector } from './VariableInspector';
 
 interface AutomationViewProps {
   onManageEnvClick?: () => void;
@@ -202,7 +199,10 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [runResults, setRunResults] = useState<FlowRunResult[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
-  const [showResults, setShowResults] = useState(false);
+  const [rightPanelMode, setRightPanelMode] = useState<'hidden' | 'results' | 'variables'>('hidden');
+  const [flowVariablesState, setFlowVariablesState] = useState<Record<string, string>>({});
+  const [expandedResultId, setExpandedResultId] = useState<string | null>(null);
+  const [extractionPrompt, setExtractionPrompt] = useState<{ nodeId: string; path: string; source: 'body'|'header'; defaultName: string } | null>(null);
 
   const [isColDropdownOpen, setIsColDropdownOpen] = useState(false);
   const colDropdownRef = useRef<HTMLDivElement>(null);
@@ -260,7 +260,8 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
     setIsRunning(true);
     setRunResults([]);
     setLogs([]);
-    setShowResults(true);
+    setFlowVariablesState({});
+    setRightPanelMode('results');
 
     const isParallel = activeFlow.parallelExecution !== false; // parallel by default
     const globalContinueOnError = activeFlow.continueOnError ?? false;
@@ -288,7 +289,7 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
             const idx = copy.findIndex(r => r.nodeId === node.id);
             const placeholder: FlowRunResult = {
               nodeId: node.id,
-              requestId: node.data.requestId,
+              requestId: node.data.requestId || '',
               requestName: 'Running...',
               status: 'success'
             };
@@ -313,6 +314,7 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
           }
           return copy;
         });
+        setFlowVariablesState({ ...flowVariables });
 
         // Check if any node in this stage failed
         const failedNodes = stageResults.filter(r => r.status === 'error');
@@ -346,6 +348,7 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
           else copy.push(result);
           return copy;
         });
+        setFlowVariablesState({ ...flowVariables });
 
         if (result.status === 'error') {
           const nodeAllowsContinue = node.data?.continueOnError ?? false;
@@ -368,7 +371,7 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
     const targetNode = nodes.find(n => n.id === nodeId);
     if (!targetNode || targetNode.type !== 'requestNode' || !targetNode.data?.requestId) return;
 
-    setShowResults(true);
+    setRightPanelMode('results');
     setLogs(l => [...l, `[Single Step] Running node ${nodeId}...`]);
     setRunResults(prev => {
       const copy = prev.filter(r => r.nodeId !== nodeId);
@@ -482,8 +485,43 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
   };
 
 
+  const handleAddExtraction = (nodeId: string, path: string, variableName: string, source: 'body'|'header') => {
+    const nextNodes = nodes.map(n => {
+      if (n.id === nodeId) {
+        const extractions = n.data?.extractions || [];
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            extractions: [
+              ...extractions.filter((e: any) => e.path !== path || e.source !== source), // replace if exists
+              { id: `ext-${Date.now()}`, path, variableName, source }
+            ]
+          }
+        };
+      }
+      return n;
+    });
+    setNodes(nextNodes);
+    updateFlow(activeFlowId!, { nodes: nextNodes as any });
+    setExtractionPrompt(null);
+  };
+
   const selectedCollection = collections.find(c => c.id === activeFlow?.collectionId);
   const totalRequestsCount = collections.reduce((acc, c) => acc + c.requests.length, 0);
+
+  const allExtractions = nodes.flatMap(n => 
+    (n.data?.extractions || []).map((ext: any) => {
+      let nodeName = 'Unknown Node';
+      if (n.data?.requestId) {
+        for (const c of collections) {
+          const r = c.requests.find(req => req.id === n.data.requestId);
+          if (r) { nodeName = r.name; break; }
+        }
+      }
+      return { nodeId: n.id, nodeName, ext };
+    })
+  );
 
   if (!activeFlowId) {
     return (
@@ -522,8 +560,8 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
           {/* Results Badge */}
           {runResults.length > 0 && (
             <button
-              onClick={() => setShowResults(!showResults)}
-              className="flex items-center text-xs font-medium text-text-secondary hover:text-text-primary px-2 py-1 bg-panel-bg border border-border-strong rounded-[4px] hover:border-text-secondary transition-colors shadow-sm"
+              onClick={() => setRightPanelMode(rightPanelMode === 'results' ? 'hidden' : 'results')}
+              className={`flex items-center text-xs font-medium px-2 py-1 bg-panel-bg border rounded-[4px] transition-colors shadow-sm ${rightPanelMode === 'results' ? 'border-accent text-text-primary' : 'border-border-strong text-text-secondary hover:text-text-primary hover:border-text-secondary'}`}
             >
               {runResults.some(r => r.status === 'error') ? (
                 <XCircle size={12} className="text-red-400 mr-1" />
@@ -531,6 +569,17 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
                 <CheckCircle2 size={12} className="text-emerald-400 mr-1" />
               )}
               Results ({runResults.filter(r => r.status === 'success').length}/{runResults.length})
+            </button>
+          )}
+
+          {/* Variables Badge */}
+          {allExtractions.length > 0 && (
+            <button
+              onClick={() => setRightPanelMode(rightPanelMode === 'variables' ? 'hidden' : 'variables')}
+              className={`flex items-center text-xs font-medium px-2 py-1 bg-panel-bg border rounded-[4px] transition-colors shadow-sm ${rightPanelMode === 'variables' ? 'border-accent text-text-primary' : 'border-border-strong text-text-secondary hover:text-text-primary hover:border-text-secondary'}`}
+            >
+              <span className="font-mono mr-1.5 opacity-70">{"{}"}</span>
+              Variables ({Object.keys(flowVariablesState).length}/{allExtractions.length})
             </button>
           )}
 
@@ -646,13 +695,22 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
           </ReactFlow>
         </div>
         
+        {/* Variable Inspector Panel */}
+        {rightPanelMode === 'variables' && (
+          <VariableInspector 
+            extractions={allExtractions} 
+            flowVariables={flowVariablesState} 
+            runResults={runResults} 
+          />
+        )}
+
         {/* Execution Results Panel */}
-        {showResults && (
-          <div className="w-80 h-full bg-panel-bg border-l border-border-strong flex flex-col absolute right-0 top-0 shadow-2xl z-20">
+        {rightPanelMode === 'results' && (
+          <div className="w-[400px] h-full bg-panel-bg border-l border-border-strong flex flex-col absolute right-0 top-0 shadow-2xl z-20">
             <div className="p-3 border-b border-border-subtle flex justify-between items-center">
               <h3 className="font-semibold text-text-primary text-xs">Execution Results</h3>
               <button 
-                onClick={() => setShowResults(false)} 
+                onClick={() => setRightPanelMode('hidden')} 
                 className="text-text-muted hover:text-text-primary text-xs"
               >
                 Close
@@ -662,7 +720,7 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
               {runResults.map((r, i) => (
                 <div 
                   key={i} 
-                  className={`p-2.5 rounded-[4px] border ${
+                  className={`rounded-[4px] border overflow-hidden ${
                     r.status === 'success' 
                       ? 'bg-emerald-500/10 border-emerald-500/30' 
                       : r.status === 'error' 
@@ -670,7 +728,10 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
                       : 'bg-surface-bg border-border-subtle'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div 
+                    className="flex items-center justify-between p-2.5 cursor-pointer hover:bg-black/10"
+                    onClick={() => setExpandedResultId(expandedResultId === r.nodeId ? null : r.nodeId)}
+                  >
                     <div className="font-medium flex items-center gap-1.5 text-text-primary text-xs truncate">
                       {r.status === 'success' ? (
                         <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
@@ -689,8 +750,49 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
                       </span>
                     )}
                   </div>
-                  {r.error && <div className="text-[11px] text-red-400 mt-1 break-words">{r.error}</div>}
-                  {r.timeMs && <div className="text-[10px] text-text-muted mt-1">{r.timeMs.toFixed(1)}ms</div>}
+                  
+                  {r.error && <div className="text-[11px] text-red-400 px-2.5 pb-2 break-words">{r.error}</div>}
+                  {r.timeMs && !expandedResultId && <div className="text-[10px] text-text-muted px-2.5 pb-2">{r.timeMs.toFixed(1)}ms</div>}
+                  
+                  {expandedResultId === r.nodeId && r.data && (
+                    <div className="p-2 border-t border-black/10 bg-black/5 flex flex-col gap-2 max-h-[300px]">
+                      <div className="text-[10px] uppercase font-semibold text-text-muted flex justify-between">
+                        <span>Response Body</span>
+                        <span className="font-mono normal-case">{r.timeMs?.toFixed(1)}ms</span>
+                      </div>
+                      <div className="flex-1 overflow-hidden rounded border border-border-subtle">
+                        <JsonPathExtractor 
+                          data={r.data} 
+                          onExtract={(path) => {
+                            let defaultName = r.requestName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                            if (path) defaultName += `_${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                            setExtractionPrompt({ nodeId: r.nodeId, path, source: 'body', defaultName });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {expandedResultId === r.nodeId && r.headers && Object.keys(r.headers).length > 0 && (
+                    <div className="p-2 border-t border-black/10 bg-black/5 flex flex-col gap-2 max-h-[150px]">
+                      <div className="text-[10px] uppercase font-semibold text-text-muted">Headers</div>
+                      <div className="flex-1 overflow-auto rounded border border-border-subtle bg-surface-bg custom-scrollbar p-1">
+                        {Object.entries(r.headers).map(([k, v]) => (
+                          <div 
+                            key={k} 
+                            className="flex items-center gap-2 text-[11px] font-mono p-1 hover:bg-accent/10 rounded cursor-pointer group"
+                            onClick={() => {
+                              const defaultName = `${r.requestName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${k.toLowerCase()}`;
+                              setExtractionPrompt({ nodeId: r.nodeId, path: k, source: 'header', defaultName });
+                            }}
+                          >
+                            <span className="text-sky-400 break-all">{k}:</span>
+                            <span className="text-text-secondary truncate group-hover:text-text-primary transition-colors flex-1">{String(v)}</span>
+                            <span className="opacity-0 group-hover:opacity-100 bg-accent text-white px-1 py-0.5 rounded text-[9px] shrink-0">Extract</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -833,6 +935,65 @@ export function AutomationView({ onManageEnvClick }: AutomationViewProps) {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Extraction Prompt Modal */}
+      {extractionPrompt && (
+        <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4">
+          <div className="bg-panel-bg border border-border-strong rounded-lg shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-4 py-3 border-b border-border-subtle">
+              <h3 className="font-semibold text-text-primary">Extract Variable</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">Source Path</label>
+                <div className="font-mono text-[11px] text-text-secondary bg-surface-bg border border-border-subtle rounded p-2 overflow-x-auto break-all">
+                  {extractionPrompt.source === 'header' ? `Header: ${extractionPrompt.path}` : `Body: ${extractionPrompt.path || 'root'}`}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">Variable Name</label>
+                <div className="flex items-center bg-surface-bg border border-border-strong rounded focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/30 overflow-hidden">
+                  <span className="text-text-muted font-mono text-xs pl-2 pr-1 select-none">{"{{"}</span>
+                  <input 
+                    type="text" 
+                    autoFocus
+                    defaultValue={extractionPrompt.defaultName}
+                    className="flex-1 bg-transparent border-none outline-none py-1.5 text-text-primary text-xs font-mono"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddExtraction(extractionPrompt.nodeId, extractionPrompt.path, e.currentTarget.value.trim(), extractionPrompt.source);
+                      }
+                      if (e.key === 'Escape') setExtractionPrompt(null);
+                    }}
+                    id="extraction-var-name"
+                  />
+                  <span className="text-text-muted font-mono text-xs pr-2 pl-1 select-none">{"}}"}</span>
+                </div>
+                <p className="text-[10px] text-text-muted mt-1.5 leading-relaxed">
+                  This variable will be available as <code className="bg-surface-hover px-1 rounded text-text-secondary">{'{{var_name}}'}</code> in any subsequent nodes during the flow run.
+                </p>
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-border-subtle bg-surface-hover flex justify-end gap-2">
+              <button 
+                onClick={() => setExtractionPrompt(null)}
+                className="px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-bg rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  const input = document.getElementById('extraction-var-name') as HTMLInputElement;
+                  if (input) handleAddExtraction(extractionPrompt.nodeId, extractionPrompt.path, input.value.trim(), extractionPrompt.source);
+                }}
+                className="px-3 py-1.5 text-xs font-medium bg-accent text-white hover:bg-accent-hover rounded shadow-sm transition-colors"
+              >
+                Save Variable
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

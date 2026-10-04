@@ -3,6 +3,7 @@ mod secrets;
 mod git;
 pub mod load_test;
 pub mod http;
+mod execute;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -31,6 +32,8 @@ pub fn run() {
             git::git_command,
             load_test::start_load_test,
             load_test::stop_load_test,
+            execute::execute_request,
+            execute::parse_dataset,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

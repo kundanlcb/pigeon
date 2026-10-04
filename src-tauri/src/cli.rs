@@ -3,6 +3,7 @@ use std::fs;
 use std::collections::HashMap;
 use serde_json::{Value, json};
 use std::process::Command;
+use pigeon_core::models::{RequestItem, Environment, AppSettings};
 
 #[derive(Parser)]
 #[command(
@@ -39,6 +40,10 @@ enum Commands {
         #[arg(long = "secret-file", value_name = "FILE")]
         secret_file: Option<String>,
         
+        /// Path to a CSV or JSON dataset for data-driven runs
+        #[arg(long = "data", value_name = "FILE")]
+        data: Option<String>,
+        
         /// Reporter format (text, json, junit)
         #[arg(long, default_value = "text")]
         reporter: String,
@@ -47,6 +52,7 @@ enum Commands {
 
 #[derive(Debug)]
 struct RequestResult {
+    iteration: usize,
     name: String,
     method: String,
     url: String,
@@ -77,7 +83,7 @@ async fn main() {
     let mut exit_code = 0;
 
     match &cli.command {
-        Commands::Run { collection, env, insecure, secrets, secret_file, reporter } => {
+        Commands::Run { collection, env, insecure, secrets, secret_file, data, reporter } => {
             let coll_data = fs::read_to_string(collection).unwrap_or_else(|e| {
                 eprintln!("Failed to read collection file: {}", e);
                 std::process::exit(1);
@@ -86,6 +92,25 @@ async fn main() {
                 eprintln!("Failed to parse collection JSON: {}", e);
                 std::process::exit(1);
             });
+            
+            let dataset_rows = if let Some(data_path) = data {
+                let data_content = fs::read_to_string(data_path).unwrap_or_else(|e| {
+                    eprintln!("Failed to read dataset file: {}", e);
+                    std::process::exit(1);
+                });
+                let is_csv = data_path.to_lowercase().ends_with(".csv");
+                let parsed = pigeon_core::dataset_parser::parse_dataset(&data_content, is_csv).unwrap_or_else(|e| {
+                    eprintln!("Failed to parse dataset: {}", e);
+                    std::process::exit(1);
+                });
+                if parsed.is_empty() {
+                    eprintln!("Dataset is empty");
+                    std::process::exit(1);
+                }
+                parsed
+            } else {
+                vec![HashMap::new()]
+            };
             
             let mut manual_secrets = HashMap::new();
             if let Some(path) = secret_file {
@@ -105,120 +130,73 @@ async fn main() {
                 }
             }
 
-            let mut env_vars = HashMap::new();
-            let mut env_id = String::new();
-            if let Some(env_path) = env {
+            let env_model = if let Some(env_path) = env {
                 let env_data = fs::read_to_string(env_path).unwrap_or_else(|e| {
                     eprintln!("Failed to read environment file: {}", e);
                     std::process::exit(1);
                 });
-                let parsed_env: Value = serde_json::from_str(&env_data).unwrap_or_else(|e| {
+                Some(serde_json::from_str::<Environment>(&env_data).unwrap_or_else(|e| {
                     eprintln!("Failed to parse environment JSON: {}", e);
                     std::process::exit(1);
-                });
-                env_id = parsed_env["id"].as_str().unwrap_or("").to_string();
-                if let Some(vars) = parsed_env["variables"].as_array() {
-                    for var in vars {
-                        let key = var["key"].as_str().unwrap_or("");
-                        let is_secret = var["secretStored"].as_bool().unwrap_or(var["secret"].as_bool().unwrap_or(false));
-                        let val = if is_secret {
-                            if let Some(v) = manual_secrets.get(key) {
-                                v.to_string()
-                            } else {
-                                // Try keychain
-                                let account = format!("{}:{}", env_id, key);
-                                match keyring::Entry::new("pigeon", &account) {
-                                    Ok(entry) => match entry.get_password() {
-                                        Ok(pw) => pw,
-                                        Err(_) => {
-                                            eprintln!("Secret '{}' not found in keychain — set it or provide via --secret-override", key);
-                                            std::process::exit(1);
-                                        }
-                                    },
-                                    Err(_) => {
-                                        eprintln!("Secret '{}' not found in keychain — set it or provide via --secret-override", key);
-                                        std::process::exit(1);
-                                    }
-                                }
-                            }
-                        } else {
-                            var["value"].as_str().unwrap_or("").to_string()
-                        };
-                        env_vars.insert(key.to_string(), val);
-                    }
-                }
-            }
+                }))
+            } else {
+                None
+            };
             
+            let settings = AppSettings {
+                insecure_ssl: *insecure,
+                request_timeout: 30000,
+                max_redirects: 10,
+            };
+
             let mut results = Vec::new();
-            let client = app_lib::http::build_client(*insecure).unwrap();
             
             let requests = parsed_coll["requests"].as_array().cloned().unwrap_or_default();
-            for req in requests {
-                let method = req["method"].as_str().unwrap_or("GET");
-                let mut url = req["url"].as_str().unwrap_or("").to_string();
-                let name = req["name"].as_str().unwrap_or("Unnamed Request");
-                
-                for (k, v) in &env_vars {
-                    url = url.replace(&format!("{{{{{}}}}}", k), v);
-                }
-                
-                let mut headers_map = HashMap::new();
-                if let Some(headers_obj) = req["headers"].as_object() {
-                    for (k, v) in headers_obj {
-                        if let Some(val_str) = v.as_str() {
-                            let mut final_val = val_str.to_string();
-                            for (ek, ev) in &env_vars {
-                                final_val = final_val.replace(&format!("{{{{{}}}}}", ek), ev);
-                            }
-                            headers_map.insert(k.clone(), final_val);
+            for (iter_idx, row_vars) in dataset_rows.into_iter().enumerate() {
+                for req in &requests {
+                    let request_item: RequestItem = match serde_json::from_value(req.clone()) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("Failed to parse request from collection: {}", e);
+                            exit_code = 1;
+                            continue;
                         }
-                    }
-                }
-                
-                let mut body = None;
-                if let Some(b) = req["body"].as_str() {
-                    let mut final_body = b.to_string();
-                    for (k, v) in &env_vars {
-                        final_body = final_body.replace(&format!("{{{{{}}}}}", k), v);
-                    }
-                    body = Some(final_body);
-                }
-                
-                let req_start = std::time::Instant::now();
-                let request = app_lib::http::build_request(&client, method, &url, &headers_map, body.as_ref());
-                
-                let mut status = 0;
-                let mut time_ms = 0;
-                let mut err_msg = None;
-                let mut test_results = Vec::new();
-                let mut resp_text = String::new();
+                    };
 
-                match request {
+                    let mut test_results = Vec::new();
+                    
+                    let mut local_vars = manual_secrets.clone();
+                    for (k, v) in row_vars.iter() {
+                        local_vars.insert(k.clone(), v.clone());
+                    }
+                    
+                    let res = pigeon_core::execute_request(&request_item, env_model.as_ref(), Some(&local_vars), Some(&settings)).await;
+                
+                let (status, time_ms, err_msg, resp_text) = match res {
                     Ok(r) => {
-                        match client.execute(r).await {
-                            Ok(res) => {
-                                status = res.status().as_u16();
-                                if status >= 400 {
-                                    exit_code = 1;
-                                    err_msg = Some(format!("HTTP {}", status));
-                                }
-                                resp_text = res.text().await.unwrap_or_default();
-                            }
-                            Err(e) => {
-                                exit_code = 1;
-                                err_msg = Some(e.to_string());
-                            }
+                        let mut status = r.status;
+                        let mut err_msg = None;
+                        if status >= 400 {
+                            exit_code = 1;
+                            err_msg = Some(format!("HTTP {}", status));
                         }
+                        (status, r.time_ms, err_msg, r.raw_text)
                     }
                     Err(e) => {
                         exit_code = 1;
-                        err_msg = Some(e);
+                        (0, 0, Some(e.to_string()), String::new())
                     }
-                }
-                time_ms = req_start.elapsed().as_millis();
+                };
 
-                if let Some(script) = req["testScript"].as_str() {
-                    // Quick and dirty node.js evaluation for tests
+                if let Some(script) = request_item.test_script {
+                    let env_vars_for_script = env_model.as_ref().map(|e| {
+                        let mut map = HashMap::new();
+                        for v in &e.variables {
+                            map.insert(v.key.clone(), v.value.clone());
+                        }
+                        map
+                    }).unwrap_or_default();
+
                     let node_script = format!(r#"
                         const script = {script_json};
                         const contextData = {{
@@ -252,10 +230,10 @@ async fn main() {
                             console.log(JSON.stringify([{{ name: 'Script Execution', passed: false, error: e.message }}]));
                         }}
                     "#, 
-                    script_json = serde_json::to_string(script).unwrap(),
+                    script_json = serde_json::to_string(&script).unwrap(),
                     status = status,
                     resp_json = serde_json::to_string(&resp_text).unwrap(),
-                    env_json = serde_json::to_string(&env_vars).unwrap()
+                    env_json = serde_json::to_string(&env_vars_for_script).unwrap()
                     );
 
                     let output = Command::new("node").arg("-e").arg(&node_script).output();
@@ -285,19 +263,22 @@ async fn main() {
                 }
 
                 results.push(RequestResult {
-                    name: name.to_string(),
-                    method: method.to_string(),
-                    url: url,
+                    iteration: iter_idx + 1,
+                    name: request_item.name,
+                    method: request_item.method,
+                    url: request_item.url, // Original un-resolved url for display, or resolved if we can extract it. We'll use un-resolved for now.
                     status,
                     time_ms,
                     error: err_msg,
                     tests: test_results,
                 });
             }
+        }
 
             if reporter == "json" {
                 let json_output = results.iter().map(|r| {
                     json!({
+                        "iteration": r.iteration,
                         "name": r.name,
                         "method": r.method,
                         "url": r.url,
@@ -317,7 +298,7 @@ async fn main() {
                 println!(r#"<testsuites>"#);
                 println!(r#"  <testsuite name="Pigeon Collection">"#);
                 for r in &results {
-                    println!(r#"    <testcase classname="{}" name="{}" time="{}">"#, escape_xml(&r.method), escape_xml(&r.name), r.time_ms as f64 / 1000.0);
+                    println!(r#"    <testcase classname="{}" name="Iter {} - {}" time="{}">"#, escape_xml(&r.method), r.iteration, escape_xml(&r.name), r.time_ms as f64 / 1000.0);
                     if let Some(err) = &r.error {
                         println!(r#"      <failure message="HTTP Error">{}</failure>"#, escape_xml(err));
                     }
@@ -332,10 +313,16 @@ async fn main() {
                 println!(r#"</testsuites>"#);
             } else {
                 for r in &results {
-                    if r.status >= 200 && r.status < 400 && r.error.is_none() {
-                        println!("- [{}] {} {} ... {} OK ({}ms)", r.method, r.name, r.url, r.status, r.time_ms);
+                    let iter_label = if r.iteration > 1 || results.last().map(|x| x.iteration).unwrap_or(1) > 1 {
+                        format!("[Iter {}] ", r.iteration)
                     } else {
-                        println!("- [{}] {} {} ... ERROR: {} ({}ms)", r.method, r.name, r.url, r.error.as_deref().unwrap_or(&r.status.to_string()), r.time_ms);
+                        String::new()
+                    };
+                    
+                    if r.status >= 200 && r.status < 400 && r.error.is_none() {
+                        println!("- {}{}[{}] {} {} ... {} OK ({}ms)", iter_label, r.method, r.name, r.url, r.status, r.time_ms, "");
+                    } else {
+                        println!("- {}{}[{}] {} {} ... ERROR: {} ({}ms)", iter_label, r.method, r.name, r.url, r.error.as_deref().unwrap_or(&r.status.to_string()), r.time_ms, "");
                     }
                     for t in &r.tests {
                         if t.passed {

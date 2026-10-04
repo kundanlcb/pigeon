@@ -102,6 +102,15 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
             )}
             {activeResponseTab === 'tests' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
           </button>
+          {response?.timing && (
+            <button 
+              onClick={() => setActiveResponseTab('timing')}
+              className={`py-2.5 font-medium relative ${activeResponseTab === 'timing' ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary transition-colors'}`}
+            >
+              Timing
+              {activeResponseTab === 'timing' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-accent"></div>}
+            </button>
+          )}
         </div>
         {activeResponseTab === 'preview' && response && (
           <div className="flex bg-surface-bg rounded-md p-0.5 border border-border-subtle">
@@ -187,6 +196,44 @@ export function ResponseViewer({ response, isLoading }: ResponseViewerProps) {
               ) : (
                 <div className="text-text-muted italic py-4 text-center">No tests ran.</div>
               )}
+            </div>
+          ) : activeResponseTab === 'timing' && response.timing ? (
+            <div className="w-full h-full p-6 text-sm flex justify-center text-text-primary">
+              <div className="w-full max-w-lg">
+                <h3 className="font-semibold mb-6 border-b border-border-subtle pb-2">Network Phase Timings</h3>
+                <div className="space-y-4">
+                  {[
+                    { label: 'DNS Lookup', val: response.timing.dnsLookup, color: 'bg-blue-400' },
+                    { label: 'TCP Connect', val: response.timing.tcpConnect, color: 'bg-purple-400' },
+                    { label: 'TLS Handshake', val: response.timing.tlsHandshake, color: 'bg-yellow-400' },
+                    { label: 'First Byte (TTFB)', val: response.timing.ttfb, color: 'bg-green-400' }
+                  ].map((phase, i) => {
+                    const total = response.timing.total;
+                    const w = phase.val !== undefined ? Math.max((phase.val / total) * 100, 1) : 0;
+                    
+                    return phase.val !== undefined ? (
+                      <div key={i} className="flex items-center">
+                        <div className="w-36 text-text-secondary">{phase.label}</div>
+                        <div className="flex-1 flex items-center space-x-3">
+                          <div className="h-2 rounded-full bg-surface-bg flex-1 overflow-hidden">
+                            <div className={`h-full ${phase.color}`} style={{ width: `${w}%` }}></div>
+                          </div>
+                          <div className="w-16 text-right font-mono text-xs">{phase.val} ms</div>
+                        </div>
+                      </div>
+                    ) : null;
+                  })}
+                  
+                  <div className="pt-4 mt-6 border-t border-border-subtle flex justify-between font-semibold">
+                    <span>Total Time</span>
+                    <span className="font-mono">{response.timing.total} ms</span>
+                  </div>
+                  
+                  <div className="mt-8 p-3 rounded-md bg-surface-hover text-xs text-text-muted">
+                    Note: Timing phases are approximate pending full HTTP connector tracing integration.
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null
         ) : (

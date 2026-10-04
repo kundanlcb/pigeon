@@ -76,6 +76,8 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
   const handleValueChange = (code: string) => {
     // Send a mock event to match standard onChange signature
     onChange({ target: { value: code } });
+    // Also update caret coordinates immediately after value change to ensure auto-suggestions pop up
+    setTimeout(getCaretCoordinates, 0);
   };
 
   const getCaretCoordinates = () => {
@@ -154,7 +156,16 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     const lastOpenIndex = textBeforeCaret.lastIndexOf('{{');
     if (lastOpenIndex !== -1) {
       const newBefore = textBeforeCaret.substring(0, lastOpenIndex);
-      const newValue = newBefore + `{{${varKey}}}` + textAfterCaret;
+      
+      // If we are already inside a block, textAfterCaret might contain the rest of the variable name and the closing brackets.
+      // We should swallow characters up to and including the first '}}' so we don't duplicate them.
+      let cleanAfterCaret = textAfterCaret;
+      const match = textAfterCaret.match(/^[^}]*\}\}/);
+      if (match) {
+        cleanAfterCaret = textAfterCaret.substring(match[0].length);
+      }
+      
+      const newValue = newBefore + `{{${varKey}}}` + cleanAfterCaret;
       
       handleValueChange(newValue);
       setShowSuggestions(false);

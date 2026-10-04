@@ -1,6 +1,26 @@
-import Editor, { useMonaco } from '@monaco-editor/react';
+import Editor, { useMonaco, loader } from '@monaco-editor/react';
 import { useEffect } from 'react';
 import { useStore } from '../store';
+
+// Bundle Monaco locally instead of fetching from CDN to support offline/corporate proxy environments
+import * as monacoLocal from 'monaco-editor';
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
+
+self.MonacoEnvironment = {
+  getWorker(_, label) {
+    if (label === 'json') {
+      return new jsonWorker();
+    }
+    if (label === 'html' || label === 'handlebars' || label === 'razor') {
+      return new htmlWorker();
+    }
+    return new editorWorker();
+  },
+};
+
+loader.config({ monaco: monacoLocal });
 
 let providersRegistered = false;
 

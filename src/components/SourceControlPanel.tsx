@@ -336,7 +336,9 @@ export function SourceControlPanel() {
                               {item.status.trim() || '?'}
                             </span>
                             <span className="text-text-primary truncate flex-1">{item.file}</span>
-                            <Check size={12} className="text-accent opacity-50" title="Staged for commit" />
+                            <span title="Staged for commit" className="flex items-center justify-center">
+                              <Check size={12} className="text-accent opacity-50" />
+                            </span>
                           </div>
                         ))}
                       </div>

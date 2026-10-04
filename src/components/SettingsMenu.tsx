@@ -9,13 +9,27 @@ import { SettingsModal } from './SettingsModal';
 export function SettingsMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [hasUpdate] = useState(false);
+  const [hasUpdate, setHasUpdate] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const showToast = useStore((state: any) => state.showToast);
 
-  // Removed silent check on mount to prevent loop on broken macOS translocation
+  // Silent check on mount to show the blue dot if an update is available.
+  // We ONLY check, we do NOT downloadAndInstall automatically to prevent macOS translocation loops.
+  useEffect(() => {
+    async function silentCheck() {
+      try {
+        const update = await check();
+        if (update) {
+          setHasUpdate(true);
+        }
+      } catch (e) {
+        // Ignore silent check errors
+      }
+    }
+    silentCheck();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

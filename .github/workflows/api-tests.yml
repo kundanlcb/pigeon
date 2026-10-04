@@ -31,6 +31,11 @@ jobs:
         run: |
           echo "{\"api_token\": \"${{ secrets.API_TOKEN }}\"}" > secrets.json
 
+      - name: Create Mock Test Files
+        run: |
+          echo '{"id":"mock-col", "name":"Mock", "requests":[{"id":"req-1", "name":"Get Post", "method":"GET", "url":"https://jsonplaceholder.typicode.com/posts/1", "body":{"type":"none"}}]}' > collection.json
+          echo '{"id":"mock-env", "name":"MockEnv", "variables":[]}' > environment.json
+
       - name: Run API Tests
         run: ./src-tauri/target/release/pigeon-cli run collection.json --env environment.json --secret-file secrets.json --reporter junit > test-results.xml
 

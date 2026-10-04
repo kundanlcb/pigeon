@@ -4,6 +4,7 @@ use tauri::command;
 #[command]
 pub fn git_command(args: Vec<String>, cwd: String) -> Result<String, String> {
     let output = Command::new("git")
+        .env("GIT_TERMINAL_PROMPT", "0")
         .args(&args)
         .current_dir(cwd)
         .output()

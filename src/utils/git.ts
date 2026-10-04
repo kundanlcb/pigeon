@@ -56,3 +56,16 @@ export async function gitBranch(cwd: string) {
   const output = await gitCommand(['branch', '--show-current'], cwd);
   return output.trim();
 }
+
+export async function gitBranches(cwd: string) {
+  const output = await gitCommand(['branch'], cwd);
+  return output.split('\n').filter(Boolean).map(b => b.replace('*', '').trim());
+}
+
+export async function gitCheckout(cwd: string, branch: string) {
+  return await gitCommand(['checkout', branch], cwd);
+}
+
+export async function gitCheckoutNew(cwd: string, branch: string) {
+  return await gitCommand(['checkout', '-b', branch], cwd);
+}

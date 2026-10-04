@@ -33,7 +33,7 @@ jobs:
 
       - name: Create Mock Test Files
         run: |
-          echo '{"id":"mock-col", "name":"Mock", "requests":[{"id":"req-1", "name":"Get Post", "method":"GET", "url":"https://jsonplaceholder.typicode.com/posts/1", "body":{"type":"none"}}]}' > collection.json
+          echo '{"id":"mock-col", "name":"Mock", "requests":[{"id":"req-1", "name":"Get Post", "method":"GET", "url":"https://jsonplaceholder.typicode.com/posts/1", "headers":{}, "body":{"type":"none"}}]}' > collection.json
           echo '{"id":"mock-env", "name":"MockEnv", "variables":[]}' > environment.json
 
       - name: Run API Tests

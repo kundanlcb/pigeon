@@ -50,6 +50,11 @@ export function RequestEditor({ setLocalUrl, localUrl, localMethod }: RequestEdi
   const [activeTab, setActiveTab] = useState('req-headers');
   const [isBulk, setIsBulk] = useState(false);
   const [keyColumnWidth, setKeyColumnWidth] = useState(250);
+
+  const activeCollection = useStore(state => state.collections.find(c => c.requests.some(r => r.id === activeRequest?.id)));
+  const collectionHeaders = activeCollection?.headers || {};
+  const requestHeaders = activeRequest?.headers || {};
+  const inheritedHeaders = Object.entries(collectionHeaders).filter(([k, v]) => v && requestHeaders[k] === undefined);
   const [authorizationDraftState, setAuthorizationDraftState] = useState({ requestId: activeRequest?.id || '', value: '' });
   const authorizationDraft = authorizationDraftState.requestId === activeRequest?.id ? authorizationDraftState.value : '';
 
@@ -331,23 +336,39 @@ export function RequestEditor({ setLocalUrl, localUrl, localMethod }: RequestEdi
         )}
         {activeTab === 'req-headers' && (
           <div className="flex flex-col h-full min-h-0">
-            <KeyValueEditor
-              items={activeRequest?.headers || {}}
-              onChange={handleHeadersChange}
-              disabledKeys={activeRequest?.disabledHeaders}
-              onDisabledKeysChange={disabledHeaders => updateActiveRequest({ disabledHeaders })}
-              keyColumnWidth={keyColumnWidth}
-              onKeyColumnWidthChange={setKeyColumnWidth}
-              keySuggestions={COMMON_HEADERS}
-              isBulk={isBulk}
-              secretKeys={activeRequest?.authorizationHeaderInKeychain ? ['Authorization'] : []}
-              secretValues={{ Authorization: authorizationDraft }}
-              secretPlaceholder={activeRequest?.authorizationHeaderKeychainRef ? 'Stored in system keychain' : 'Enter secret value'}
-              onSecretToggle={toggleAuthorizationSecret}
-              onSecretValueChange={(_key, value) => setAuthorizationDraft(value)}
-              onSecretSave={saveAuthorizationHeader}
-              onSecretDelete={deleteAuthorizationSecret}
-            />
+            {!isBulk && inheritedHeaders.length > 0 && (
+              <div className="shrink-0 flex flex-col border-b border-border-strong bg-surface-bg/30">
+                <div className="px-3 py-1.5 bg-surface-hover/50 text-[10px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong flex justify-between">
+                  <span>Inherited Collection Headers</span>
+                  <span className="text-text-muted font-normal capitalize">Read-only</span>
+                </div>
+                {inheritedHeaders.map(([k, v]) => (
+                  <div key={k} className="flex border-b border-border-strong last:border-b-0 min-h-[32px] items-center text-[13px] opacity-70 cursor-not-allowed">
+                    <div className="px-3 py-1 border-r border-border-strong font-mono text-text-primary h-full flex items-center" style={{ width: keyColumnWidth, minWidth: 100 }}>{k}</div>
+                    <div className="px-3 py-1 flex-1 font-mono text-text-primary truncate">{v}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex-1 min-h-0">
+              <KeyValueEditor
+                items={activeRequest?.headers || {}}
+                onChange={handleHeadersChange}
+                disabledKeys={activeRequest?.disabledHeaders}
+                onDisabledKeysChange={disabledHeaders => updateActiveRequest({ disabledHeaders })}
+                keyColumnWidth={keyColumnWidth}
+                onKeyColumnWidthChange={setKeyColumnWidth}
+                keySuggestions={COMMON_HEADERS}
+                isBulk={isBulk}
+                secretKeys={activeRequest?.authorizationHeaderInKeychain ? ['Authorization'] : []}
+                secretValues={{ Authorization: authorizationDraft }}
+                secretPlaceholder={activeRequest?.authorizationHeaderKeychainRef ? 'Stored in system keychain' : 'Enter secret value'}
+                onSecretToggle={toggleAuthorizationSecret}
+                onSecretValueChange={(_key, value) => setAuthorizationDraft(value)}
+                onSecretSave={saveAuthorizationHeader}
+                onSecretDelete={deleteAuthorizationSecret}
+              />
+            </div>
           </div>
         )}
         {activeTab === 'req-body' && (

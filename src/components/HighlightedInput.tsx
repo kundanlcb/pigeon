@@ -420,7 +420,9 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
               className={`px-3 py-1.5 text-xs font-mono cursor-pointer flex justify-between items-center ${idx === selectedIndex ? 'bg-accent/10 text-accent' : 'text-text-primary hover:bg-surface-hover'}`}
             >
               <span className="font-bold">{s.key}</span>
-              <span className="text-text-muted truncate ml-2 max-w-[100px]">{s.value}</span>
+              <span className="text-text-muted truncate ml-2 max-w-[100px]">
+                {s.secret ? 'Secret' : s.value}
+              </span>
             </div>
           ))}
         </div>

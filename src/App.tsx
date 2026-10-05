@@ -455,7 +455,7 @@ export default function App() {
                   className="flex items-center justify-center w-6 h-6 mr-1 rounded cursor-pointer text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
                   onClick={() => {
                     const el = document.getElementById('request-tabs-container');
-                    if (el) el.scrollBy({ left: 200, behavior: 'smooth' });
+                    if (el) el.scrollBy({ left: Math.max(200, el.clientWidth - 100), behavior: 'smooth' });
                   }}
                   title="Scroll Tabs Right"
                 >

@@ -32,7 +32,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
 
-  const [hoveredVar, setHoveredVar] = useState<{name: string, id: string, value: string, secret: boolean, top: number, left: number} | null>(null);
+  const [hoveredVar, setHoveredVar] = useState<{name: string, id: string, value: string, secret: boolean, secretStored?: boolean, top: number, left: number} | null>(null);
   const [isPopoverPinned, setIsPopoverPinned] = useState(false);
   const [editVarValue, setEditVarValue] = useState('');
   const [replaceAll, setReplaceAll] = useState(true);
@@ -59,8 +59,8 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         const varName = part.slice(2, -2).trim();
         const activeVar = activeEnv?.variables.find(v => v.key === varName && v.enabled);
         const colorClass = activeVar ? 'text-accent font-medium' : 'text-red-500 font-medium';
-        const valEscaped = activeVar ? activeVar.value.replace(/"/g, '&quot;') : '';
-        return `<span class="${colorClass}" data-varname="${varName}" data-varid="${activeVar?.id || ''}" data-varval="${valEscaped}" data-varsecret="${activeVar?.secret ? 'true' : 'false'}">${part}</span>`;
+        const valEscaped = activeVar ? (activeVar.secret && activeVar.secretStored ? '' : activeVar.value.replace(/"/g, '&quot;')) : '';
+        return `<span class="${colorClass}" data-varname="${varName}" data-varid="${activeVar?.id || ''}" data-varval="${valEscaped}" data-varsecret="${activeVar?.secret ? 'true' : 'false'}" data-varsecretstored="${activeVar?.secretStored ? 'true' : 'false'}">${part}</span>`;
       }
       // Highlight partially typed {{var...
       if (part.startsWith('{{') && !part.endsWith('}}')) {
@@ -190,10 +190,12 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     try {
       if (hoveredVar.id) {
         if (hoveredVar.secret) {
-          await setSecret(activeEnvironmentId, hoveredVar.name, editVarValue);
+          if (hoveredVar.secretStored) {
+            await setSecret(activeEnvironmentId, hoveredVar.name, editVarValue);
+          }
           updateEnvironment(activeEnvironmentId, {
             variables: activeEnv.variables.map(variable => variable.id === hoveredVar.id
-              ? { ...variable, secret: true, secretStored: true, value: '' }
+              ? { ...variable, value: hoveredVar.secretStored ? '' : editVarValue }
               : variable)
           });
         } else {
@@ -310,6 +312,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       const varId = el.getAttribute('data-varid');
       const varVal = el.getAttribute('data-varval');
       const varSecret = el.getAttribute('data-varsecret') === 'true';
+      const varSecretStored = el.getAttribute('data-varsecretstored') === 'true';
       
       if (varName && varName !== hoveredVar?.name) {
         const elRect = el.getBoundingClientRect();
@@ -324,12 +327,13 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         setHoveredVar({
           name: varName,
           id: varId || '',
-          value: varSecret ? '' : varVal || '',
+          value: (varSecret && varSecretStored) ? '' : varVal || '',
           secret: varSecret,
+          secretStored: varSecretStored,
           top,
           left,
         });
-        setEditVarValue(varSecret ? '' : varVal || '');
+        setEditVarValue((varSecret && varSecretStored) ? '' : varVal || '');
       }
     } else {
       if (!hideTimeoutRef.current && hoveredVar) {
@@ -436,7 +440,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       {/* Variable Hover Popover */}
       {hoveredVar && createPortal(
         <div
-          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-fit min-w-[280px] max-w-[450px]"
+          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-fit min-w-[320px] max-w-[800px]"
           style={{ top: hoveredVar.top, left: hoveredVar.left }}
           onMouseEnter={() => {
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);

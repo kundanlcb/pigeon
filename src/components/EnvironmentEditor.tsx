@@ -21,6 +21,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
   const [revealedSecrets, setRevealedSecrets] = useState<Record<string, string>>({});
   const [keyColWidth, setKeyColWidth] = useState(250);
   const [activeTab, setActiveTab] = useState<'variables' | 'secrets'>('variables');
+  const [focusedValueId, setFocusedValueId] = useState<string | null>(null);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -352,37 +353,74 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                     className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
                 </div>
-                <div className="bg-app-bg relative">
-                  <input
-                    id={`secret-input-${v.id}`}
-                    type={v.secret && revealedSecrets[v.id] === undefined ? "password" : "text"}
-                    value={
-                      (v.secret && v.secretStored)
+                <div className="bg-app-bg relative flex items-center">
+                  {(() => {
+                    const isSecretHidden = v.secret && revealedSecrets[v.id] === undefined;
+                    const valueText = (v.secret && v.secretStored)
                         ? (secretDrafts[v.id] !== undefined ? secretDrafts[v.id] : (revealedSecrets[v.id] !== undefined ? revealedSecrets[v.id] : ''))
-                        : v.value
+                        : v.value;
+                    const isFocused = focusedValueId === v.id;
+                    
+                    if (isSecretHidden) {
+                      return (
+                        <input
+                          id={`secret-input-${v.id}`}
+                          type="password"
+                          value={valueText}
+                          onChange={(e) => {
+                            if (v.secret && v.secretStored) {
+                              setSecretDrafts(prev => ({...prev, [v.id]: e.target.value}));
+                            } else {
+                              handleUpdateVariable(v.id, { value: e.target.value });
+                            }
+                          }}
+                          onFocus={() => setFocusedValueId(v.id)}
+                          onBlur={() => {
+                            setFocusedValueId(null);
+                            if (v.secret && v.secretStored) void saveSecretDraft(v);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && v.secret && v.secretStored) {
+                              void saveSecretDraft(v);
+                            }
+                          }}
+                          placeholder={(v.secret && v.secretStored) ? (revealedSecrets[v.id] !== undefined ? "Empty" : '••••••') : "Value"}
+                          className="w-full h-full py-1.5 pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
+                        />
+                      );
+                    } else {
+                      return (
+                        <textarea
+                          id={`secret-input-${v.id}`}
+                          value={valueText}
+                          onChange={(e) => {
+                            if (v.secret && v.secretStored) {
+                              setSecretDrafts(prev => ({...prev, [v.id]: e.target.value}));
+                            } else {
+                              handleUpdateVariable(v.id, { value: e.target.value });
+                            }
+                          }}
+                          onFocus={() => setFocusedValueId(v.id)}
+                          onBlur={() => {
+                            setFocusedValueId(null);
+                            if (v.secret && v.secretStored) void saveSecretDraft(v);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && v.secret && v.secretStored) {
+                              e.preventDefault();
+                              void saveSecretDraft(v);
+                            }
+                          }}
+                          placeholder={(v.secret && v.secretStored) ? (revealedSecrets[v.id] !== undefined ? "Empty" : '••••••') : "Value"}
+                          className={`w-full pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted resize-none ${
+                            isFocused 
+                              ? 'py-1.5 min-h-[80px] h-auto overflow-y-auto leading-relaxed' 
+                              : 'h-[32px] py-1.5 overflow-hidden whitespace-nowrap text-ellipsis'
+                          }`}
+                        />
+                      );
                     }
-                    onChange={(e) => {
-                       if (v.secret && v.secretStored) {
-                         setSecretDrafts(prev => ({...prev, [v.id]: e.target.value}));
-                       } else {
-                         handleUpdateVariable(v.id, { value: e.target.value });
-                       }
-                    }}
-                    onBlur={() => {
-                       if (v.secret && v.secretStored) void saveSecretDraft(v);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && v.secret && v.secretStored) {
-                         void saveSecretDraft(v);
-                      }
-                    }}
-                    placeholder={
-                      (v.secret && v.secretStored)
-                        ? (revealedSecrets[v.id] !== undefined ? "Empty" : '••••••')
-                        : "Value"
-                    }
-                    className="w-full h-full py-1.5 pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
-                  />
+                  })()}
                   {v.secret && !isPlaceholder && (!v.secretStored || secretDrafts[v.id] === undefined) && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
@@ -397,7 +435,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                           }
                         }
                       }}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary transition-colors z-10"
+                      className={`absolute right-1.5 p-1 text-text-muted hover:text-text-primary transition-colors z-10 ${focusedValueId === v.id ? 'top-2' : 'top-1/2 -translate-y-1/2'}`}
                       title={revealedSecrets[v.id] !== undefined ? "Hide Secret" : "Show Secret"}
                     >
                       {revealedSecrets[v.id] !== undefined ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -409,7 +447,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                       onClick={() => {
                          void saveSecretDraft(v);
                       }}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 bg-accent text-white rounded-md shadow hover:bg-accent-hover active:scale-95 transition-all z-10"
+                      className={`absolute right-1.5 p-1 bg-accent text-white rounded-md shadow hover:bg-accent-hover active:scale-95 transition-all z-10 ${focusedValueId === v.id ? 'top-2' : 'top-1/2 -translate-y-1/2'}`}
                       title="Save Secret"
                     >
                       <Check size={14} />

@@ -136,11 +136,13 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
         resolvedHeaders[k] = resolveEnvVariables(v, activeEnvironment);
       }
       
-      if (config.testBOLA && config.attackerAuthHeader) {
-        resolvedHeaders[config.authHeaderName] = resolveEnvVariables(config.attackerAuthHeader, activeEnvironment);
-      }
-
-      const context = { url: resolvedUrl, method: req.method, headers: resolvedHeaders, body: req.body };
+      const context = { 
+        url: resolvedUrl, 
+        method: req.method, 
+        headers: resolvedHeaders, 
+        body: req.body,
+        authorizationHeaderKeychainRef: req.authorizationHeaderInKeychain ? req.authorizationHeaderKeychainRef : undefined
+      };
 
       try {
         const endpointFindings = await runSecurityAudit(

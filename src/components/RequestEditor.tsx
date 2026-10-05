@@ -402,7 +402,8 @@ export function RequestEditor({ setLocalUrl, localUrl, localMethod }: RequestEdi
                           return undefined;
                         }
                       })()
-                    : undefined
+                    : undefined,
+                  authorizationHeaderKeychainRef: activeRequest.authorizationHeaderInKeychain ? activeRequest.authorizationHeaderKeychainRef : undefined
                 } : null
               }
             />

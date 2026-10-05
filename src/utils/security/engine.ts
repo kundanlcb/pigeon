@@ -1,4 +1,5 @@
 import { fetch } from '@tauri-apps/plugin-http';
+import { getSecret } from '../secrets';
 
 export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'PASS';
 export type TestCategory = 'BOLA' | 'MASS_ASSIGNMENT' | 'BROKEN_AUTH' | 'VERB_TAMPERING' | 'FUZZING';
@@ -18,6 +19,7 @@ export interface SecurityAuditContext {
   method: string;
   headers: Record<string, string>;
   body?: any;
+  authorizationHeaderKeychainRef?: string;
 }
 
 export interface SecurityAuditConfig {
@@ -75,17 +77,32 @@ export async function runSecurityAudit(
   const checkAbort = () => {
     if (abortSignal?.aborted) throw new Error('Audit manually aborted by user.');
   };
+  
+  // Resolve keychain auth header for baseline if needed
+  const resolvedBase = { ...base, headers: { ...base.headers } };
+  if (base.authorizationHeaderKeychainRef && !resolvedBase.headers['Authorization']) {
+    try {
+      const secret = await getSecret('request-auth', base.authorizationHeaderKeychainRef!);
+      if (secret) {
+        resolvedBase.headers['Authorization'] = secret;
+      } else {
+        onProgress('[!] Warning: Authorization header could not be resolved from system keychain.');
+      }
+    } catch (e) {
+      onProgress(`[!] Warning: Failed to access system keychain - ${e}`);
+    }
+  }
 
   // 0. Pre-flight Liveness Check
   checkAbort();
   onProgress('[*] Establishing baseline connection (Pre-flight)...');
-  const baselineRes = await sendAuditRequest(base.url, base.method, base.headers, base.body, abortSignal);
+  const baselineRes = await sendAuditRequest(resolvedBase.url, resolvedBase.method, resolvedBase.headers, resolvedBase.body, abortSignal);
   if (baselineRes.status === 0) {
     findings.push({
       id: 'baseline-fail',
       category: 'BOLA', // Reusing category type
       title: 'Baseline Connection Failed',
-      description: `The security engine could not establish a connection to ${base.url}. The request may have timed out, or the server is completely unresponsive.`,
+      description: `The security engine could not establish a connection to ${resolvedBase.url}. The request may have timed out, or the server is completely unresponsive.`,
       risk: 'CRITICAL',
       remediation: 'Ensure the server is running and the URL is correct before attempting a security audit.',
       payloadSent: `Error Details: ${baselineRes.body}`
@@ -99,8 +116,8 @@ export async function runSecurityAudit(
   checkAbort();
   if (config.testBOLA && config.attackerAuthHeader) {
     onProgress('[*] Queueing BOLA / IDOR test...');
-    const bolaHeaders = { ...base.headers, [config.authHeaderName]: config.attackerAuthHeader };
-    const bolaRes = await sendAuditRequest(base.url, base.method, bolaHeaders, base.body, abortSignal);
+    const bolaHeaders = { ...resolvedBase.headers, [config.authHeaderName]: config.attackerAuthHeader };
+    const bolaRes = await sendAuditRequest(resolvedBase.url, resolvedBase.method, bolaHeaders, resolvedBase.body, abortSignal);
     
     if (bolaRes.status >= 200 && bolaRes.status < 300) {
       onProgress(`[!] BOLA test failed: Endpoint accepted secondary token [${bolaRes.status}]`);
@@ -132,7 +149,7 @@ export async function runSecurityAudit(
   checkAbort();
   if (config.testBrokenAuth) {
     onProgress(`[*] Queueing Broken Authentication test (Stripping ${config.authHeaderName})...`);
-    const noAuthHeaders = { ...base.headers };
+    const noAuthHeaders = { ...resolvedBase.headers };
     
     // Attempt to remove the configured auth header (case-insensitive)
     const headerKeyToRemove = Object.keys(noAuthHeaders).find(
@@ -142,7 +159,7 @@ export async function runSecurityAudit(
       delete noAuthHeaders[headerKeyToRemove];
     }
     
-    const noAuthRes = await sendAuditRequest(base.url, base.method, noAuthHeaders, base.body, abortSignal);
+    const noAuthRes = await sendAuditRequest(resolvedBase.url, resolvedBase.method, noAuthHeaders, resolvedBase.body, abortSignal);
     if (noAuthRes.status >= 200 && noAuthRes.status < 300) {
       onProgress(`[!] Broken Authentication test failed: Endpoint allowed unauthenticated access [${noAuthRes.status}]`);
       findings.push({
@@ -171,15 +188,15 @@ export async function runSecurityAudit(
 
   // 3. Mass Assignment
   checkAbort();
-  if (config.testMassAssignment && base.method !== 'GET' && base.body && typeof base.body === 'object') {
+  if (config.testMassAssignment && resolvedBase.method !== 'GET' && resolvedBase.body && typeof resolvedBase.body === 'object') {
     onProgress('[*] Queueing Mass Assignment test...');
     const maliciousBody = { 
-      ...base.body, 
+      ...resolvedBase.body, 
       is_admin: true, 
       role: 'admin',
       permissions: 'superadmin' 
     };
-    const massRes = await sendAuditRequest(base.url, base.method, base.headers, maliciousBody, abortSignal);
+    const massRes = await sendAuditRequest(resolvedBase.url, resolvedBase.method, resolvedBase.headers, maliciousBody, abortSignal);
     if (massRes.status >= 200 && massRes.status < 300) {
       onProgress(`[!] Mass Assignment test failed: Server accepted injected privilege flags [${massRes.status}]`);
       findings.push({
@@ -204,12 +221,12 @@ export async function runSecurityAudit(
   checkAbort();
   if (config.testVerbTampering) {
     onProgress('[*] Queueing HTTP Verb Tampering tests...');
-    const verbsToTest = ['DELETE', 'PUT', 'PATCH'].filter(v => v !== base.method);
+    const verbsToTest = ['DELETE', 'PUT', 'PATCH'].filter(v => v !== resolvedBase.method);
     let verbFailures = 0;
     for (const verb of verbsToTest) {
       checkAbort();
       onProgress(`    [*] Testing method: ${verb}...`);
-      const verbRes = await sendAuditRequest(base.url, verb, base.headers, base.body, abortSignal);
+      const verbRes = await sendAuditRequest(resolvedBase.url, verb, resolvedBase.headers, resolvedBase.body, abortSignal);
       if (verbRes.status >= 200 && verbRes.status < 300) {
         verbFailures++;
         onProgress(`    [!] Verb Tampering failed: Endpoint unexpectedly allowed ${verb} [${verbRes.status}]`);
@@ -244,12 +261,12 @@ export async function runSecurityAudit(
       { test: "A".repeat(10000) }
     ];
     
-    if (base.method !== 'GET') {
+    if (resolvedBase.method !== 'GET') {
       let fuzzerCrashes = 0;
       let executed = 0;
       await Promise.all(fuzzedBodies.map(async (fuzzBody) => {
         checkAbort();
-        const res = await sendAuditRequest(base.url, base.method, base.headers, fuzzBody, abortSignal);
+        const res = await sendAuditRequest(resolvedBase.url, resolvedBase.method, resolvedBase.headers, fuzzBody, abortSignal);
         executed++;
         onProgress(`    [*] Fuzz payload ${executed}/${fuzzedBodies.length} completed [${res.status}].`);
         if (res.status >= 500) fuzzerCrashes++;

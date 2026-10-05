@@ -1,7 +1,7 @@
 
 import { useStore } from '../store';
 import type { EnvironmentVariable } from '../store';
-import { Trash2, Share, Check } from 'lucide-react';
+import { Trash2, Share, Check, Eye, EyeOff } from 'lucide-react';
 import { downloadAsFile } from '../utils/file';
 import { getSecret, setSecret, deleteSecret } from '../utils/secrets';
 import { serializePortableEnvironment } from '../utils/collectionFormat';
@@ -18,6 +18,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
   const setActiveEnvironment = useStore(state => state.setActiveEnvironment);
   const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
   const [secretKeyDrafts, setSecretKeyDrafts] = useState<Record<string, string>>({});
+  const [revealedSecrets, setRevealedSecrets] = useState<Record<string, string>>({});
   const [keyColWidth, setKeyColWidth] = useState(250);
   const [activeTab, setActiveTab] = useState<'variables' | 'secrets'>('variables');
 
@@ -104,6 +105,23 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
       useStore.getState().showToast('Secret saved to keychain', 'success');
     } catch (error) {
       useStore.getState().showToast(`Failed to save secret: ${String(error)}`, 'error');
+    }
+  };
+
+  const toggleRevealSecret = async (variable: EnvironmentVariable) => {
+    if (revealedSecrets[variable.id] !== undefined) {
+      setRevealedSecrets(prev => {
+        const next = { ...prev };
+        delete next[variable.id];
+        return next;
+      });
+    } else {
+      try {
+        const value = await getSecret(environmentId, variable.key);
+        setRevealedSecrets(prev => ({ ...prev, [variable.id]: value || '' }));
+      } catch (e) {
+        useStore.getState().showToast(`Failed to retrieve secret: ${String(e)}`, 'error');
+      }
     }
   };
 
@@ -301,8 +319,14 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                 <div className="bg-app-bg relative">
                   <input
                     id={`secret-input-${v.id}`}
-                    type={v.secret ? "password" : "text"}
-                    value={secretDrafts[v.id] !== undefined ? secretDrafts[v.id] : (v.secret ? '' : v.value)}
+                    type={v.secret && revealedSecrets[v.id] === undefined ? "password" : "text"}
+                    value={
+                      secretDrafts[v.id] !== undefined 
+                        ? secretDrafts[v.id] 
+                        : (v.secret 
+                            ? (revealedSecrets[v.id] !== undefined ? revealedSecrets[v.id] : '') 
+                            : v.value)
+                    }
                     onChange={(e) => {
                        if (v.secret) {
                          setSecretDrafts(prev => ({...prev, [v.id]: e.target.value}));
@@ -319,8 +343,18 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                       }
                     }}
                     placeholder={v.secret ? (v.secretStored === false ? 'Secret not set — click to add' : '••••••') : "Value"}
-                    className="w-full h-full py-1.5 px-3 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
+                    className="w-full h-full py-1.5 pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
+                  {v.secret && !isPlaceholder && secretDrafts[v.id] === undefined && (
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => void toggleRevealSecret(v)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary transition-colors z-10"
+                      title={revealedSecrets[v.id] !== undefined ? "Hide Secret" : "Show Secret"}
+                    >
+                      {revealedSecrets[v.id] !== undefined ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  )}
                   {v.secret && secretDrafts[v.id] !== undefined && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}

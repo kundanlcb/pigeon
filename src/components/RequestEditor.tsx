@@ -51,10 +51,16 @@ export function RequestEditor({ setLocalUrl, localUrl, localMethod }: RequestEdi
   const [isBulk, setIsBulk] = useState(false);
   const [keyColumnWidth, setKeyColumnWidth] = useState(250);
 
-  const activeCollection = useStore(state => state.collections.find(c => c.requests.some(r => r.id === activeRequest?.id)));
+  const activeCollection = useStore(state => state.collections.find(c => c.requests.some(r => r.id === state.activeRequestId)));
   const collectionHeaders = activeCollection?.headers || {};
   const requestHeaders = activeRequest?.headers || {};
-  const inheritedHeaders = Object.entries(collectionHeaders).filter(([k, v]) => v && requestHeaders[k] === undefined);
+  
+  const inheritedHeaders = Object.entries(collectionHeaders).filter(([k]) => {
+    if (!k.trim()) return false;
+    const reqKeysLower = Object.keys(requestHeaders).map(rk => rk.toLowerCase());
+    return !reqKeysLower.includes(k.toLowerCase());
+  });
+
   const [authorizationDraftState, setAuthorizationDraftState] = useState({ requestId: activeRequest?.id || '', value: '' });
   const authorizationDraft = authorizationDraftState.requestId === activeRequest?.id ? authorizationDraftState.value : '';
 

@@ -138,9 +138,10 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
     const collection = useStore.getState().collections.find(c => c.requests.some(r => r.id === request.id));
     const mergedHeaders = { ...request.headers };
     if (collection && collection.headers) {
+      const existingKeysLower = Object.keys(mergedHeaders).map(k => k.toLowerCase());
       for (const [k, v] of Object.entries(collection.headers)) {
-        // Only inject if the request hasn't explicitly defined it (even if disabled)
-        if (mergedHeaders[k] === undefined && v) {
+        // Only inject if the request hasn't explicitly defined it (case-insensitive check)
+        if (k.trim() && v && !existingKeysLower.includes(k.toLowerCase())) {
           mergedHeaders[k] = v;
         }
       }

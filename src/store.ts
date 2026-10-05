@@ -202,6 +202,7 @@ export interface Collection {
   name: string;
   requests: RequestItem[];
   isOpen: boolean;
+  headers?: Record<string, string>;
   storageMode?: 'local' | 'folder';
   folderPath?: string;
   folders?: CollectionFolder[];
@@ -244,6 +245,7 @@ interface AppState {
   duplicateRequest: (id: string) => void;
   addCollection: (name: string) => void;
   renameCollection: (id: string, newName: string) => void;
+  updateCollection: (id: string, updates: Partial<Collection>) => void;
   deleteCollection: (id: string) => void;
   addCollectionFolder: (collectionId: string, name: string, parentId?: string | null) => void;
   renameCollectionFolder: (collectionId: string, folderId: string, name: string) => void;
@@ -574,6 +576,11 @@ export const useStore = create<AppState>()(
       renameCollection: (id, newName) => set((state) => ({
         collections: state.collections.map(col => 
           col.id === id ? { ...col, name: newName } : col
+        )
+      })),
+      updateCollection: (id, updates) => set((state) => ({
+        collections: state.collections.map(col => 
+          col.id === id ? { ...col, ...updates } : col
         )
       })),
       deleteCollection: (id) => {

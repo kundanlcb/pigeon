@@ -105,9 +105,13 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       setShowSuggestions(true);
       
       // Calculate position
-      const top = (currentLineIdx + 1) * 20; // Approx line height
-      const left = Math.min(currentLine.length * 8, 300); // Approx char width
-      setCursorPos({ top, left });
+      const rect = containerRef.current?.getBoundingClientRect();
+      const topOffset = (currentLineIdx + 1) * (isTextArea ? 20 : 34); // Approx line height
+      const leftOffset = Math.min(currentLine.length * 8, 300); // Approx char width
+      setCursorPos({ 
+        top: (rect?.top || 0) + topOffset, 
+        left: (rect?.left || 0) + leftOffset 
+      });
     } else {
       setShowSuggestions(false);
     }
@@ -405,9 +409,9 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
       />
       
       {/* Suggestions Dropdown */}
-      {showSuggestions && filteredSuggestions.length > 0 && cursorPos && (
+      {showSuggestions && filteredSuggestions.length > 0 && cursorPos && createPortal(
         <div 
-          className="absolute z-50 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden py-1 min-w-[200px]"
+          className="fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden py-1 min-w-[200px]"
           style={{ top: cursorPos.top + 10, left: cursorPos.left }}
         >
           {filteredSuggestions.map((s, idx) => (
@@ -425,13 +429,14 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
               </span>
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Variable Hover Popover */}
       {hoveredVar && createPortal(
         <div
-          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-[450px] max-w-[95vw]"
+          className="var-popover fixed z-[10000] bg-panel-bg border border-border-strong rounded-lg shadow-xl p-3 flex flex-col gap-2 w-fit min-w-[280px] max-w-[450px]"
           style={{ top: hoveredVar.top, left: hoveredVar.left }}
           onMouseEnter={() => {
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);

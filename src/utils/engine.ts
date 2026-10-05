@@ -134,7 +134,19 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
         }
       }
     }
-    const executableRequest = { ...request, url: resolvedUrl };
+    // Merge Collection Headers
+    const collection = useStore.getState().collections.find(c => c.requests.some(r => r.id === request.id));
+    const mergedHeaders = { ...request.headers };
+    if (collection && collection.headers) {
+      for (const [k, v] of Object.entries(collection.headers)) {
+        // Only inject if the request hasn't explicitly defined it (even if disabled)
+        if (mergedHeaders[k] === undefined && v) {
+          mergedHeaders[k] = v;
+        }
+      }
+    }
+
+    const executableRequest = { ...request, url: resolvedUrl, headers: mergedHeaders };
 
     // Delegate core execution to Rust (PIGEON-110 Unification)
     const res: any = await invoke('execute_request', {

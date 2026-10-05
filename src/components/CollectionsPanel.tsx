@@ -404,7 +404,10 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
             {collections.map(col => (
               <div key={col.id} className="w-full">
                 <div
-                  onClick={() => toggleCollection(col.id)}
+                  onClick={() => {
+                    toggleCollection(col.id);
+                    useStore.getState().setActiveRequest(col.id);
+                  }}
                   className={`w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none ${openColMenuId === col.id ? 'bg-surface-hover text-text-primary' : ''}`}
                 >
                   <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">

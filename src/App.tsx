@@ -28,6 +28,7 @@ import { formatPigeonError } from "./utils/errors";
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { EnvironmentEditor } from './components/EnvironmentEditor';
+import { CollectionEditor } from './components/CollectionEditor';
 import { createSecretReference, setSecret } from './utils/secrets';
 
 import { Panel, Group, Separator } from 'react-resizable-panels';
@@ -448,7 +449,11 @@ export default function App() {
               </div>
             </div>
 
-            {activeRequestId?.startsWith('env-') ? (
+            {activeRequestId?.startsWith('col-') ? (
+              <ErrorBoundary name="Collection Editor">
+                <CollectionEditor collectionId={activeRequestId} />
+              </ErrorBoundary>
+            ) : activeRequestId?.startsWith('env-') ? (
               <ErrorBoundary name="Environment Editor">
                 <EnvironmentEditor environmentId={activeRequestId} />
               </ErrorBoundary>

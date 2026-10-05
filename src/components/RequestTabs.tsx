@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, MoreHorizontal } from 'lucide-react';
+import { Plus, X, MoreHorizontal, Folder } from 'lucide-react';
 import { useStore } from '../store';
 
 import { MethodIcon } from './MethodIcon';
@@ -61,6 +61,9 @@ export function RequestTabs() {
     if (id.startsWith('env-')) {
       return environments.find(e => e.id === id);
     }
+    if (id.startsWith('col-')) {
+      return collections.find(c => c.id === id);
+    }
     for (const col of collections) {
       const req = col.requests.find(r => r.id === id);
       if (req) return req;
@@ -111,6 +114,8 @@ export function RequestTabs() {
           >
             {isEnv ? (
               <span className="text-[10px] font-bold mr-2 text-accent">ENV</span>
+            ) : id.startsWith('col-') ? (
+              <Folder size={14} className="shrink-0 mr-1.5 text-accent" />
             ) : (
               <MethodIcon method={(item as any).method} className="shrink-0 mr-1.5" tabular={false} />
             )}

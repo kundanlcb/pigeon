@@ -64,4 +64,16 @@ export const removeDisabledQueryParams = (urlStr: string, disabledKeys: string[]
   return `${baseUrl}?${activePairs.join('&')}${hashStr}`;
 };
 
+export const getPathVariables = (urlStr: string): string[] => {
+  // Matches :variable (excluding those immediately preceded by another colon like http://)
+  // Since Safari doesn't support lookbehinds fully, we'll use a standard replace/match
+  const result: string[] = [];
+  const regex = /(?:^|[^:]):([a-zA-Z0-9_]+)/g;
+  let match;
+  while ((match = regex.exec(urlStr)) !== null) {
+    result.push(match[1]);
+  }
+  return Array.from(new Set(result));
+};
+
 export const COMMON_HEADERS = ["Accept","Accept-Charset","Accept-Encoding","Accept-Language","Authorization","Cache-Control","Content-Type","Content-Length","Cookie","Host","Origin","Referer","User-Agent"];

@@ -26,6 +26,7 @@ interface KeyValueEditorProps {
   onSecretValueChange?: (key: string, value: string) => void;
   onSecretSave?: (key: string, value: string) => void;
   onSecretDelete?: (key: string) => void;
+  fixedKeys?: string[];
 }
 
 export function KeyValueEditor({
@@ -45,9 +46,13 @@ export function KeyValueEditor({
   onSecretToggle,
   onSecretValueChange,
   onSecretSave,
-  onSecretDelete
+  onSecretDelete,
+  fixedKeys
 }: KeyValueEditorProps) {
   const [pairs, setPairs] = useState<KeyValue[]>(() => {
+    if (fixedKeys) {
+      return fixedKeys.map(key => ({ key, value: items[key] || '' }));
+    }
     const initial = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
     secretKeys.forEach(key => {
       if (!initial.some(pair => pair.key.toLowerCase() === key.toLowerCase())) initial.push({ key, value: '' });
@@ -55,6 +60,13 @@ export function KeyValueEditor({
     initial.push({ key: '', value: '' });
     return initial;
   });
+
+  useEffect(() => {
+    if (fixedKeys) {
+      setPairs(fixedKeys.map(key => ({ key, value: items[key] || '' })));
+    }
+  }, [items, fixedKeys]);
+
   const [focusedKeyIdx, setFocusedKeyIdx] = useState<number | null>(null);
   const [keyRect, setKeyRect] = useState<{top: number, left: number, width: number} | null>(null);
   const [localKeyColWidth, setLocalKeyColWidth] = useState(250);
@@ -165,8 +177,8 @@ export function KeyValueEditor({
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 relative p-2">
-      <div className="max-h-full min-h-0 border border-border-strong rounded-lg overflow-y-auto overflow-x-hidden no-scrollbar">
+    <div className={`flex flex-col relative p-2 ${fixedKeys ? '' : 'h-full min-h-0'}`}>
+      <div className={`border border-border-strong rounded-lg overflow-y-auto overflow-x-hidden no-scrollbar ${fixedKeys ? 'max-h-[300px]' : 'max-h-full min-h-0'}`}>
         <div
           className="sticky top-0 z-20 grid gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong"
           style={{ gridTemplateColumns }}
@@ -224,21 +236,23 @@ export function KeyValueEditor({
                   setKeyRect({ top: rect.bottom, left: rect.left, width: rect.width });
                 }}
               >
-                <HighlightedInput
-                  className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
-                  value={pair.key}
-                  placeholder={placeholderKey}
-                  onFocus={() => setFocusedKeyIdx(idx)}
-                  onBlur={() => setFocusedKeyIdx(null)}
-                  onChange={(e: any) => {
-                    if (isSecret) return;
-                    const newPairs = [...pairs];
-                    newPairs[idx].key = e.target.value;
-                    if (idx === pairs.length - 1 && e.target.value) newPairs.push({ key: '', value: '' });
-                    setPairs(newPairs);
-                    updateStore(newPairs);
-                  }}
-                />
+                <div className={fixedKeys ? 'pointer-events-none opacity-80 h-full' : 'h-full'}>
+                  <HighlightedInput
+                    className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
+                    value={pair.key}
+                    placeholder={placeholderKey}
+                    onFocus={() => setFocusedKeyIdx(idx)}
+                    onBlur={() => setFocusedKeyIdx(null)}
+                    onChange={(e: any) => {
+                      if (isSecret || fixedKeys) return;
+                      const newPairs = [...pairs];
+                      newPairs[idx].key = e.target.value;
+                      if (idx === pairs.length - 1 && e.target.value && !fixedKeys) newPairs.push({ key: '', value: '' });
+                      setPairs(newPairs);
+                      updateStore(newPairs);
+                    }}
+                  />
+                </div>
                 {focusedKeyIdx === idx && filteredSuggestions.length > 0 && keyRect && createPortal(
                   <div 
                     className="fixed mt-1 max-h-48 overflow-y-auto bg-panel-bg border border-border-strong rounded-lg shadow-xl z-[9999] py-1"
@@ -323,24 +337,26 @@ export function KeyValueEditor({
                     <Save size={14} />
                   </button>
                 )}
-                <button
-                  type="button"
-                  title="Remove header"
-                  aria-label={`Remove ${pair.key || 'header'}`}
-                  onClick={() => {
-                    if (isSecret) {
-                      onSecretDelete?.(pair.key);
-                      return;
-                    }
-                    const newPairs = pairs.filter((_, i) => i !== idx);
-                    if (newPairs.length === 0) newPairs.push({ key: '', value: '' });
-                    setPairs(newPairs);
-                    updateStore(newPairs);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 text-text-muted hover:text-red-400 transition-opacity z-10"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {!fixedKeys && (
+                  <button
+                    type="button"
+                    title="Remove header"
+                    aria-label={`Remove ${pair.key || 'header'}`}
+                    onClick={() => {
+                      if (isSecret) {
+                        onSecretDelete?.(pair.key);
+                        return;
+                      }
+                      const newPairs = pairs.filter((_, i) => i !== idx);
+                      if (newPairs.length === 0) newPairs.push({ key: '', value: '' });
+                      setPairs(newPairs);
+                      updateStore(newPairs);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-text-muted hover:text-red-400 transition-opacity z-10"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             </div>
           );

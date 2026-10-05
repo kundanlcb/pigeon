@@ -125,9 +125,20 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
       maxRedirects: rawSettings.maxRedirects ?? 10
     } : null;
 
+    // Resolve Path Variables before sending to Rust
+    let resolvedUrl = request.url;
+    if (request.pathParams) {
+      for (const [key, val] of Object.entries(request.pathParams)) {
+        if (key && val !== undefined) {
+          resolvedUrl = resolvedUrl.replace(`:${key}`, val);
+        }
+      }
+    }
+    const executableRequest = { ...request, url: resolvedUrl };
+
     // Delegate core execution to Rust (PIGEON-110 Unification)
     const res: any = await invoke('execute_request', {
-      request,
+      request: executableRequest,
       environment: environment || null,
       localVars: Object.keys(localVars).length > 0 ? localVars : null,
       settings

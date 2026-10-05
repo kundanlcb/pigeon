@@ -128,6 +128,7 @@ export interface RequestItem {
   headers: Record<string, string>;
   disabledHeaders?: string[];
   disabledParams?: string[];
+  pathParams?: Record<string, string>;
   body?: RequestBody | string; // keeping string for backwards compatibility
   auth?: Auth;
   authorizationHeaderInKeychain?: boolean;

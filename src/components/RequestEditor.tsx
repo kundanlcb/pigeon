@@ -11,7 +11,7 @@ import { resolveEnvVariables } from '../utils/env';
 import { useStore } from '../store';
 import { createSecretReference, deleteSecret, getSecret, setSecret } from '../utils/secrets';
 import { deleteUnusedRequestSecrets, requestSecretIsShared } from '../utils/authSecrets';
-import { getQueryParams, setQueryParams, COMMON_HEADERS } from '../utils/url';
+import { getQueryParams, setQueryParams, getPathVariables, COMMON_HEADERS } from '../utils/url';
 
 const DEFAULT_PRE_REQUEST = `// Write JavaScript that runs before the request is sent.
 // Use the 'pigeon' object to set variables or modify headers.
@@ -278,22 +278,49 @@ export function RequestEditor({ setLocalUrl, localUrl, localMethod }: RequestEdi
       
       <div className="flex-1 min-h-0 relative overflow-hidden">
         {activeTab === 'req-params' && (
-          <KeyValueEditor 
-            items={getQueryParams(activeRequest?.url || '')} 
-            onChange={(newParams: Record<string, string>) => {
-              const newUrl = setQueryParams(activeRequest?.url || '', newParams);
-              setLocalUrl(newUrl);
-              updateActiveRequest({
-                url: newUrl,
-                disabledParams: (activeRequest?.disabledParams || []).filter(key => Object.hasOwn(newParams, key))
-              });
-            }}
-            disabledKeys={activeRequest?.disabledParams}
-            onDisabledKeysChange={disabledParams => updateActiveRequest({ disabledParams })}
-            keyColumnWidth={keyColumnWidth}
-            onKeyColumnWidthChange={setKeyColumnWidth}
-            isBulk={isBulk}
-          />
+          <div className="h-full flex flex-col overflow-y-auto">
+            {(() => {
+              const pathVars = getPathVariables(activeRequest?.url || '');
+              return pathVars.length > 0 ? (
+                <div className="flex-shrink-0 pt-2 pb-0">
+                  <h3 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider px-4 mb-2">Path Variables</h3>
+                  <div className="px-2">
+                    <KeyValueEditor
+                      items={activeRequest?.pathParams || {}}
+                      onChange={(newParams: Record<string, string>) => {
+                        updateActiveRequest({ pathParams: newParams });
+                      }}
+                      fixedKeys={pathVars}
+                      keyColumnWidth={keyColumnWidth}
+                      onKeyColumnWidthChange={setKeyColumnWidth}
+                    />
+                  </div>
+                  <div className="h-px bg-border-subtle mx-4 mt-2 mb-2"></div>
+                </div>
+              ) : null;
+            })()}
+            <div className="flex-1 min-h-[200px] flex flex-col">
+              {getPathVariables(activeRequest?.url || '').length > 0 && (
+                <h3 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider px-4 mt-2 mb-2 flex-shrink-0">Query Parameters</h3>
+              )}
+              <KeyValueEditor 
+                items={getQueryParams(activeRequest?.url || '')} 
+                onChange={(newParams: Record<string, string>) => {
+                  const newUrl = setQueryParams(activeRequest?.url || '', newParams);
+                  setLocalUrl(newUrl);
+                  updateActiveRequest({
+                    url: newUrl,
+                    disabledParams: (activeRequest?.disabledParams || []).filter(key => Object.hasOwn(newParams, key))
+                  });
+                }}
+                disabledKeys={activeRequest?.disabledParams}
+                onDisabledKeysChange={disabledParams => updateActiveRequest({ disabledParams })}
+                keyColumnWidth={keyColumnWidth}
+                onKeyColumnWidthChange={setKeyColumnWidth}
+                isBulk={isBulk}
+              />
+            </div>
+          </div>
         )}
         {activeTab === 'req-auth' && (
           <AuthEditor 

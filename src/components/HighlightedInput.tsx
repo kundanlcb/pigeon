@@ -518,7 +518,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
           {activeEnvironmentId && (
             <label className="flex items-start space-x-2 text-[11px] text-text-secondary cursor-pointer mt-1 hover:text-text-primary transition-colors">
               <input type="checkbox" checked={replaceAll} onChange={e => setReplaceAll(e.target.checked)} className="mt-0.5 rounded border-border-strong bg-surface-bg accent-accent" />
-              <span className="leading-tight">Replace all occurrences of this value in the active collection with {'{{'}{hoveredVar.name}{'}}'}</span>
+              <span className="leading-tight">Replace all occurrences with {'{{'}{hoveredVar.name}{'}}'}</span>
             </label>
           )}
         </div>,

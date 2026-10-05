@@ -6,6 +6,7 @@ import { Save, Trash2 } from 'lucide-react';
 interface KeyValue {
   key: string;
   value: string;
+  isInherited?: boolean;
 }
 
 interface KeyValueEditorProps {
@@ -55,12 +56,19 @@ export function KeyValueEditor({
     if (fixedKeys) {
       return fixedKeys.map(key => ({ key, value: items[key] || '' }));
     }
+    const newPairs: KeyValue[] = [];
+    if (inheritedItems) {
+      Object.entries(inheritedItems).forEach(([k, v]) => {
+        newPairs.push({ key: k, value: v, isInherited: true });
+      });
+    }
     const initial = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
+    newPairs.push(...initial);
     secretKeys.forEach(key => {
-      if (!initial.some(pair => pair.key.toLowerCase() === key.toLowerCase())) initial.push({ key, value: '' });
+      if (!newPairs.some(pair => pair.key.toLowerCase() === key.toLowerCase())) newPairs.push({ key, value: '' });
     });
-    initial.push({ key: '', value: '' });
-    return initial;
+    newPairs.push({ key: '', value: '' });
+    return newPairs;
   });
 
   useEffect(() => {
@@ -108,32 +116,51 @@ export function KeyValueEditor({
 
   useEffect(() => {
     const currentRecord: Record<string, string> = {};
+    const currentInherited: Record<string, string> = {};
     pairs.forEach(p => {
       if (p.key.trim() && !secretKeys.some(key => key.toLowerCase() === p.key.trim().toLowerCase())) {
-        currentRecord[p.key.trim()] = p.value;
+        if (p.isInherited) {
+          currentInherited[p.key.trim()] = p.value;
+        } else {
+          currentRecord[p.key.trim()] = p.value;
+        }
       }
     });
 
     const hasSecretRows = secretKeys.every(key => pairs.some(pair => pair.key.toLowerCase() === key.toLowerCase()));
-    if (JSON.stringify(currentRecord) === JSON.stringify(items || {}) && hasSecretRows) {
+    
+    if (
+      JSON.stringify(currentRecord) === JSON.stringify(items || {}) && 
+      JSON.stringify(currentInherited) === JSON.stringify(inheritedItems || {}) &&
+      hasSecretRows
+    ) {
       return;
     }
 
-    const newPairs = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
+    const newPairs: KeyValue[] = [];
+    if (inheritedItems) {
+      Object.entries(inheritedItems).forEach(([k, v]) => {
+        newPairs.push({ key: k, value: v, isInherited: true });
+      });
+    }
+    const initial = Object.entries(items || {}).map(([key, value]) => ({ key, value }));
+    newPairs.push(...initial);
     secretKeys.forEach(key => {
       if (!newPairs.some(pair => pair.key.toLowerCase() === key.toLowerCase())) newPairs.push({ key, value: '' });
     });
     newPairs.push({ key: '', value: '' });
     setPairs(newPairs);
-  }, [items, pairs, secretKeys]);
+  }, [items, inheritedItems, pairs, secretKeys]);
 
   const updateStore = (newPairs: KeyValue[]) => {
     const record: Record<string, string> = {};
     newPairs.forEach(p => {
-      if (p.key.trim() && !secretKeySet.has(p.key.trim().toLowerCase())) record[p.key.trim()] = p.value;
+      if (p.key.trim() && !secretKeySet.has(p.key.trim().toLowerCase()) && !p.isInherited) {
+        record[p.key.trim()] = p.value;
+      }
     });
     onChange(record);
-    const nextDisabledKeys = disabledKeys.filter(key => Object.hasOwn(record, key));
+    const nextDisabledKeys = disabledKeys.filter(key => Object.hasOwn(record, key) || (inheritedItems && Object.hasOwn(inheritedItems, key)));
     if (nextDisabledKeys.length !== disabledKeys.length) onDisabledKeysChange?.(nextDisabledKeys);
   };
 
@@ -209,28 +236,6 @@ export function KeyValueEditor({
           <div className="py-1.5 px-2 bg-surface-bg"></div>
         </div>
 
-        {inheritedItems && Object.entries(inheritedItems).map(([k, v]) => (
-          <div
-            key={`inherited-${k}`}
-            className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0 opacity-60"
-            style={{ gridTemplateColumns }}
-          >
-            <div className="bg-app-bg flex items-center justify-center">
-              <input type="checkbox" disabled checked className="w-3.5 h-3.5 accent-accent cursor-not-allowed opacity-50" />
-            </div>
-            <div className="bg-app-bg h-[34px] px-3 flex items-center font-mono text-text-primary truncate pointer-events-none">
-              {k}
-            </div>
-            <div className="bg-app-bg h-[34px] px-3 flex items-center font-mono text-text-primary truncate pointer-events-none">
-              {v}
-            </div>
-            {hasSecretColumn && <div className="bg-app-bg flex items-center justify-center pointer-events-none"></div>}
-            <div className="bg-app-bg flex items-center justify-center pointer-events-none">
-              <div className="text-[9px] uppercase text-text-muted px-1 border border-border-strong rounded" title="Inherited from Collection">Inherited</div>
-            </div>
-          </div>
-        ))}
-
         {pairs.map((pair, idx) => {
           const isAuthorization = pair.key.trim().toLowerCase() === 'authorization';
           const isSecret = secretKeySet.has(pair.key.trim().toLowerCase());
@@ -239,7 +244,7 @@ export function KeyValueEditor({
           return (
             <div
               key={idx}
-              className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
+              className={`grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0 ${pair.isInherited ? 'opacity-80' : ''}`}
               style={{ gridTemplateColumns }}
             >
               <div className="bg-app-bg flex items-center justify-center">
@@ -271,6 +276,7 @@ export function KeyValueEditor({
                       if (isSecret || fixedKeys) return;
                       const newPairs = [...pairs];
                       newPairs[idx].key = e.target.value;
+                      if (newPairs[idx].isInherited) newPairs[idx].isInherited = false;
                       if (idx === pairs.length - 1 && e.target.value && !fixedKeys) newPairs.push({ key: '', value: '' });
                       setPairs(newPairs);
                       updateStore(newPairs);
@@ -328,6 +334,7 @@ export function KeyValueEditor({
                     onChange={(e: any) => {
                       const newPairs = [...pairs];
                       newPairs[idx].value = e.target.value;
+                      if (newPairs[idx].isInherited) newPairs[idx].isInherited = false;
                       setPairs(newPairs);
                       updateStore(newPairs);
                     }}
@@ -349,37 +356,43 @@ export function KeyValueEditor({
                 </div>
               )}
               <div className="bg-app-bg flex items-center justify-center gap-1">
-                {isSecret && secretDraft && (
-                  <button
-                    type="button"
-                    title="Save secret to system keychain"
-                    aria-label="Save secret to system keychain"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSecretSave?.(pair.key, secretDraft)}
-                    className="p-1 text-text-muted hover:text-accent transition-colors"
-                  >
-                    <Save size={14} />
-                  </button>
-                )}
-                {!fixedKeys && (
-                  <button
-                    type="button"
-                    title="Remove header"
-                    aria-label={`Remove ${pair.key || 'header'}`}
-                    onClick={() => {
-                      if (isSecret) {
-                        onSecretDelete?.(pair.key);
-                        return;
-                      }
-                      const newPairs = pairs.filter((_, i) => i !== idx);
-                      if (newPairs.length === 0) newPairs.push({ key: '', value: '' });
-                      setPairs(newPairs);
-                      updateStore(newPairs);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-text-muted hover:text-red-400 transition-opacity z-10"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                {pair.isInherited ? (
+                  <div className="text-[9px] uppercase text-text-muted px-1 border border-border-strong rounded" title="Inherited from Collection">Inherited</div>
+                ) : (
+                  <>
+                    {isSecret && secretDraft && (
+                      <button
+                        type="button"
+                        title="Save secret to system keychain"
+                        aria-label="Save secret to system keychain"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onSecretSave?.(pair.key, secretDraft)}
+                        className="p-1 text-text-muted hover:text-accent transition-colors"
+                      >
+                        <Save size={14} />
+                      </button>
+                    )}
+                    {!fixedKeys && (
+                      <button
+                        type="button"
+                        title="Remove header"
+                        aria-label={`Remove ${pair.key || 'header'}`}
+                        onClick={() => {
+                          if (isSecret) {
+                            onSecretDelete?.(pair.key);
+                            return;
+                          }
+                          const newPairs = pairs.filter((_, i) => i !== idx);
+                          if (newPairs.length === 0) newPairs.push({ key: '', value: '' });
+                          setPairs(newPairs);
+                          updateStore(newPairs);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-text-muted hover:text-red-400 transition-opacity z-10"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

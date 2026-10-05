@@ -184,7 +184,7 @@ export default function App() {
   const activeRequest = useStore(state => state.getActiveRequest());
   const toast = useStore(state => state.toast);
   const [curlModalRequest, setCurlModalRequest] = useState(activeRequest);
-  const abortControllerRef = React.useRef<AbortController | null>(null);
+
 
   const updateActiveRequest = useStore(state => state.updateActiveRequest);
   const addHistoryItem = useStore(state => state.addHistoryItem);
@@ -192,29 +192,37 @@ export default function App() {
   const [localUrl, setLocalUrl] = useState(activeRequest?.url || '');
   const [localMethod, setLocalMethod] = useState(activeRequest?.method || 'GET');
 
-  const [response, setResponse] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [responses, setResponses] = useState<Record<string, any>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const abortControllersRef = React.useRef<Record<string, AbortController>>({});
+
+  const response = activeRequest ? responses[activeRequest.id] : null;
+  const isLoading = activeRequest ? !!loadingStates[activeRequest.id] : false;
 
   React.useEffect(() => {
     if (activeRequest) {
       setLocalUrl(activeRequest.url);
       setLocalMethod(activeRequest.method);
-      setResponse(null); // Clear response when switching requests
     }
   }, [activeRequest]);
 
   const handleSend = async () => {
-    if (isLoading) {
-      abortControllerRef.current?.abort();
-      setIsLoading(false);
+    if (!activeRequest) return;
+    const reqId = activeRequest.id;
+
+    if (loadingStates[reqId]) {
+      abortControllersRef.current[reqId]?.abort();
+      setLoadingStates(prev => ({ ...prev, [reqId]: false }));
       return;
     }
     if (!localUrl) return;
-    setIsLoading(true);
-    setResponse(null);
 
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    setLoadingStates(prev => ({ ...prev, [reqId]: true }));
+    setResponses(prev => ({ ...prev, [reqId]: null }));
+
+    const controller = new AbortController();
+    abortControllersRef.current[reqId] = controller;
+    const signal = controller.signal;
 
     try {
       const { executeRequest } = await import('./utils/engine');
@@ -228,40 +236,48 @@ export default function App() {
         saveSecretsToEnvironment: true
       });
 
-      setResponse({
-        status: result.status,
-        statusText: result.statusText,
-        time: result.timeMs,
-        sizeBytes: result.sizeBytes ?? result.rawText.length,
-        isBinary: result.isBinary,
-        isTruncated: result.isTruncated,
-        headers: result.headers,
-        data: typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data,
-        testResults: result.testResults
-      });
+      setResponses(prev => ({
+        ...prev,
+        [reqId]: {
+          status: result.status,
+          statusText: result.statusText,
+          time: result.timeMs,
+          sizeBytes: result.sizeBytes ?? result.rawText.length,
+          isBinary: result.isBinary,
+          isTruncated: result.isTruncated,
+          headers: result.headers,
+          data: typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data,
+          testResults: result.testResults
+        }
+      }));
       
     } catch (error: any) {
-      setResponse({
-        status: 0,
-        statusText: error.name === 'AbortError' ? 'Cancelled' : 'Error',
-        time: 0,
-        sizeBytes: 0,
-        isBinary: false,
-        isTruncated: false,
-        headers: {},
-        data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatPigeonError(error),
-        testResults: []
-      });
+      setResponses(prev => ({
+        ...prev,
+        [reqId]: {
+          status: 0,
+          statusText: error.name === 'AbortError' ? 'Cancelled' : 'Error',
+          time: 0,
+          sizeBytes: 0,
+          isBinary: false,
+          isTruncated: false,
+          headers: {},
+          data: error.name === 'AbortError' ? 'Request was cancelled by the user.' : formatPigeonError(error),
+          testResults: []
+        }
+      }));
     } finally {
-      if (activeRequest) {
+      const currentReq = useStore.getState().collections.flatMap(c => c.requests).find(r => r.id === reqId);
+      if (currentReq) {
         addHistoryItem({
-          ...activeRequest,
+          ...currentReq,
           url: localUrl,
           method: localMethod,
-          name: activeRequest.name || localUrl || 'Unnamed Request'
+          name: currentReq.name || localUrl || 'Unnamed Request'
         });
       }
-      setIsLoading(false);
+      setLoadingStates(prev => ({ ...prev, [reqId]: false }));
+      delete abortControllersRef.current[reqId];
     }
   };
 

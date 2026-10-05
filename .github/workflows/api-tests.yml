@@ -24,7 +24,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build Pigeon CLI
-        run: cargo build --bin pigeon-cli --release
+        run: cargo build -p pigeon-cli --release
         working-directory: ./src-tauri
 
       - name: Create secret file from GitHub Secrets

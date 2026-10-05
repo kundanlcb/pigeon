@@ -27,6 +27,7 @@ interface KeyValueEditorProps {
   onSecretSave?: (key: string, value: string) => void;
   onSecretDelete?: (key: string) => void;
   fixedKeys?: string[];
+  inheritedItems?: Record<string, string>;
 }
 
 export function KeyValueEditor({
@@ -47,7 +48,8 @@ export function KeyValueEditor({
   onSecretValueChange,
   onSecretSave,
   onSecretDelete,
-  fixedKeys
+  fixedKeys,
+  inheritedItems
 }: KeyValueEditorProps) {
   const [pairs, setPairs] = useState<KeyValue[]>(() => {
     if (fixedKeys) {
@@ -206,6 +208,28 @@ export function KeyValueEditor({
           {hasSecretColumn && <div className="py-1.5 px-2 bg-surface-bg text-center">Secret</div>}
           <div className="py-1.5 px-2 bg-surface-bg"></div>
         </div>
+
+        {inheritedItems && Object.entries(inheritedItems).map(([k, v]) => (
+          <div
+            key={`inherited-${k}`}
+            className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0 opacity-60"
+            style={{ gridTemplateColumns }}
+          >
+            <div className="bg-app-bg flex items-center justify-center">
+              <input type="checkbox" disabled checked className="w-3.5 h-3.5 accent-accent cursor-not-allowed opacity-50" />
+            </div>
+            <div className="bg-app-bg h-[34px] px-3 flex items-center font-mono text-text-primary truncate pointer-events-none">
+              {k}
+            </div>
+            <div className="bg-app-bg h-[34px] px-3 flex items-center font-mono text-text-primary truncate pointer-events-none">
+              {v}
+            </div>
+            {hasSecretColumn && <div className="bg-app-bg flex items-center justify-center pointer-events-none"></div>}
+            <div className="bg-app-bg flex items-center justify-center pointer-events-none">
+              <div className="text-[9px] uppercase text-text-muted px-1 border border-border-strong rounded" title="Inherited from Collection">Inherited</div>
+            </div>
+          </div>
+        ))}
 
         {pairs.map((pair, idx) => {
           const isAuthorization = pair.key.trim().toLowerCase() === 'authorization';

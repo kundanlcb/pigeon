@@ -118,6 +118,9 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
     } else {
       try {
         const value = await getSecret(environmentId, variable.key);
+        if (value === null) {
+          useStore.getState().showToast('Secret not found in keychain. Please save it again.', 'warning');
+        }
         setRevealedSecrets(prev => ({ ...prev, [variable.id]: value || '' }));
       } catch (e) {
         useStore.getState().showToast(`Failed to retrieve secret: ${String(e)}`, 'error');
@@ -167,14 +170,19 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
     }
 
     if (variable.secret) {
-      try {
-        const value = await getSecret(environmentId, variable.key);
-        if (value === null) throw new Error('The secret is missing from the system keychain.');
-        await setSecret(environmentId, nextKey, value);
-        await deleteSecret(environmentId, variable.key);
-      } catch (error) {
-        useStore.getState().showToast(`Failed to rename secret variable: ${String(error)}`, 'error');
-        return;
+      if (variable.secretStored === false) {
+        // Nothing in keychain yet, safe to just rename the key in state
+      } else {
+        try {
+          const value = await getSecret(environmentId, variable.key);
+          if (value !== null) {
+            await setSecret(environmentId, nextKey, value);
+            await deleteSecret(environmentId, variable.key);
+          }
+        } catch (error) {
+          useStore.getState().showToast(`Failed to rename secret variable: ${String(error)}`, 'error');
+          return;
+        }
       }
     }
 
@@ -342,7 +350,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                          void saveSecretDraft(v);
                       }
                     }}
-                    placeholder={v.secret ? (v.secretStored === false ? 'Secret not set — click to add' : '••••••') : "Value"}
+                    placeholder={v.secret ? (revealedSecrets[v.id] !== undefined ? "Empty" : (v.secretStored === false ? 'Secret not set — click to add' : '••••••')) : "Value"}
                     className="w-full h-full py-1.5 pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
                   {v.secret && !isPlaceholder && secretDrafts[v.id] === undefined && (

@@ -124,7 +124,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
       try {
         const value = await getSecret(environmentId, variable.key);
         if (value === null) {
-          useStore.getState().showToast('Secret not found in keychain. Please save it again.', 'warning');
+          useStore.getState().showToast('Secret not found in keychain. Please save it again.', 'info');
         }
         setRevealedSecrets(prev => ({ ...prev, [variable.id]: value || '' }));
       } catch (e) {

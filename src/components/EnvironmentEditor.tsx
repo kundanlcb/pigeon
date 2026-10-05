@@ -70,7 +70,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
 
   const handleDeleteVariable = async (id: string) => {
     const v = selectedEnv.variables.find(v => v.id === id);
-    if (v && v.secret) {
+    if (v && v.secretStored) {
       try {
         await deleteSecret(environmentId, v.key);
       } catch (error) {
@@ -98,13 +98,18 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
       clearSecretDraft(variable.id);
       return;
     }
-    try {
-      await setSecret(environmentId, variable.key, value);
-      handleUpdateVariable(variable.id, { secret: true, secretStored: true, value: '' });
+    if (variable.secretStored) {
+      try {
+        await setSecret(environmentId, variable.key, value);
+        handleUpdateVariable(variable.id, { value: '' });
+        clearSecretDraft(variable.id);
+        useStore.getState().showToast('Secret saved to keychain', 'success');
+      } catch (error) {
+        useStore.getState().showToast(`Failed to save secret: ${String(error)}`, 'error');
+      }
+    } else {
+      handleUpdateVariable(variable.id, { value });
       clearSecretDraft(variable.id);
-      useStore.getState().showToast('Secret saved to keychain', 'success');
-    } catch (error) {
-      useStore.getState().showToast(`Failed to save secret: ${String(error)}`, 'error');
     }
   };
 
@@ -130,31 +135,53 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
 
   const updateSecretStatus = async (variable: EnvironmentVariable, makeSecret: boolean) => {
     if (makeSecret) {
+      handleUpdateVariable(variable.id, { secret: true });
+      return;
+    }
+
+    if (!variable.secret) return;
+
+    if (variable.secretStored) {
+      try {
+        const value = await getSecret(environmentId, variable.key);
+        if (value !== null) {
+          await deleteSecret(environmentId, variable.key);
+          handleUpdateVariable(variable.id, { secret: false, secretStored: false, value });
+        } else {
+          handleUpdateVariable(variable.id, { secret: false, secretStored: false });
+        }
+      } catch (error) {
+        useStore.getState().showToast(`Failed to fetch from keychain: ${String(error)}`, 'error');
+      }
+    } else {
+      handleUpdateVariable(variable.id, { secret: false });
+    }
+  };
+
+  const updateKeychainStatus = async (variable: EnvironmentVariable, useKeychain: boolean) => {
+    if (useKeychain) {
       if (variable.value) {
         try {
           await setSecret(environmentId, variable.key, variable.value);
-          handleUpdateVariable(variable.id, { secret: true, secretStored: true, value: '' });
+          handleUpdateVariable(variable.id, { secretStored: true, value: '' });
         } catch (error) {
-          useStore.getState().showToast(`Failed to save secret: ${String(error)}`, 'error');
+          useStore.getState().showToast(`Failed to save to keychain: ${String(error)}`, 'error');
         }
       } else {
-        handleUpdateVariable(variable.id, { secret: true, secretStored: false, value: '' });
+        handleUpdateVariable(variable.id, { secretStored: true, value: '' });
       }
-      return;
-    }
-
-    if (!variable.secret) {
-      handleUpdateVariable(variable.id, { secret: false });
-      return;
-    }
-
-    try {
-      const value = await getSecret(environmentId, variable.key);
-      if (value === null) throw new Error('No value exists in the system keychain.');
-      await deleteSecret(environmentId, variable.key);
-      handleUpdateVariable(variable.id, { secret: false, value });
-    } catch (error) {
-      useStore.getState().showToast(`Failed to make variable non-secret: ${String(error)}`, 'error');
+    } else {
+      try {
+        const value = await getSecret(environmentId, variable.key);
+        if (value !== null) {
+          await deleteSecret(environmentId, variable.key);
+          handleUpdateVariable(variable.id, { secretStored: false, value });
+        } else {
+          handleUpdateVariable(variable.id, { secretStored: false, value: '' });
+        }
+      } catch (error) {
+        useStore.getState().showToast(`Failed to fetch from keychain: ${String(error)}`, 'error');
+      }
     }
   };
 
@@ -248,7 +275,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
           <div className="border border-border-strong rounded-lg overflow-hidden">
             <div 
               className="grid gap-px bg-border-strong text-[11px] font-semibold text-text-secondary uppercase tracking-wider border-b border-border-strong shrink-0"
-              style={{ gridTemplateColumns: `48px ${keyColWidth}px 1fr 64px 48px` }}
+              style={{ gridTemplateColumns: `48px ${keyColWidth}px 1fr 50px 70px 48px` }}
             >
               <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Use</div>
               <div className="py-1.5 px-3 bg-surface-bg flex items-center relative">
@@ -262,7 +289,8 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                 </div>
               </div>
               <div className="py-1.5 px-3 bg-surface-bg flex items-center">Initial Value</div>
-              <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center">Secret</div>
+              <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center" title="Hide value">Secret</div>
+              <div className="py-1.5 px-2 bg-surface-bg text-center flex items-center justify-center" title="Store in OS Keychain">Keychain</div>
               <div className="py-1.5 px-2 bg-surface-bg"></div>
             </div>
             
@@ -277,7 +305,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
               <div 
                 key={v.id} 
                 className="grid gap-px bg-border-strong text-[13px] group border-b border-border-strong last:border-b-0"
-                style={{ gridTemplateColumns: `48px ${keyColWidth}px 1fr 64px 48px` }}
+                style={{ gridTemplateColumns: `48px ${keyColWidth}px 1fr 50px 70px 48px` }}
               >
                 <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
                   <input 
@@ -329,41 +357,53 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                     id={`secret-input-${v.id}`}
                     type={v.secret && revealedSecrets[v.id] === undefined ? "password" : "text"}
                     value={
-                      secretDrafts[v.id] !== undefined 
-                        ? secretDrafts[v.id] 
-                        : (v.secret 
-                            ? (revealedSecrets[v.id] !== undefined ? revealedSecrets[v.id] : '') 
-                            : v.value)
+                      (v.secret && v.secretStored)
+                        ? (secretDrafts[v.id] !== undefined ? secretDrafts[v.id] : (revealedSecrets[v.id] !== undefined ? revealedSecrets[v.id] : ''))
+                        : v.value
                     }
                     onChange={(e) => {
-                       if (v.secret) {
+                       if (v.secret && v.secretStored) {
                          setSecretDrafts(prev => ({...prev, [v.id]: e.target.value}));
                        } else {
                          handleUpdateVariable(v.id, { value: e.target.value });
                        }
                     }}
                     onBlur={() => {
-                       if (v.secret) void saveSecretDraft(v);
+                       if (v.secret && v.secretStored) void saveSecretDraft(v);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && v.secret) {
+                      if (e.key === 'Enter' && v.secret && v.secretStored) {
                          void saveSecretDraft(v);
                       }
                     }}
-                    placeholder={v.secret ? (revealedSecrets[v.id] !== undefined ? "Empty" : (v.secretStored === false ? 'Secret not set — click to add' : '••••••')) : "Value"}
+                    placeholder={
+                      (v.secret && v.secretStored)
+                        ? (revealedSecrets[v.id] !== undefined ? "Empty" : '••••••')
+                        : "Value"
+                    }
                     className="w-full h-full py-1.5 pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted"
                   />
-                  {v.secret && !isPlaceholder && secretDrafts[v.id] === undefined && (
+                  {v.secret && !isPlaceholder && (!v.secretStored || secretDrafts[v.id] === undefined) && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => void toggleRevealSecret(v)}
+                      onClick={() => {
+                        if (v.secretStored) {
+                          void toggleRevealSecret(v);
+                        } else {
+                          if (revealedSecrets[v.id] !== undefined) {
+                            setRevealedSecrets(prev => { const next={...prev}; delete next[v.id]; return next; });
+                          } else {
+                            setRevealedSecrets(prev => ({...prev, [v.id]: 'local'}));
+                          }
+                        }
+                      }}
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary transition-colors z-10"
                       title={revealedSecrets[v.id] !== undefined ? "Hide Secret" : "Show Secret"}
                     >
                       {revealedSecrets[v.id] !== undefined ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   )}
-                  {v.secret && secretDrafts[v.id] !== undefined && (
+                  {v.secret && v.secretStored && secretDrafts[v.id] !== undefined && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
@@ -386,6 +426,18 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                     }}
                     className="accent-accent w-3.5 h-3.5 cursor-pointer rounded-sm"
                   />
+                </div>
+                <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
+                  {v.secret && !isPlaceholder && (
+                    <input 
+                      type="checkbox" 
+                      checked={v.secretStored || false}
+                      onChange={(e) => {
+                        void updateKeychainStatus(v, e.target.checked);
+                      }}
+                      className="accent-accent w-3.5 h-3.5 cursor-pointer rounded-sm"
+                    />
+                  )}
                 </div>
                 <div className="py-1 px-2 bg-app-bg flex items-center justify-center">
                   <button 

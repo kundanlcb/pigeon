@@ -13,7 +13,9 @@ fn map_keyring_error(e: keyring::Error) -> PigeonError {
 }
 
 fn get_entry(scope: &str, key: &str) -> Result<Entry, PigeonError> {
-    Entry::new("pigeon", &format!("{scope}:{key}")).map_err(map_keyring_error)
+    let lookup = format!("{scope}:{key}");
+    println!("[Keychain] Looking up: pigeon / {}", lookup);
+    Entry::new("pigeon", &lookup).map_err(map_keyring_error)
 }
 
 #[tauri::command]

@@ -20,7 +20,13 @@ pub fn resolve_variables(
     if let Some(env) = environment {
         for v in &env.variables {
             if v.enabled && !v.key.trim().is_empty() {
-                variables.insert(v.key.trim().to_string(), v.value.clone());
+                let mut val = v.value.clone();
+                if v.secret_stored.unwrap_or(false) {
+                    if let Ok(Some(secret_val)) = crate::secret_resolver::get_secret(&env.id, &v.key) {
+                        val = secret_val;
+                    }
+                }
+                variables.insert(v.key.trim().to_string(), val);
             }
         }
     }

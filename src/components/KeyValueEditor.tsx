@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { HighlightedInput } from './HighlightedInput';
 import { Save, Trash2 } from 'lucide-react';
 
@@ -55,6 +56,7 @@ export function KeyValueEditor({
     return initial;
   });
   const [focusedKeyIdx, setFocusedKeyIdx] = useState<number | null>(null);
+  const [keyRect, setKeyRect] = useState<{top: number, left: number, width: number} | null>(null);
   const [localKeyColWidth, setLocalKeyColWidth] = useState(250);
   const keyColWidth = keyColumnWidth ?? localKeyColWidth;
   const secretKeySet = new Set(secretKeys.map(key => key.toLowerCase()));
@@ -215,7 +217,13 @@ export function KeyValueEditor({
                   />
                 )}
               </div>
-              <div className="bg-app-bg relative h-[34px]">
+              <div 
+                className="bg-app-bg relative h-[34px]"
+                onFocusCapture={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setKeyRect({ top: rect.bottom, left: rect.left, width: rect.width });
+                }}
+              >
                 <HighlightedInput
                   className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
                   value={pair.key}
@@ -231,8 +239,11 @@ export function KeyValueEditor({
                     updateStore(newPairs);
                   }}
                 />
-                {focusedKeyIdx === idx && filteredSuggestions.length > 0 && (
-                  <div className="absolute top-[100%] left-0 mt-1 w-[200%] max-w-sm max-h-48 overflow-y-auto bg-panel-bg border border-border-strong rounded-lg shadow-xl z-[9999] py-1">
+                {focusedKeyIdx === idx && filteredSuggestions.length > 0 && keyRect && createPortal(
+                  <div 
+                    className="fixed mt-1 max-h-48 overflow-y-auto bg-panel-bg border border-border-strong rounded-lg shadow-xl z-[9999] py-1"
+                    style={{ top: keyRect.top, left: keyRect.left, width: Math.max(keyRect.width, 200) }}
+                  >
                     {filteredSuggestions.map(s => (
                       <div
                         key={s}
@@ -250,7 +261,8 @@ export function KeyValueEditor({
                         {s}
                       </div>
                     ))}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
               <div className="bg-app-bg relative h-[34px]">

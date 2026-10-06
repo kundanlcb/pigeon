@@ -303,7 +303,7 @@ export function PerformanceHub() {
             </p>
           </div>
         ) : (
-          <Group orientation="vertical" className="w-full h-full border border-border-strong rounded-md overflow-hidden bg-panel-bg">
+          <Group autoSave="pigeon-performance-hub" orientation="vertical" className="w-full h-full border border-border-strong rounded-md overflow-hidden bg-panel-bg">
             <Panel defaultSize={60} minSize={30} className="flex flex-col relative bg-app-bg">
               <div className="flex-1 overflow-y-auto flex flex-col">
                 

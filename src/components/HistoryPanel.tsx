@@ -59,7 +59,7 @@ export function HistoryPanel() {
 
   return (
     <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
-      <Group orientation="vertical">
+      <Group autoSave="pigeon-history-panel" orientation="vertical">
         <Panel defaultSize={100} minSize={20} className="flex flex-col">
           <div className="h-[44px] px-4 flex items-center justify-between shrink-0 select-none">
             <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">History</span>

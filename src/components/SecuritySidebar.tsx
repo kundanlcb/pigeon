@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Shield, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, Clock, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Shield, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, Clock, Trash2, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../store';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 
@@ -72,6 +72,52 @@ export function SecuritySidebar() {
     }
   };
 
+  const handleSelectColMethod = (colId: string, method: string) => {
+    const col = collections.find(c => c.id === colId);
+    if (!col) return;
+    const methodIds = col.requests.filter(r => r.method === method).map(r => r.id);
+    const newSelected = new Set([...selectedRequestIds]);
+    methodIds.forEach(id => newSelected.add(id));
+    setSelectedRequestIds(Array.from(newSelected));
+    setActiveSecurityScanId(null);
+    setActiveMenuColId(null);
+  };
+
+  const handleSelectColAll = (colId: string) => {
+    const col = collections.find(c => c.id === colId);
+    if (!col) return;
+    const methodIds = col.requests.map(r => r.id);
+    const newSelected = new Set([...selectedRequestIds]);
+    methodIds.forEach(id => newSelected.add(id));
+    setSelectedRequestIds(Array.from(newSelected));
+    setActiveSecurityScanId(null);
+    setActiveMenuColId(null);
+  };
+  
+  const handleDeselectColAll = (colId: string) => {
+    const col = collections.find(c => c.id === colId);
+    if (!col) return;
+    const methodIds = col.requests.map(r => r.id);
+    const newSelected = new Set([...selectedRequestIds]);
+    methodIds.forEach(id => newSelected.delete(id));
+    setSelectedRequestIds(Array.from(newSelected));
+    setActiveSecurityScanId(null);
+    setActiveMenuColId(null);
+  };
+
+  const [activeMenuColId, setActiveMenuColId] = useState<string | null>(null);
+  const colMenuRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
+        setActiveMenuColId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
       <div className="h-[44px] px-4 flex items-center justify-between shrink-0 select-none">
@@ -86,7 +132,7 @@ export function SecuritySidebar() {
         )}
       </div>
       
-      <Group orientation="vertical">
+      <Group autoSave="pigeon-security-sidebar" orientation="vertical">
         <Panel defaultSize={65} minSize={20} className="flex flex-col">
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {collections.map(col => {
@@ -120,6 +166,48 @@ export function SecuritySidebar() {
                 >
                   <Shield size={13} className="text-text-secondary" />
                   <span className="truncate text-text-primary font-medium">{col.name}</span>
+                </div>
+                
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenuColId(activeMenuColId === col.id ? null : col.id);
+                    }}
+                    className="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-text-primary hover:bg-border-subtle rounded"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                  
+                  {activeMenuColId === col.id && (
+                    <div 
+                      ref={colMenuRef}
+                      className="absolute top-full right-0 mt-1 w-36 bg-panel-bg border border-border-strong rounded-lg shadow-xl overflow-hidden z-50 py-1 flex flex-col"
+                    >
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleSelectColAll(col.id); }}
+                        className="px-3 py-1.5 text-[11px] text-left hover:bg-surface-hover text-text-primary"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeselectColAll(col.id); }}
+                        className="px-3 py-1.5 text-[11px] text-left hover:bg-surface-hover text-text-primary"
+                      >
+                        Deselect All
+                      </button>
+                      <div className="h-px bg-border-strong my-1" />
+                      {['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map(method => (
+                        <button
+                          key={method}
+                          onClick={(e) => { e.stopPropagation(); handleSelectColMethod(col.id, method); }}
+                          className="px-3 py-1.5 text-[11px] text-left hover:bg-surface-hover text-text-secondary hover:text-text-primary flex items-center justify-between"
+                        >
+                          <span>Select {method}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

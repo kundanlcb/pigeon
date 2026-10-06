@@ -80,11 +80,16 @@ export async function runSecurityAudit(
   
   // Resolve keychain auth header for baseline if needed
   const resolvedBase = { ...base, headers: { ...base.headers } };
-  if (base.authorizationHeaderKeychainRef && !resolvedBase.headers['Authorization']) {
+  const hasAuthHeader = Object.keys(resolvedBase.headers).some(key => key.toLowerCase() === config.authHeaderName.toLowerCase());
+  if (base.authorizationHeaderKeychainRef && !hasAuthHeader) {
     try {
       const secret = await getSecret('request-auth', base.authorizationHeaderKeychainRef!);
       if (secret) {
-        resolvedBase.headers['Authorization'] = secret;
+        // Find existing auth header name or default to configured
+        const existingAuthKey = Object.keys(resolvedBase.headers).find(
+          key => key.toLowerCase() === config.authHeaderName.toLowerCase()
+        ) || config.authHeaderName;
+        resolvedBase.headers[existingAuthKey] = secret;
       } else {
         onProgress('[!] Warning: Authorization header could not be resolved from system keychain.');
       }
@@ -116,7 +121,17 @@ export async function runSecurityAudit(
   checkAbort();
   if (config.testBOLA && config.attackerAuthHeader) {
     onProgress('[*] Queueing BOLA / IDOR test...');
-    const bolaHeaders = { ...resolvedBase.headers, [config.authHeaderName]: config.attackerAuthHeader };
+    const bolaHeaders = { ...resolvedBase.headers };
+    
+    // Remove the original auth header case-insensitively so the attacker token takes precedence
+    const bolaHeaderKeyToRemove = Object.keys(bolaHeaders).find(
+      key => key.toLowerCase() === config.authHeaderName.toLowerCase()
+    );
+    if (bolaHeaderKeyToRemove) {
+      delete bolaHeaders[bolaHeaderKeyToRemove];
+    }
+    
+    bolaHeaders[config.authHeaderName] = config.attackerAuthHeader;
     const bolaRes = await sendAuditRequest(resolvedBase.url, resolvedBase.method, bolaHeaders, resolvedBase.body, abortSignal);
     
     if (bolaRes.status >= 200 && bolaRes.status < 300) {

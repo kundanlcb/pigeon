@@ -87,7 +87,7 @@ export function PerformanceSidebar() {
         )}
       </div>
       
-      <Group orientation="vertical">
+      <Group autoSave="pigeon-performance-sidebar" orientation="vertical">
         <Panel defaultSize={65} minSize={20} className="flex flex-col">
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {collections.map(col => {

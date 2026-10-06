@@ -301,7 +301,7 @@ export default function App() {
 
       <Sidebar />
 
-      <Group orientation="horizontal" className="flex-1 min-w-0" >
+      <Group autoSave="pigeon-app-main-horizontal" orientation="horizontal" className="flex-1 min-w-0" >
 
         {activeView === 'history' ? (
           <HistoryPanel />
@@ -542,7 +542,7 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 min-h-0">
-                    <Group orientation="vertical">
+                    <Group autoSave="pigeon-app-request-vertical" orientation="vertical">
                       <RequestEditor 
                         setLocalUrl={setLocalUrl} 
                         localUrl={localUrl}

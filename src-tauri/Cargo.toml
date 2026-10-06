@@ -3,7 +3,7 @@ members = [".", "pigeon-core", "pigeon-cli"]
 
 [package]
 name = "pigeon"
-version = "2.0.31"
+version = "2.0.33"
 description = "A Tauri App"
 authors = ["you"]
 license = ""

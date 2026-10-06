@@ -2942,7 +2942,7 @@ dependencies = [
 
 [[package]]
 name = "pigeon"
-version = "2.0.31"
+version = "2.0.33"
 dependencies = [
  "clap",
  "keyring",

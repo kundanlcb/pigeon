@@ -384,16 +384,19 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         }
       }}
     >
-      <Editor
-        value={value}
-        onValueChange={handleValueChange}
-        highlight={highlightText}
-        padding={isTextArea ? 16 : 8}
-        onKeyUp={getCaretCoordinates}
-        onClick={getCaretCoordinates}
-        className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${(isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'} ${className}`}
-        textareaClassName={`outline-none focus:outline-none ${(isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? '' : '!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar'}`}
-        preClassName={`!bg-transparent ${(isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis && !isFocused ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
+      {(() => {
+        const shouldExpand = isTextArea || (autoExpand && value.includes('\n'));
+        return (
+          <Editor
+            value={value}
+            onValueChange={handleValueChange}
+            highlight={highlightText}
+            padding={isTextArea ? 16 : 8}
+            onKeyUp={getCaretCoordinates}
+            onClick={getCaretCoordinates}
+            className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${shouldExpand ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'} ${className}`}
+            textareaClassName={`outline-none focus:outline-none ${shouldExpand ? '' : '!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar'}`}
+            preClassName={`!bg-transparent ${shouldExpand ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis && !isFocused ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
         placeholder={placeholder}
         onFocus={() => {
           setIsFocused(true);
@@ -408,10 +411,12 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         onKeyDown={handleKeyDown}
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          minHeight: (isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? (isTextArea ? '100%' : '80px') : 'auto',
+          minHeight: shouldExpand ? (isTextArea ? '100%' : '80px') : 'auto',
           backgroundColor: 'transparent'
         }}
       />
+        );
+      })()}
       
       {/* Suggestions Dropdown */}
       {showSuggestions && filteredSuggestions.length > 0 && cursorPos && createPortal(

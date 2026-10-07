@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore, type RequestItem } from '../store';
-import { Play, Loader2, Check, X, ArrowLeft, Upload, FileText, ChevronRight, ChevronDown } from 'lucide-react';
+import { Play, Loader2, Check, X, Upload, FileText, ChevronRight, ChevronDown } from 'lucide-react';
 import { getMethodColor } from '../utils/styles';
 import { parseDataset } from '../utils/engine';
 import { RequestResponseDetails } from './RequestResponseDetails';
@@ -10,7 +10,6 @@ export function RunnerView() {
   const setRunnerState = useStore(state => state.setRunnerState);
   const collections = useStore(state => state.collections);
   const selectedRequestIds = useStore(state => state.selectedRunnerRequestIds);
-  const setActiveView = useStore(state => state.setActiveView);
   const showToast = useStore(state => state.showToast);
 
   const [datasetFile, setDatasetFile] = useState<File | null>(null);
@@ -232,18 +231,40 @@ export function RunnerView() {
           <button 
             onClick={handleStartRun}
             disabled={runnerState.isRunning || requestsToDisplay.length === 0}
-            className="flex items-center space-x-2 bg-accent hover:bg-accent-hover text-white px-5 h-[36px] rounded-md text-sm font-medium transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`flex items-center space-x-1.5 px-3 h-[28px] rounded text-[11px] font-medium transition-all shadow-sm ${
+              runnerState.isRunning || requestsToDisplay.length === 0
+                ? 'opacity-50 cursor-not-allowed bg-surface-hover text-text-muted'
+                : 'bg-accent text-white hover:bg-accent-hover'
+            }`}
           >
-            {runnerState.isRunning ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
+            {runnerState.isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
             <span>{runnerState.isRunning ? (currentIteration ? `Running (Iter ${currentIteration})...` : 'Running...') : 'Start Run'}</span>
           </button>
         </div>
       </div>
       
-      <div className="flex-1 overflow-hidden p-6 max-w-5xl mx-auto w-full">
-        <div className="flex-1 flex flex-col gap-6 min-h-0 w-full h-full">
-          {/* Logs Panel */}
-          <div className={`flex flex-col ${(!runnerState.isRunning && runnerState.results.length > 0 && !isLogsExpanded) ? 'hidden' : 'flex-1'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
+      <div className="flex-1 overflow-hidden flex flex-col px-4 py-6">
+        <div className="w-full h-full flex flex-col max-w-5xl mx-auto">
+          {requestsToDisplay.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-text-muted mt-20">
+              <Play size={48} className="mb-4 opacity-20" />
+              <h3 className="text-[13px] font-medium text-text-primary mb-2">Collection Runner</h3>
+              <p className="text-[12px] max-w-sm text-center leading-relaxed">
+                Select target endpoints from the left sidebar to execute them in sequence.
+              </p>
+            </div>
+          ) : !runnerState.isRunning && runnerState.results.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-text-muted mt-20">
+              <Play size={48} className="mb-4 opacity-20 text-accent" />
+              <h3 className="text-[13px] font-medium text-text-primary mb-2">Ready to Run</h3>
+              <p className="text-[12px] max-w-sm text-center leading-relaxed">
+                {requestsToDisplay.length} endpoints selected. Click Start Run to begin execution.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col gap-6 min-h-0 w-full h-full">
+              {/* Logs Panel */}
+              <div className={`flex flex-col ${(!runnerState.isRunning && runnerState.results.length > 0 && !isLogsExpanded) ? 'hidden' : 'flex-1'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
               <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                 <span>Execution Log</span>
                 <div className="flex items-center space-x-3">
@@ -464,6 +485,8 @@ export function RunnerView() {
             )}
           </div>
           )}
+        </div>
+        )}
         </div>
       </div>
     </div>

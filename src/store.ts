@@ -535,7 +535,10 @@ export const useStore = create<AppState>()(
             requests: col.requests.filter(req => req.id !== id)
           })),
           openRequestIds,
-          activeRequestId
+          activeRequestId,
+          selectedRequestIds: state.selectedRequestIds.filter(reqId => reqId !== id),
+          selectedSecurityRequestIds: state.selectedSecurityRequestIds.filter(reqId => reqId !== id),
+          selectedPerformanceRequestIds: state.selectedPerformanceRequestIds.filter(reqId => reqId !== id),
         };
         });
         if (removedRequest) {
@@ -610,7 +613,10 @@ export const useStore = create<AppState>()(
         return {
           collections: state.collections.filter(c => c.id !== id),
           openRequestIds,
-          activeRequestId
+          activeRequestId,
+          selectedRequestIds: state.selectedRequestIds.filter(reqId => !requestIdsToDelete.includes(reqId)),
+          selectedSecurityRequestIds: state.selectedSecurityRequestIds.filter(reqId => !requestIdsToDelete.includes(reqId)),
+          selectedPerformanceRequestIds: state.selectedPerformanceRequestIds.filter(reqId => !requestIdsToDelete.includes(reqId)),
         };
         });
         void deleteUnusedRequestSecrets(get().collections, removedRequests).catch(error =>
@@ -675,7 +681,10 @@ export const useStore = create<AppState>()(
                 requests: item.requests.filter(request => !removedRequestIds.has(request.id))
               }),
           openRequestIds,
-          activeRequestId
+          activeRequestId,
+          selectedRequestIds: state.selectedRequestIds.filter(reqId => !removedRequestIds.has(reqId)),
+          selectedSecurityRequestIds: state.selectedSecurityRequestIds.filter(reqId => !removedRequestIds.has(reqId)),
+          selectedPerformanceRequestIds: state.selectedPerformanceRequestIds.filter(reqId => !removedRequestIds.has(reqId)),
         };
         });
         void deleteUnusedRequestSecrets(get().collections, removedRequests).catch(error =>

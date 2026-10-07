@@ -17,7 +17,8 @@ function sortByOrder<T extends { order?: number; id: string }>(items: T[]): T[] 
 
 export function CollectionTree({ collection, onExportRequest, onImportRequest }: CollectionTreeProps) {
   const folders = collection.folders || [];
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const collapsedFolders = useStore(state => state.collapsedFolderIds);
+  const toggleFolderCollapse = useStore(state => state.toggleFolderCollapse);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [newFolderParentId, setNewFolderParentId] = useState<string | null | undefined>(undefined);
   const [newFolderName, setNewFolderName] = useState('');
@@ -142,18 +143,13 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
   };
 
   const renderFolder = (folder: CollectionFolder, depth: number): React.ReactNode => {
-    const isCollapsed = collapsedFolders.has(folder.id);
+    const isCollapsed = collapsedFolders.includes(folder.id);
     const children = sortByOrder(folders.filter(child => child.parentId === folder.id));
     const requests = sortByOrder(collection.requests.filter(request => request.folderId === folder.id));
     return (
       <div key={folder.id} className="w-full">
         <div
-          onClick={() => setCollapsedFolders(current => {
-            const next = new Set(current);
-            if (next.has(folder.id)) next.delete(folder.id);
-            else next.add(folder.id);
-            return next;
-          })}
+          onClick={() => toggleFolderCollapse(folder.id)}
           className={`w-full flex items-center h-[24px] cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative pr-2 select-none ${menuId === folder.id ? 'bg-surface-hover text-text-primary' : ''}`}
           style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
         >
@@ -200,7 +196,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                 <button onClick={() => { addRequest(collection.id, { name: 'New Request', method: 'GET', url: '', headers: {}, folderId: folder.id }); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Plus size={12} className="mr-2" /> Add Request
                 </button>
-                <button onClick={() => { setNewFolderParentId(folder.id); setNewFolderName(''); setMenuId(null); setCollapsedFolders(current => { const next = new Set(current); next.delete(folder.id); return next; }); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
+                <button onClick={() => { setNewFolderParentId(folder.id); setNewFolderName(''); setMenuId(null); if (collapsedFolders.includes(folder.id)) toggleFolderCollapse(folder.id); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <FolderPlus size={12} className="mr-2" /> Add Subfolder
                 </button>
                 <button onClick={() => { setEditingFolderId(folder.id); setEditingFolderName(folder.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">

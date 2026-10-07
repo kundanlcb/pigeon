@@ -236,6 +236,8 @@ interface AppState {
   openRequestIds: string[];
   environments: Environment[];
   activeEnvironmentId: string | null;
+  collapsedFolderIds: string[];
+  toggleFolderCollapse: (id: string) => void;
   toggleCollection: (id: string) => void;
   setActiveRequest: (id: string) => void;
   closeRequest: (id: string) => void;
@@ -395,12 +397,47 @@ export const useStore = create<AppState>()(
           ]
         }
       ] as Collection[],
+      collapsedFolderIds: [],
 
-      toggleCollection: (id) => set((state) => ({
-        collections: state.collections.map(c => 
-          c.id === id ? { ...c, isOpen: !c.isOpen } : c
-        )
-      })),
+      toggleCollection: (id) => set((state) => {
+        const col = state.collections.find(c => c.id === id);
+        let nextCollapsed = [...(state.collapsedFolderIds || [])];
+        if (col && col.isOpen) {
+           if (col.folders) {
+             const newCollapsed = col.folders.map(f => f.id);
+             nextCollapsed = Array.from(new Set([...nextCollapsed, ...newCollapsed]));
+           }
+        }
+        return {
+          collapsedFolderIds: nextCollapsed,
+          collections: state.collections.map(c => 
+            c.id === id ? { ...c, isOpen: !c.isOpen } : c
+          )
+        };
+      }),
+      
+      toggleFolderCollapse: (id) => set((state) => {
+        const nextCollapsed = new Set(state.collapsedFolderIds || []);
+        if (nextCollapsed.has(id)) {
+          nextCollapsed.delete(id);
+        } else {
+          nextCollapsed.add(id);
+          const parentCol = state.collections.find(c => c.folders?.some(f => f.id === id));
+          if (parentCol && parentCol.folders) {
+            const getDescendants = (folders: any[], pId: string): string[] => {
+              const children = folders.filter(f => f.parentId === pId);
+              let desc = children.map(c => c.id);
+              for (const child of children) {
+                desc = desc.concat(getDescendants(folders, child.id));
+              }
+              return desc;
+            };
+            const descendants = getDescendants(parentCol.folders, id);
+            descendants.forEach(d => nextCollapsed.add(d));
+          }
+        }
+        return { collapsedFolderIds: Array.from(nextCollapsed) };
+      }),
 
       setActiveRequest: (id) => set((state) => {
         const openRequestIds = state.openRequestIds.includes(id) 

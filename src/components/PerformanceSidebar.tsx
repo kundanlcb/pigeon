@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, Clock, Trash2, MoreHorizontal } from 'lucide-react';
+import { ChevronRight, ChevronDown, Clock, Trash2, MoreHorizontal } from 'lucide-react';
+import { SidebarRequest } from './SidebarNodes';
 import { useStore } from '../store';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 
@@ -15,40 +16,38 @@ export function PerformanceSidebar() {
   const [expandedColIds, setExpandedColIds] = useState<Set<string>>(() => new Set(collections.map(c => c.id)));
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
-  const toggleCollectionExpand = (colId: string) => {
+  const toggleCollectionExpand = (id: string) => {
     const next = new Set(expandedColIds);
-    if (next.has(colId)) next.delete(colId);
-    else next.add(colId);
+    const col = collections.find(c => c.id === id);
+    if (col) {
+      if (next.has(id)) {
+        next.delete(id);
+        if (col.folders) col.folders.forEach(f => next.add(f.id));
+      } else next.add(id);
+    } else {
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        const parentCol = collections.find(c => c.folders?.some(f => f.id === id));
+        if (parentCol && parentCol.folders) {
+          const getDescendants = (folders: any[], pId: string): string[] => {
+            const children = folders.filter(f => f.parentId === pId);
+            let desc = children.map(c => c.id);
+            for (const child of children) {
+              desc = desc.concat(getDescendants(folders, child.id));
+            }
+            return desc;
+          };
+          const descendants = getDescendants(parentCol.folders, id);
+          descendants.forEach(d => next.add(d));
+        }
+      }
+    }
     setExpandedColIds(next);
   };
 
-  const getCollectionSelectionState = (colId: string) => {
-    const col = collections.find(c => c.id === colId);
-    if (!col || col.requests.length === 0) return 'none';
-    const selectedCount = col.requests.filter(r => selectedRequestIds.includes(r.id)).length;
-    if (selectedCount === 0) return 'none';
-    if (selectedCount === col.requests.length) return 'all';
-    return 'partial';
-  };
 
-  const toggleCollectionSelection = (colId: string) => {
-    const col = collections.find(c => c.id === colId);
-    if (!col) return;
-    const reqIds = col.requests.map(r => r.id);
-    const state = getCollectionSelectionState(colId);
-    
-    let next = [...selectedRequestIds];
-    if (state === 'all') {
-      // Deselect all
-      next = next.filter(id => !reqIds.includes(id));
-    } else {
-      // Select all (add missing)
-      const missing = reqIds.filter(id => !next.includes(id));
-      next = [...next, ...missing];
-    }
-    setSelectedRequestIds(next);
-    setActivePerformanceTestId(null);
-  };
 
   const toggleRequestSelection = (reqId: string) => {
     let next = [...selectedRequestIds];
@@ -154,32 +153,23 @@ export function PerformanceSidebar() {
               return (
                 <div key={col.id} className="space-y-0.5">
                   <div
-                    className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group"
+                    className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group relative"
                   >
                     <div 
-                      className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                      className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
                       onClick={() => toggleCollectionExpand(col.id)}
                     >
                       {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </div>
                     <div 
-                      className="flex-1 flex items-center justify-between cursor-pointer"
-                      onClick={() => toggleCollectionSelection(col.id)}
+                      className="flex-1 flex items-center justify-between cursor-pointer overflow-hidden"
+                      onClick={() => toggleCollectionExpand(col.id)}
                     >
                       <span className="font-medium text-text-primary truncate">{col.name}</span>
                       <div className="flex items-center space-x-2">
                         <span className="text-[10px] text-text-muted bg-surface-bg px-1.5 py-0.5 rounded-md">
                           {col.requests.length}
                         </span>
-                        <div className="text-accent" onClick={(e) => { e.stopPropagation(); toggleCollectionSelection(col.id); }}>
-                          {getCollectionSelectionState(col.id) === 'all' ? (
-                            <CheckSquare size={14} />
-                          ) : getCollectionSelectionState(col.id) === 'partial' ? (
-                            <MinusSquare size={14} />
-                          ) : (
-                            <Square size={14} className="text-text-muted" />
-                          )}
-                        </div>
                       </div>
                     </div>
                     <button
@@ -224,39 +214,20 @@ export function PerformanceSidebar() {
                   </div>
 
                   {isExpanded && (
-                    <div className="pl-1 space-y-0.5 mt-1">
+                    <div className="space-y-0.5 mt-1">
                       {(() => {
                         const rootFolders = col.folders ? [...col.folders].filter(f => !f.parentId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
                         const rootRequests = [...col.requests].filter(r => !r.folderId || !(col.folders || []).some(f => f.id === r.folderId)).sort((a, b) => (a.order || 0) - (b.order || 0));
 
-                        const renderRequest = (req: any, depth: number) => {
-                          const isSelected = selectedRequestIds.includes(req.id);
-                          return (
-                            <div 
-                              key={req.id} 
-                              onClick={() => toggleRequestSelection(req.id)}
-                              style={{ paddingLeft: `${depth * 14}px` }}
-                              className={`flex items-center justify-between px-2 py-1.5 rounded-md text-[12px] cursor-pointer transition-colors ${
-                                isSelected 
-                                  ? 'bg-accent/10 text-accent font-medium' 
-                                  : 'hover:bg-surface-hover text-text-secondary hover:text-text-primary'
-                              }`}
-                            >
-                              <div className="flex items-center space-x-2 truncate">
-                                <span className={`font-bold text-[9px] w-10 shrink-0 ${
-                                  req.method === 'GET' ? 'text-blue-400' :
-                                  req.method === 'POST' ? 'text-green-400' :
-                                  req.method === 'PUT' ? 'text-yellow-400' :
-                                  req.method === 'DELETE' ? 'text-red-400' : 'text-purple-400'
-                                }`}>{req.method}</span>
-                                <span className="truncate">{req.name}</span>
-                              </div>
-                              <div className="ml-2 flex items-center justify-center text-accent shrink-0">
-                                {isSelected ? <CheckSquare size={14} /> : <Square size={14} className="text-text-muted opacity-50" />}
-                              </div>
-                            </div>
-                          );
-                        };
+                        const renderRequest = (req: any, depth: number) => (
+                          <SidebarRequest 
+                            key={req.id} 
+                            request={req} 
+                            depth={depth} 
+                            isSelected={selectedRequestIds.includes(req.id)} 
+                            onToggleSelection={toggleRequestSelection} 
+                          />
+                        );
 
                         const renderFolder = (folder: any, depth: number): React.ReactNode => {
                           const isCollapsed = expandedColIds.has(folder.id);
@@ -266,11 +237,11 @@ export function PerformanceSidebar() {
                           return (
                             <div key={folder.id} className="w-full">
                               <div 
-                                className="flex items-center space-x-1 px-2 py-1.5 rounded-md text-[12px] hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
-                                style={{ paddingLeft: `${depth * 14}px` }}
+                                className="flex items-center px-1 py-1 rounded-md text-[12px] hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
+                                style={{ paddingLeft: `${(depth + 1) * 16}px` }}
                               >
                                 <div className="flex flex-1 items-center overflow-hidden" onClick={() => toggleCollectionExpand(folder.id)}>
-                                  <span className="w-4 h-4 flex items-center justify-center text-text-muted group-hover:text-text-primary">
+                                  <span className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-text-muted group-hover:text-text-primary">
                                     {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                                   </span>
                                   <span className="truncate flex-1 font-medium">{folder.name}</span>

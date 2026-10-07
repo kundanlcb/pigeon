@@ -5,6 +5,12 @@ export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'PASS';
 export type TestCategory = 'BOLA' | 'MASS_ASSIGNMENT' | 'BROKEN_AUTH' | 'VERB_TAMPERING' | 'FUZZING';
 
 export interface AuditFinding {
+  requestHeaders?: Record<string, string>;
+  requestBody?: string;
+  responseHeaders?: Record<string, string>;
+  responseBody?: string;
+  statusCode?: number;
+  responseTime?: number;
   id: string;
   category: TestCategory;
   title: string;
@@ -57,12 +63,16 @@ const sendAuditRequest = async (url: string, method: string, headers: Record<str
     clearTimeout(timeoutId);
     
     const responseText = await response.text();
-    return { status: response.status, body: responseText, duration: Date.now() - startTime };
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+    return { status: response.status, body: responseText, duration: Date.now() - startTime, headers: responseHeaders };
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      return { status: 0, body: 'Request timed out or aborted', duration: 60000 };
+      return { status: 0, body: 'Request timed out or aborted', duration: 60000, headers: {} };
     }
-    return { status: 0, body: String(err), duration: 0 };
+    return { status: 0, body: String(err), duration: 0, headers: {} };
   }
 };
 
@@ -110,8 +120,7 @@ export async function runSecurityAudit(
       description: `The security engine could not establish a connection to ${resolvedBase.url}. The request may have timed out, or the server is completely unresponsive.`,
       risk: 'CRITICAL',
       remediation: 'Ensure the server is running and the URL is correct before attempting a security audit.',
-      payloadSent: `Error Details: ${baselineRes.body}`
-    });
+      payloadSent: `Error Details: ${baselineRes.body}`, requestHeaders: resolvedBase.headers, requestBody: resolvedBase.body, responseHeaders: baselineRes.headers, responseBody: baselineRes.body, statusCode: baselineRes.status, responseTime: baselineRes.duration});
     onProgress(`[!] Audit Aborted: Target Unreachable (${baselineRes.body}).`);
     return findings;
   }
@@ -143,8 +152,7 @@ export async function runSecurityAudit(
         description: 'The server accepted a request for a resource using a different user\'s token.',
         risk: 'CRITICAL',
         remediation: 'Ensure the backend verifies that the requested resource ID belongs to the user associated with the provided token.',
-        payloadSent: `Headers: { ${config.authHeaderName}: ${config.attackerAuthHeader.substring(0, 15)}... }`
-      });
+        payloadSent: `Headers: { ${config.authHeaderName}: ${config.attackerAuthHeader.substring(0, 15)}... }`, requestHeaders: bolaHeaders, requestBody: resolvedBase.body, responseHeaders: bolaRes.headers, responseBody: bolaRes.body, statusCode: bolaRes.status, responseTime: bolaRes.duration});
     } else {
       findings.push({
         id: 'bola-pass',
@@ -152,8 +160,7 @@ export async function runSecurityAudit(
         title: 'BOLA / IDOR Check',
         description: `Server correctly rejected the secondary token with status ${bolaRes.status}.`,
         risk: 'PASS',
-        remediation: '',
-      });
+        remediation: '', requestHeaders: bolaHeaders, requestBody: resolvedBase.body, responseHeaders: bolaRes.headers, responseBody: bolaRes.body, statusCode: bolaRes.status, responseTime: bolaRes.duration});
       onProgress(`[✓] BOLA test passed: Server rejected secondary token [${bolaRes.status}]`);
     }
   } else if (!config.testBOLA) {
@@ -184,8 +191,7 @@ export async function runSecurityAudit(
         description: `The endpoint returned a successful response even when the ${config.authHeaderName} header was completely removed.`,
         risk: 'CRITICAL',
         remediation: 'Enforce strict authentication middleware on this endpoint.',
-        payloadSent: `Headers: (Removed ${config.authHeaderName})`
-      });
+        payloadSent: `Headers: (Removed ${config.authHeaderName})`, requestHeaders: noAuthHeaders, requestBody: resolvedBase.body, responseHeaders: noAuthRes.headers, responseBody: noAuthRes.body, statusCode: noAuthRes.status, responseTime: noAuthRes.duration});
     } else {
       onProgress(`[✓] Broken Authentication test passed: Server rejected missing auth [${noAuthRes.status}]`);
       findings.push({
@@ -194,8 +200,7 @@ export async function runSecurityAudit(
         title: 'Authentication Check',
         description: `Server rejected unauthenticated request with status ${noAuthRes.status}.`,
         risk: 'PASS',
-        remediation: '',
-      });
+        remediation: '', requestHeaders: noAuthHeaders, requestBody: resolvedBase.body, responseHeaders: noAuthRes.headers, responseBody: noAuthRes.body, statusCode: noAuthRes.status, responseTime: noAuthRes.duration});
     }
   } else {
     onProgress('[-] Skipping Broken Authentication test (Disabled).');
@@ -221,8 +226,7 @@ export async function runSecurityAudit(
         description: 'The server accepted an injected payload containing restricted privilege flags (e.g. is_admin: true).',
         risk: 'HIGH',
         remediation: 'Use strict schema validation (e.g., Zod or Joi) to explicitly reject unknown or protected properties.',
-        payloadSent: JSON.stringify(maliciousBody, null, 2)
-      });
+        payloadSent: JSON.stringify(maliciousBody, null, 2), requestHeaders: resolvedBase.headers, requestBody: resolvedBase.body, responseHeaders: baselineRes.headers, responseBody: baselineRes.body, statusCode: baselineRes.status, responseTime: baselineRes.duration});
     } else {
       onProgress(`[✓] Mass Assignment test passed: Server rejected injected flags [${massRes.status}]`);
     }
@@ -252,8 +256,7 @@ export async function runSecurityAudit(
           description: `The endpoint unexpectedly allowed a ${verb} request.`,
           risk: 'HIGH',
           remediation: `Ensure routing strictly denies ${verb} methods for this path unless explicitly authorized.`,
-          payloadSent: `Method: ${verb}`
-        });
+          payloadSent: `Method: ${verb}`, requestHeaders: resolvedBase.headers, requestBody: resolvedBase.body, responseHeaders: baselineRes.headers, responseBody: baselineRes.body, statusCode: baselineRes.status, responseTime: baselineRes.duration});
       } else {
         onProgress(`    [✓] Server correctly rejected ${verb} [${verbRes.status}]`);
       }
@@ -295,8 +298,7 @@ export async function runSecurityAudit(
           title: 'Server Instability Detected',
           description: `The server crashed (${fuzzerCrashes} times) and returned a 500 Error when presented with malformed edge-case payloads.`,
           risk: 'MEDIUM',
-          remediation: 'Implement robust global error handling to prevent 500 crashes and avoid leaking stack traces.',
-        });
+          remediation: 'Implement robust global error handling to prevent 500 crashes and avoid leaking stack traces.', requestHeaders: resolvedBase.headers, requestBody: resolvedBase.body, responseHeaders: baselineRes.headers, responseBody: baselineRes.body, statusCode: baselineRes.status, responseTime: baselineRes.duration});
       } else {
         onProgress(`[✓] Fuzzer test passed: No crashes detected.`);
         findings.push({
@@ -305,8 +307,7 @@ export async function runSecurityAudit(
           title: 'Fuzzing Check',
           description: 'Server gracefully handled all malformed edge-case payloads without crashing.',
           risk: 'PASS',
-          remediation: '',
-        });
+          remediation: '', requestHeaders: resolvedBase.headers, requestBody: resolvedBase.body, responseHeaders: baselineRes.headers, responseBody: baselineRes.body, statusCode: baselineRes.status, responseTime: baselineRes.duration});
       }
     } else {
       onProgress('[-] Skipping Fuzzer test (Not applicable to GET requests).');

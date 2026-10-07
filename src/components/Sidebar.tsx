@@ -1,4 +1,4 @@
-import { Files, Workflow, History, GitBranch, Shield, Activity } from 'lucide-react';
+import { Files, Workflow, History, GitBranch, Shield, Activity, Play } from 'lucide-react';
 import { SettingsMenu } from './SettingsMenu';
 import { useStore } from '../store';
 
@@ -30,6 +30,17 @@ export function Sidebar() {
           title="History"
         >
           <History size={19} strokeWidth={1.5} />
+        </button>
+        <button 
+          onClick={() => setActiveView('runner')}
+          className={`w-8 h-8 flex items-center justify-center cursor-pointer transition-all rounded-md outline-none mx-auto ${
+            activeView === 'runner' 
+              ? 'bg-border-strong text-accent' 
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+          }`}
+          title="Runner Hub"
+        >
+          <Play size={19} strokeWidth={1.5} />
         </button>
         <button 
           onClick={() => setActiveView('security')}

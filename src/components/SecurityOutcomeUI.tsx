@@ -1,11 +1,13 @@
-import { useRef, useEffect } from 'react';
-import { Play, ChevronDown, ChevronRight, Check, AlertTriangle, Download, Shield } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { Play, ChevronDown, ChevronRight, Check, AlertTriangle, Download, Shield, Filter } from 'lucide-react';
+import { RequestResponseDetails } from './RequestResponseDetails';
 import type { AuditFinding } from '../utils/security/engine';
 
 export interface RequestFindings {
   requestId: string;
   requestName: string;
   requestMethod: string;
+  requestUrl?: string;
   findings: AuditFinding[];
 }
 
@@ -43,6 +45,7 @@ export function SecurityOutcomeUI({
   exportReport
 }: SecurityOutcomeUIProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const [filterIssueType, setFilterIssueType] = useState<string>('ALL');
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -145,6 +148,22 @@ export function SecurityOutcomeUI({
                         </button>
                       </>
                     )}
+                    <div className="w-px h-3 bg-border-strong mx-1" />
+                    <div className="flex items-center space-x-2 relative group">
+                      <Filter size={12} className="text-text-muted" />
+                      <select 
+                        className="bg-transparent text-[11px] font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary transition-colors appearance-none pr-3"
+                        value={filterIssueType}
+                        onChange={(e) => setFilterIssueType(e.target.value)}
+                      >
+                        <option value="ALL">All Issues</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                      </select>
+                      <ChevronDown size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+                    </div>
                   </>
                 );
               })()}
@@ -155,10 +174,23 @@ export function SecurityOutcomeUI({
             {groupedFindings.length === 0 && (
               <div className="text-[12px] text-text-muted text-center py-10">No findings to display.</div>
             )}
-            {groupedFindings.map((group) => {
-              const vulns = group.findings.filter(f => f.risk !== 'PASS');
+            {[...groupedFindings].sort((a, b) => {
+              const riskWeights: Record<string, number> = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'PASS': 0 };
+              const maxRiskA = Math.max(0, ...a.findings.map(f => riskWeights[f.risk] || 0));
+              const maxRiskB = Math.max(0, ...b.findings.map(f => riskWeights[f.risk] || 0));
+              return maxRiskB - maxRiskA;
+            }).map((group) => {
+              const riskWeights: Record<string, number> = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+              const vulns = group.findings.filter(f => {
+                if (f.risk === 'PASS') return false;
+                if (filterIssueType !== 'ALL' && f.risk !== filterIssueType) return false;
+                return true;
+              }).sort((a, b) => (riskWeights[b.risk] || 0) - (riskWeights[a.risk] || 0));
               const hasVulns = vulns.length > 0;
               const isExpanded = expandedFindingIds.has(group.requestId);
+
+              // Don't render the request row at all if they are filtering and there are no matching vulns for this request
+              if (filterIssueType !== 'ALL' && !hasVulns) return null;
 
               return (
                 <div key={group.requestId} className="flex flex-col border-b border-border-subtle last:border-b-0">
@@ -183,7 +215,12 @@ export function SecurityOutcomeUI({
                         group.requestMethod === 'PUT' ? 'text-yellow-400' :
                         group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
                       }`}>{group.requestMethod}</span>
-                      <span className={`font-medium truncate ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
+                      <span className={`font-medium truncate shrink-0 max-w-[200px] ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
+                      {group.requestUrl && (
+                        <span className="text-[11px] text-text-muted truncate ml-2 font-mono">
+                          {group.requestUrl}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2">
                       {hasVulns ? (
@@ -224,10 +261,25 @@ export function SecurityOutcomeUI({
                           )}
                           {vuln.payloadSent && (
                             <div className="mt-3">
-                              <span className="text-[9px] uppercase tracking-wider font-bold block mb-1.5 text-text-muted">Payload / Headers Sent:</span>
+                              <span className="text-[9px] uppercase tracking-wider font-bold block mb-1.5 text-text-muted">Payload / Target Sent:</span>
                               <div className="bg-app-bg border border-border-strong rounded p-3 text-[10.5px] font-mono text-text-secondary whitespace-pre-wrap overflow-x-auto shadow-inner">
                                 {vuln.payloadSent}
                               </div>
+                            </div>
+                          )}
+                          
+                          {(vuln.requestHeaders || vuln.requestBody || vuln.responseHeaders || vuln.responseBody) && (
+                            <div className="mt-4 pt-3 border-t border-border-subtle/50">
+                              <RequestResponseDetails 
+                                method={group.requestMethod}
+                                url={group.requestUrl}
+                                requestHeaders={vuln.requestHeaders}
+                                requestBody={vuln.requestBody}
+                                responseHeaders={vuln.responseHeaders}
+                                responseBody={vuln.responseBody}
+                                statusCode={vuln.statusCode}
+                                responseTime={vuln.responseTime}
+                              />
                             </div>
                           )}
                         </div>

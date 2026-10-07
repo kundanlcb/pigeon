@@ -183,8 +183,22 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
       onExportClick?.('collection', col);
     } else if (action === 'run-collection') {
       useStore.getState().setActiveView('runner');
-      useStore.getState().setRunnerState({ collectionId: col.id, isRunning: false, results: [], currentIndex: 0 });
+      // Pass the selected method as an extra argument in action if available
+      // Actually we need to change the function signature if we pass runMethod
     }
+  };
+
+  const handleRunCollection = (e: React.MouseEvent, col: Collection, method?: string) => {
+    e.stopPropagation();
+    setOpenColMenuId(null);
+    useStore.getState().setActiveView('runner');
+    
+    const requestIds = method 
+      ? col.requests.filter(r => r.method === method).map(r => r.id)
+      : col.requests.map(r => r.id);
+      
+    useStore.getState().setSelectedRunnerRequestIds(requestIds);
+    useStore.getState().setRunnerState({ isRunning: false, results: [], currentIndex: 0, runMethod: method || null });
   };
 
   const handleStorageMode = async (event: React.MouseEvent, collection: Collection) => {
@@ -484,9 +498,20 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                       </button>
 
                       <ContextMenu isOpen={openColMenuId === col.id} onClose={() => setOpenColMenuId(null)} triggerRef={{ current: menuTriggerElement }} width={176}>
-                          <div onClick={(e) => handleColAction(e, 'run-collection', col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
-                            <Play size={12} className="mr-2 opacity-70" /> Run
+                          <div onClick={(e) => handleRunCollection(e, col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
+                            <Play size={12} className="mr-2 opacity-70" /> Run All
                           </div>
+                          {['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map(method => (
+                            <div key={method} onClick={(e) => handleRunCollection(e, col, method)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer pl-6">
+                              <span className={`text-[9px] font-bold w-12 ${
+                                method === 'GET' ? 'text-blue-400' :
+                                method === 'POST' ? 'text-green-400' :
+                                method === 'PUT' ? 'text-yellow-400' :
+                                method === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                              }`}>{method}</span>
+                              <span className="text-[11px] text-text-muted">Run {method}s</span>
+                            </div>
+                          ))}
                           <div className="h-px bg-border-subtle my-1"></div>
                           <div onClick={(e) => void handleStorageMode(e, col)} className="flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover cursor-pointer">
                             <GitBranch size={12} className="mr-2 opacity-70" />

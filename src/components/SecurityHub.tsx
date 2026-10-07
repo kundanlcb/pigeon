@@ -159,6 +159,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
           requestId: req.id,
           requestName: req.name,
           requestMethod: req.method,
+          requestUrl: resolvedUrl,
           findings: endpointFindings
         });
       } catch (err: any) {

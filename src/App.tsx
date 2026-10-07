@@ -9,6 +9,7 @@ import { SourceControlPanel } from "./components/SourceControlPanel";
 import { SecuritySidebar } from "./components/SecuritySidebar";
 import { RequestTabs } from "./components/RequestTabs";
 import { SecurityHub } from "./components/SecurityHub";
+import { RunnerSidebar } from "./components/RunnerSidebar";
 import { PerformanceSidebar } from "./components/PerformanceSidebar";
 import { PerformanceHub } from "./components/PerformanceHub";
 import { RequestEditor } from "./components/RequestEditor";
@@ -301,7 +302,20 @@ export default function App() {
 
       <Sidebar />
 
-      <Group autoSave="pigeon-app-main-horizontal" orientation="horizontal" className="flex-1 min-w-0" >
+      <Group 
+        autoSave="pigeon-app-main-horizontal" 
+        orientation="horizontal" 
+        className="flex-1 min-w-0"
+        defaultLayout={(() => {
+          try {
+            const saved = localStorage.getItem('pigeon-app-main-horizontal');
+            return saved ? JSON.parse(saved) : undefined;
+          } catch { return undefined; }
+        })()}
+        onLayoutChange={(layout) => {
+          localStorage.setItem('pigeon-app-main-horizontal', JSON.stringify(layout));
+        }}
+      >
 
         {activeView === 'history' ? (
           <HistoryPanel />
@@ -313,6 +327,8 @@ export default function App() {
           <SecuritySidebar />
         ) : activeView === 'performance' ? (
           <PerformanceSidebar />
+        ) : activeView === 'runner' ? (
+          <RunnerSidebar />
         ) : (
           <CollectionsPanel
             onAddEnvironmentClick={() => setIsEnvManagerOpen(true)}
@@ -542,7 +558,19 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 min-h-0">
-                    <Group autoSave="pigeon-app-request-vertical" orientation="vertical">
+                    <Group 
+                      autoSave="pigeon-app-request-vertical" 
+                      orientation="vertical"
+                      defaultLayout={(() => {
+                        try {
+                          const saved = localStorage.getItem('pigeon-app-request-vertical');
+                          return saved ? JSON.parse(saved) : undefined;
+                        } catch { return undefined; }
+                      })()}
+                      onLayoutChange={(layout) => {
+                        localStorage.setItem('pigeon-app-request-vertical', JSON.stringify(layout));
+                      }}
+                    >
                       <RequestEditor 
                         setLocalUrl={setLocalUrl} 
                         localUrl={localUrl}

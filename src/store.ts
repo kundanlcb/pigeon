@@ -7,6 +7,7 @@ export interface RequestFindings {
   requestId: string;
   requestName: string;
   requestMethod: string;
+  requestUrl?: string;
   findings: AuditFinding[];
 }
 
@@ -153,6 +154,11 @@ export interface RunnerResult {
   responseTime?: number;
   testResults: { name: string; passed: boolean; error?: string }[];
   error?: string;
+  requestUrl?: string;
+  requestHeaders?: Record<string, string>;
+  requestBody?: string | null;
+  responseHeaders?: Record<string, string>;
+  responseBody?: string;
 }
 
 export interface RunnerState {
@@ -160,6 +166,7 @@ export interface RunnerState {
   isRunning: boolean;
   results: RunnerResult[];
   currentIndex: number;
+  runMethod?: string | null;
 }
 
 export interface FlowNodeExtraction {
@@ -263,6 +270,8 @@ interface AppState {
   activeView: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security' | 'performance';
   setActiveView: (view: 'editor' | 'runner' | 'automation' | 'history' | 'source-control' | 'security' | 'performance') => void;
   selectedSecurityRequestIds: string[];
+  selectedRunnerRequestIds: string[];
+  setSelectedRunnerRequestIds: (ids: string[]) => void;
   setSelectedSecurityRequestIds: (ids: string[]) => void;
   securityHistory: SecurityScanRecord[];
   activeSecurityScanId: string | null;
@@ -304,6 +313,7 @@ export const useStore = create<AppState>()(
       theme: "dark",
       activeView: 'editor',
       selectedSecurityRequestIds: [],
+      selectedRunnerRequestIds: [],
       securityHistory: [],
       activeSecurityScanId: null,
       selectedPerformanceRequestIds: [],
@@ -753,6 +763,7 @@ export const useStore = create<AppState>()(
       }),
       setActiveView: (view) => set({ activeView: view }),
       setSelectedSecurityRequestIds: (ids) => set({ selectedSecurityRequestIds: ids }),
+      setSelectedRunnerRequestIds: (ids) => set({ selectedRunnerRequestIds: ids }),
       setActiveSecurityScanId: (id) => set({ activeSecurityScanId: id }),
       addSecurityScan: (scan) => set((state) => ({ securityHistory: [scan, ...state.securityHistory] })),
       deleteSecurityScan: (id) => set((state) => ({ 

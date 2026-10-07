@@ -3,11 +3,13 @@ import { useStore, type RequestItem } from '../store';
 import { Play, Loader2, Check, X, ArrowLeft, Upload, FileText, ChevronRight, ChevronDown } from 'lucide-react';
 import { getMethodColor } from '../utils/styles';
 import { parseDataset } from '../utils/engine';
+import { RequestResponseDetails } from './RequestResponseDetails';
 
 export function RunnerView() {
   const runnerState = useStore(state => state.runnerState);
   const setRunnerState = useStore(state => state.setRunnerState);
   const collections = useStore(state => state.collections);
+  const selectedRequestIds = useStore(state => state.selectedRunnerRequestIds);
   const setActiveView = useStore(state => state.setActiveView);
   const showToast = useStore(state => state.showToast);
 
@@ -34,13 +36,14 @@ export function RunnerView() {
     setExpandedResults(newSet);
   };
 
-  const collection = collections.find(c => c.id === runnerState.collectionId);
+  const allRequests = collections.flatMap(c => c.requests);
+  const targetRequests = allRequests.filter(req => selectedRequestIds.includes(req.id));
   
-  if (!collection) {
+  if (targetRequests.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-text-muted bg-app-bg">
-        <p>No collection selected for running.</p>
-        <button onClick={() => setActiveView('editor')} className="mt-4 text-accent hover:underline">Go Back</button>
+        <p>No requests selected.</p>
+        <p className="text-[12px] mt-2 opacity-70">Please select requests from the Runner Sidebar to run them in sequence.</p>
       </div>
     );
   }
@@ -100,9 +103,7 @@ export function RunnerView() {
       setCurrentIteration(iter + 1);
       const rowVars = dataset[iter];
       
-      const requestsToRun = runnerState.runMethod 
-        ? collection.requests.filter(r => r.method === runnerState.runMethod)
-        : collection.requests;
+      const requestsToRun = targetRequests;
 
       for (let i = 0; i < requestsToRun.length; i++) {
         const req = requestsToRun[i];
@@ -170,9 +171,7 @@ export function RunnerView() {
     setCurrentIteration(0);
   };
 
-  const requestsToDisplay = runnerState.runMethod 
-    ? collection.requests.filter(r => r.method === runnerState.runMethod)
-    : collection.requests;
+  const requestsToDisplay = targetRequests;
 
   return (
     <div className="flex-1 flex flex-col bg-app-bg overflow-hidden relative">
@@ -186,12 +185,7 @@ export function RunnerView() {
           </button>
           <div>
             <h1 className="text-lg font-semibold text-text-primary flex items-center">
-              Runner: <span className="ml-2 text-text-secondary">{collection.name}</span>
-              {runnerState.runMethod && (
-                <span className="ml-3 px-2 py-0.5 rounded text-[10px] font-bold bg-surface-hover border border-border-strong text-text-muted">
-                  {runnerState.runMethod} ONLY
-                </span>
-              )}
+              Runner Hub
             </h1>
             <p className="text-xs text-text-muted">
               {requestsToDisplay.length} requests in sequence
@@ -309,9 +303,7 @@ export function RunnerView() {
               <div className="flex-1 overflow-y-auto custom-scrollbar p-4 bg-app-bg">
               {requestsToDisplay.length === 0 ? (
                 <div className="text-center text-text-muted py-12">
-                  {runnerState.runMethod 
-                    ? `This collection has no ${runnerState.runMethod} requests.`
-                    : 'This collection has no requests. Add some requests to run them in sequence.'}
+                  No requests selected. Please select requests from the sidebar.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -335,7 +327,7 @@ export function RunnerView() {
                 </div>
               </div>
             )) : runnerState.results.map((result, idx) => {
-              const req = collection.requests.find(r => r.id === result.requestId);
+              const req = allRequests.find(r => r.id === result.requestId);
               if (!req) return null;
               
               const resultId = `${result.requestId}-${result.iteration}-${idx}`;
@@ -344,41 +336,42 @@ export function RunnerView() {
               return (
                 <div 
                   key={resultId} 
-                  className={`rounded-lg border transition-all overflow-hidden ${
-                    result.status === 'success' ? 'border-green-500/20' : 
-                    result.status === 'error' ? 'border-red-500/20' : 
-                    'border-border-subtle'
-                  }`}
+                  className="flex flex-col border-b border-border-subtle last:border-b-0"
                 >
                   <div 
                     onClick={() => toggleResult(resultId)}
-                    className={`flex items-center justify-between p-4 cursor-pointer hover:bg-surface-hover ${
+                    className={`flex items-center justify-between p-3 rounded-md text-[13px] cursor-pointer hover:bg-surface-hover/50 transition-colors ${
                       result.status === 'success' ? 'bg-green-500/5' : 
-                      result.status === 'error' ? 'bg-red-500/5' : 
-                      'bg-surface-bg'
+                      result.status === 'error' ? 'bg-red-500/5' : ''
                     }`}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className="text-text-muted hover:text-text-primary">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                      <div className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary shrink-0">
                         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </div>
-                      <div className="w-6 flex justify-center">
+                      <div className="w-4 h-4 flex justify-center items-center shrink-0">
                         {result.status === 'success' ? (
-                          <Check size={16} className="text-green-500" />
+                          <Check size={14} className="text-green-500" />
                         ) : result.status === 'error' ? (
-                          <X size={16} className="text-red-500" />
+                          <X size={14} className="text-red-500" />
                         ) : (
-                          <span className="text-text-muted text-xs">{idx + 1}</span>
+                          <span className="text-text-muted text-[10px]">{idx + 1}</span>
                         )}
                       </div>
                       
-                      <span className={`text-[11px] font-bold w-12 ${getMethodColor(req.method)}`}>
+                      <span className={`text-[10px] font-bold w-12 text-left shrink-0 ${getMethodColor(req.method)}`}>
                         {req.method}
                       </span>
                       
-                      <span className="font-medium text-text-primary">
+                      <span className="font-medium text-text-primary truncate shrink-0 max-w-[200px]">
                         {req.name}
                       </span>
+
+                      {result.requestUrl && (
+                        <span className="text-[11px] text-text-muted truncate ml-2 font-mono">
+                          {result.requestUrl}
+                        </span>
+                      )}
                       
                       {result.iteration && parsedDataset && (
                         <span className="px-1.5 py-0.5 rounded bg-surface-hover text-[10px] text-text-muted border border-border-subtle font-mono">
@@ -387,8 +380,8 @@ export function RunnerView() {
                       )}
                     </div>
                     
-                    <div className="flex items-center space-x-4 text-xs font-mono">
-                      <span className={result.statusCode && result.statusCode >= 200 && result.statusCode < 300 ? 'text-green-400' : 'text-red-400'}>
+                    <div className="flex items-center space-x-3 text-[11px] font-mono shrink-0">
+                      <span className={result.statusCode && result.statusCode >= 200 && result.statusCode < 300 ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
                         {result.statusCode || 'Err'}
                       </span>
                       <span className="text-text-muted">{result.responseTime}ms</span>
@@ -396,7 +389,7 @@ export function RunnerView() {
                   </div>
                   
                   {isExpanded && (
-                    <div className="p-4 bg-panel-bg border-t border-border-subtle space-y-4">
+                    <div className="pl-12 py-2 pr-4 space-y-4 bg-surface-bg/30 rounded-b-md">
                       {result.error && (
                         <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono break-words whitespace-pre-wrap">
                           <strong className="text-[11px] uppercase tracking-wider text-red-400/70 block mb-1">Error</strong>
@@ -429,57 +422,18 @@ export function RunnerView() {
                         </div>
                       )}
                       
-                      {result.requestUrl && (
-                        <div>
-                          <h4 className="text-[11px] uppercase tracking-wider text-text-secondary font-semibold mb-2">Request</h4>
-                          <div className="bg-surface-bg p-3 rounded border border-border-subtle text-[11px] font-mono space-y-2">
-                            <div className="flex text-text-primary">
-                              <span className={`font-bold mr-2 ${getMethodColor(req.method)}`}>{req.method}</span>
-                              <span className="break-all">{result.requestUrl}</span>
-                            </div>
-                            {result.requestHeaders && Object.keys(result.requestHeaders).length > 0 && (
-                              <div className="pt-2 border-t border-border-subtle/50 text-text-muted">
-                                {Object.entries(result.requestHeaders).map(([k, v]) => (
-                                  <div key={k} className="flex">
-                                    <span className="text-text-primary w-1/3 truncate pr-2">{k}:</span>
-                                    <span className="w-2/3 break-all">{v}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {result.requestBody && (
-                              <div className="pt-2 border-t border-border-subtle/50 text-text-primary whitespace-pre-wrap break-words">
-                                {result.requestBody}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {(result.responseHeaders || result.responseBody) && (
-                        <div>
-                          <h4 className="text-[11px] uppercase tracking-wider text-text-secondary font-semibold mb-2">Response</h4>
-                          <div className="bg-surface-bg p-3 rounded border border-border-subtle text-[11px] font-mono space-y-2">
-                            <div className="flex text-text-primary">
-                              <span className={`font-bold mr-2 ${result.statusCode && result.statusCode >= 200 && result.statusCode < 300 ? 'text-green-400' : 'text-red-400'}`}>{result.statusCode || 'Err'}</span>
-                              <span className="text-text-muted">{result.responseTime}ms</span>
-                            </div>
-                            {result.responseHeaders && Object.keys(result.responseHeaders).length > 0 && (
-                              <div className="pt-2 border-t border-border-subtle/50 text-text-muted">
-                                {Object.entries(result.responseHeaders).map(([k, v]) => (
-                                  <div key={k} className="flex">
-                                    <span className="text-text-primary w-1/3 truncate pr-2">{k}:</span>
-                                    <span className="w-2/3 break-all">{v}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {result.responseBody && (
-                              <div className="pt-2 border-t border-border-subtle/50 text-text-primary whitespace-pre-wrap break-words">
-                                {result.responseBody}
-                              </div>
-                            )}
-                          </div>
+                      {(result.requestUrl || result.responseHeaders || result.responseBody) && (
+                        <div className="mt-4 pt-3 border-t border-border-subtle/50">
+                          <RequestResponseDetails 
+                            method={req.method}
+                            url={result.requestUrl}
+                            requestHeaders={result.requestHeaders}
+                            requestBody={result.requestBody}
+                            responseHeaders={result.responseHeaders}
+                            responseBody={result.responseBody}
+                            statusCode={result.statusCode}
+                            responseTime={result.responseTime}
+                          />
                         </div>
                       )}
                     </div>

@@ -182,22 +182,19 @@ export function RunnerView() {
 
   return (
     <div className="flex-1 flex flex-col bg-app-bg overflow-hidden relative">
-      <div className="h-[68px] px-6 border-b border-border-subtle shrink-0 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button 
-            onClick={() => setActiveView('editor')}
-            className="p-1.5 rounded-md hover:bg-surface-hover text-text-muted hover:text-text-primary transition-colors"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 className="text-lg font-semibold text-text-primary flex items-center">
-              Runner Hub
-            </h1>
-            <p className="text-xs text-text-muted">
+      <div className="flex items-center justify-between px-4 h-[44px] border-b border-border-strong bg-panel-bg shrink-0">
+        <div className="flex items-center space-x-6 overflow-hidden">
+          <div className="flex items-center space-x-3 shrink-0">
+            <Play className="text-accent" size={16} />
+            <h2 className="text-[13px] font-semibold text-text-primary whitespace-nowrap">Runner Hub</h2>
+          </div>
+
+          <div className="w-[1px] h-4 bg-border-strong shrink-0" />
+          <div className="flex items-center space-x-2 text-[12px] text-text-muted shrink-0">
+            <span className="font-medium text-text-primary whitespace-nowrap">
               {requestsToDisplay.length}/{allRequests.length} APIs selected
-              {parsedDataset && parsedDataset.length > 0 && ` × ${parsedDataset.length} iterations = ${requestsToDisplay.length * parsedDataset.length} total`}
-            </p>
+              {parsedDataset && parsedDataset.length > 0 && <span className="text-text-muted ml-1 font-normal">× {parsedDataset.length} iterations = {requestsToDisplay.length * parsedDataset.length} total</span>}
+            </span>
           </div>
         </div>
         

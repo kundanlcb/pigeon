@@ -12,9 +12,10 @@ interface CurlModalProps {
   mode: 'import' | 'export';
   request?: RequestItem; // Needed for export
   targetCollectionId?: string | null;
+  targetFolderId?: string | null;
 }
 
-export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }: CurlModalProps) {
+export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId, targetFolderId }: CurlModalProps) {
   const [curlText, setCurlText] = useState('');
   const [copied, setCopied] = useState(false);
   const collections = useStore(state => state.collections);
@@ -73,7 +74,8 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId }
             url: parsed.url,
             headers: parsed.headers || {},
             body: parsed.body,
-            auth: parsed.auth
+            auth: parsed.auth,
+            folderId: targetFolderId || undefined
           });
           onClose();
         } else {

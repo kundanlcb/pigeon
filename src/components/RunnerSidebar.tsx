@@ -117,7 +117,7 @@ export function RunnerSidebar() {
 
   return (
     <Panel id="runner-sidebar" defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
-      <div className="flex-1 flex flex-col overflow-hidden text-text-primary text-[11px]">
+      <div className="flex-1 flex flex-col overflow-hidden text-text-primary">
         <div className="p-3 border-b border-border-subtle shrink-0">
           <div className="flex items-center space-x-2 font-bold mb-3 text-text-primary">
             <Play size={14} className="text-accent" />
@@ -213,17 +213,13 @@ export function RunnerSidebar() {
                         const isSelected = selectedRequestIds.includes(req.id);
                         return (
                           <div 
-                            key={req.id} 
-                            className="flex items-center p-1 rounded hover:bg-surface-hover cursor-pointer group"
-                            style={{ paddingLeft: `${depth * 14}px` }}
+                            key={req.id}
                             onClick={() => toggleRequestSelection(req.id)}
+                            style={{ paddingLeft: `${depth * 14}px` }}
+                            className="flex items-center space-x-2 px-1 py-1 rounded-md text-[12px] hover:bg-surface-hover cursor-pointer group"
                           >
-                            <div className="mr-2 text-text-muted group-hover:text-text-primary transition-colors">
-                              {isSelected ? (
-                                <CheckSquare size={12} className="text-accent" />
-                              ) : (
-                                <Square size={12} />
-                              )}
+                            <div className="w-4 h-4 flex items-center justify-center text-accent">
+                              {isSelected ? <CheckSquare size={13} /> : <Square size={13} className="text-text-muted opacity-50 group-hover:opacity-100 transition-opacity" />}
                             </div>
                             <span className={`text-[9px] font-bold w-10 shrink-0 ${
                               req.method === 'GET' ? 'text-blue-400' :
@@ -233,7 +229,7 @@ export function RunnerSidebar() {
                             }`}>
                               {req.method}
                             </span>
-                            <span className={`truncate ${isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
+                            <span className={`truncate flex-1 ${isSelected ? 'text-text-primary' : 'text-text-muted'}`}>
                               {req.name}
                             </span>
                           </div>
@@ -248,23 +244,23 @@ export function RunnerSidebar() {
                         return (
                           <div key={folder.id} className="w-full">
                             <div 
-                              className="flex items-center space-x-1 p-1 rounded hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
+                              className="flex items-center space-x-1 px-1 py-1 rounded-md text-[12px] hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
                               style={{ paddingLeft: `${depth * 14}px` }}
                             >
                               <div className="flex flex-1 items-center overflow-hidden" onClick={() => toggleCollectionExpand(folder.id)}>
                                 <span className="w-4 h-4 flex items-center justify-center text-text-muted group-hover:text-text-primary">
-                                  {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                                  {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                                 </span>
-                                <span className="truncate text-[11px] font-medium">{folder.name}</span>
+                                <span className="truncate flex-1 font-medium">{folder.name}</span>
                               </div>
                               <button
-                                className="p-1 hover:bg-white/10 rounded text-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                className="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-text-primary hover:bg-border-subtle rounded flex-shrink-0"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActiveMenuColId(activeMenuColId === folder.id ? null : folder.id);
                                 }}
                               >
-                                <MoreHorizontal size={12} />
+                                <MoreHorizontal size={14} />
                               </button>
                               
                               {activeMenuColId === folder.id && (

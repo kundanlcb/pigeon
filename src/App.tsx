@@ -181,6 +181,7 @@ export default function App() {
   const [isEnvManagerOpen, setIsEnvManagerOpen] = useState(false);
   const [curlModalMode, setCurlModalMode] = useState<'import' | 'export'>('import');
   const [curlModalTargetColId, setCurlModalTargetColId] = useState<string | null>(null);
+  const [curlModalTargetFolderId, setCurlModalTargetFolderId] = useState<string | null>(null);
   const activeRequestId = useStore(state => state.activeRequestId);
   const activeRequest = useStore(state => state.getActiveRequest());
   const toast = useStore(state => state.toast);
@@ -298,6 +299,7 @@ export default function App() {
         mode={curlModalMode}
         request={curlModalRequest || activeRequest}
         targetCollectionId={curlModalTargetColId}
+        targetFolderId={curlModalTargetFolderId}
       />
 
       <Sidebar />
@@ -332,10 +334,11 @@ export default function App() {
         ) : (
           <CollectionsPanel
             onAddEnvironmentClick={() => setIsEnvManagerOpen(true)}
-            onImportClick={async (type, colId?: string) => {
+            onImportClick={async (type, colId?: string, folderId?: string) => {
               if (type === 'request') {
                 setCurlModalMode('import');
                 setCurlModalTargetColId(colId || null);
+                setCurlModalTargetFolderId(folderId || null);
                 setIsCurlModalOpen(true);
               } else if (type === 'collection') {
                 try {

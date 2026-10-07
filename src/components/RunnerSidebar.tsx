@@ -117,75 +117,62 @@ export function RunnerSidebar() {
 
   return (
     <Panel id="runner-sidebar" defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
-      <div className="flex-1 flex flex-col overflow-hidden text-text-primary">
-        <div className="p-3 border-b border-border-subtle shrink-0">
-          <div className="flex items-center space-x-2 font-bold mb-3 text-text-primary">
-            <Play size={14} className="text-accent" />
-            <span>Runner Select</span>
-          </div>
-          
-          <div className="flex items-center justify-between text-text-muted">
-            <button 
-              className="flex items-center space-x-1.5 hover:text-text-primary transition-colors"
-              onClick={handleBulkToggle}
-            >
-              {isAllSelected ? (
-                <CheckSquare size={14} className="text-accent" />
-              ) : selectedRequestIds.length > 0 ? (
-                <MinusSquare size={14} className="text-accent opacity-70" />
-              ) : (
-                <Square size={14} />
-              )}
-              <span>{isAllSelected ? 'Deselect All' : 'Select All'}</span>
-            </button>
-            <span className="font-mono bg-surface-bg px-1.5 py-0.5 rounded text-[10px]">
-              {selectedRequestIds.length}
-            </span>
-          </div>
-        </div>
+      <div className="h-[44px] px-4 flex items-center justify-between shrink-0 select-none">
+        <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Collection Runner</span>
+        {collections.length > 0 && (
+          <button
+            onClick={handleBulkToggle}
+            className="text-[10px] font-medium text-text-muted hover:text-text-primary transition-colors"
+          >
+            {isAllSelected ? 'Deselect All' : 'Select All'}
+          </button>
+        )}
+      </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {collections.map(col => {
-            const isExpanded = expandedColIds.has(col.id);
-            const selState = getCollectionSelectionState(col.id);
-            
-            return (
-              <div key={col.id} className="space-y-0.5 relative">
-                <div className="flex items-center p-1 rounded hover:bg-surface-hover group relative">
-                  <button 
-                    onClick={() => toggleCollectionExpand(col.id)}
-                    className="p-1 mr-0.5 hover:bg-white/10 rounded text-text-muted shrink-0"
-                  >
-                    {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                  </button>
-                  <button 
-                    onClick={() => toggleCollectionSelection(col.id)}
-                    className="mr-2 shrink-0 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    {selState === 'all' ? (
-                      <CheckSquare size={13} className="text-accent" />
-                    ) : selState === 'partial' ? (
-                      <MinusSquare size={13} className="text-accent opacity-70" />
-                    ) : (
-                      <Square size={13} />
-                    )}
-                  </button>
-                  <div 
-                    className="flex-1 truncate font-semibold cursor-pointer"
-                    onClick={() => toggleCollectionExpand(col.id)}
-                  >
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        {collections.map(col => {
+          const isExpanded = expandedColIds.has(col.id);
+          const selState = getCollectionSelectionState(col.id);
+          
+          return (
+            <div key={col.id} className="space-y-0.5 relative">
+              <div
+                className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group relative"
+              >
+                <div 
+                  onClick={() => toggleCollectionExpand(col.id)}
+                  className="w-4 h-4 flex items-center justify-center cursor-pointer text-text-muted hover:text-text-primary shrink-0"
+                >
+                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </div>
+                
+                <div 
+                  onClick={() => toggleCollectionSelection(col.id)}
+                  className="w-4 h-4 flex items-center justify-center cursor-pointer text-text-muted hover:text-text-primary shrink-0"
+                >
+                  {selState === 'all' ? (
+                    <CheckSquare size={14} className="text-accent" />
+                  ) : selState === 'partial' ? (
+                    <MinusSquare size={14} className="text-accent opacity-70" />
+                  ) : (
+                    <Square size={14} />
+                  )}
+                </div>
+                <div className="flex items-center space-x-1.5 flex-1 min-w-0 px-1 cursor-pointer" onClick={() => toggleCollectionExpand(col.id)}>
+                  <Play size={12} className={selState !== 'none' ? 'text-accent' : 'text-text-muted'} />
+                  <span className={`font-semibold truncate ${selState !== 'none' ? 'text-text-primary' : 'text-text-secondary'}`}>
                     {col.name}
-                  </div>
-                  
-                  <button
-                    className="p-1 hover:bg-white/10 rounded text-text-muted opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenuColId(activeMenuColId === col.id ? null : col.id);
-                    }}
-                  >
-                    <MoreHorizontal size={12} />
-                  </button>
+                  </span>
+                </div>
+                <button
+                  className="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-text-primary hover:bg-border-subtle rounded flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveMenuColId(activeMenuColId === col.id ? null : col.id);
+                  }}
+                >
+                  <MoreHorizontal size={14} />
+                </button>
 
                   {activeMenuColId === col.id && (
                     <div 

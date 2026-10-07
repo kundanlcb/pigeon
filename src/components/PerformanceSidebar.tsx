@@ -132,7 +132,7 @@ export function PerformanceSidebar() {
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
+    <Panel id="performance-sidebar" defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
       <div className="h-[44px] px-4 flex items-center justify-between shrink-0 select-none">
         <span className="text-[11px] font-semibold tracking-wider text-text-secondary uppercase">Performance Testing</span>
         {collections.length > 0 && (

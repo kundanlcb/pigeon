@@ -265,7 +265,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
+    <Panel id="collections-sidebar" defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
       <Group autoSave="pigeon-collections-panel" orientation="vertical">
         <Panel defaultSize={70} minSize={20} className="flex flex-col">
           {/* Header matching request detail section height */}

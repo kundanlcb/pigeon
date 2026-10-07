@@ -116,8 +116,8 @@ export function RunnerSidebar() {
   };
 
   return (
-    <Panel defaultSize={30} minSize={15} maxSize={60} className="h-full flex flex-col bg-panel-bg border-r border-border-strong text-text-primary text-[11px] overflow-hidden">
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <Panel id="runner-sidebar" defaultSize={30} minSize={15} className="bg-panel-bg flex flex-col z-10 select-none overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden text-text-primary text-[11px]">
         <div className="p-3 border-b border-border-subtle shrink-0">
           <div className="flex items-center space-x-2 font-bold mb-3 text-text-primary">
             <Play size={14} className="text-accent" />

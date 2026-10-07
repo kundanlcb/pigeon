@@ -413,7 +413,7 @@ export function EnvironmentEditor({ environmentId }: EnvironmentEditorProps) {
                           }}
                           placeholder={(v.secret && v.secretStored) ? (revealedSecrets[v.id] !== undefined ? "Empty" : '••••••') : "Value"}
                           className={`w-full pl-3 pr-8 bg-transparent text-text-primary outline-none font-mono text-[13px] placeholder-text-muted resize-none ${
-                            isFocused 
+                            (isFocused && (valueText.includes('\n') || valueText.length > 40))
                               ? 'py-1.5 min-h-[80px] h-auto overflow-y-auto leading-relaxed' 
                               : 'h-[32px] py-1.5 overflow-hidden whitespace-nowrap text-ellipsis'
                           }`}

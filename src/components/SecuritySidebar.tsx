@@ -12,7 +12,7 @@ export function SecuritySidebar() {
   const setActiveSecurityScanId = useStore(state => state.setActiveSecurityScanId);
   const deleteSecurityScan = useStore(state => state.deleteSecurityScan);
 
-  const [expandedColIds, setExpandedColIds] = useState<Set<string>>(new Set());
+  const [expandedColIds, setExpandedColIds] = useState<Set<string>>(() => new Set(collections.map(c => c.id)));
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
   const toggleCollectionExpand = (colId: string) => {
@@ -227,7 +227,7 @@ export function SecuritySidebar() {
                 <div className="pl-2 space-y-0.5 mt-1">
                   {(() => {
                     const rootFolders = col.folders ? [...col.folders].filter(f => !f.parentId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
-                    const rootRequests = [...col.requests].filter(r => !r.folderId).sort((a, b) => (a.order || 0) - (b.order || 0));
+                    const rootRequests = [...col.requests].filter(r => !r.folderId || !(col.folders || []).some(f => f.id === r.folderId)).sort((a, b) => (a.order || 0) - (b.order || 0));
 
                     const renderRequest = (req: any, depth: number) => {
                       const isSelected = selectedRequestIds.includes(req.id);

@@ -194,7 +194,7 @@ export function KeyValueEditor({
   if (isBulk) {
     return (
       <div className="flex flex-col h-full w-full relative">
-        <HighlightedInput
+        <HighlightedInput autoExpand={true}
           isTextArea={true}
           className="flex-1 text-text-primary font-mono text-[13px] leading-relaxed"
           value={bulkText}
@@ -259,14 +259,14 @@ export function KeyValueEditor({
                 )}
               </div>
               <div 
-                className="bg-app-bg relative h-[34px]"
+                className="bg-app-bg relative h-auto min-h-[34px]"
                 onFocusCapture={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setKeyRect({ top: rect.bottom, left: rect.left, width: rect.width });
                 }}
               >
                 <div className={fixedKeys ? 'pointer-events-none opacity-80 h-full' : 'h-full'}>
-                  <HighlightedInput
+                  <HighlightedInput autoExpand={true}
                     className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
                     value={pair.key}
                     placeholder={placeholderKey}
@@ -309,7 +309,7 @@ export function KeyValueEditor({
                   document.body
                 )}
               </div>
-              <div className="bg-app-bg relative h-[34px]">
+              <div className="bg-app-bg relative h-auto min-h-[34px]">
                 {isSecret ? (
                   <input
                     type="password"
@@ -327,7 +327,7 @@ export function KeyValueEditor({
                     }}
                   />
                 ) : (
-                  <HighlightedInput
+                  <HighlightedInput autoExpand={true}
                     className="w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent"
                     value={pair.value}
                     placeholder={placeholderValue}

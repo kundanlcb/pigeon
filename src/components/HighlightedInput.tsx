@@ -13,13 +13,14 @@ interface HighlightedInputProps {
   className?: string;
   placeholder?: string;
   isTextArea?: boolean;
+  autoExpand?: boolean;
   singleLineEllipsis?: boolean;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
 
-export function HighlightedInput({ value, onChange, className = '', placeholder, isTextArea = false, singleLineEllipsis = false, onKeyDown, onFocus, onBlur }: HighlightedInputProps) {
+export function HighlightedInput({ value, onChange, className = '', placeholder, isTextArea = false, autoExpand = false, singleLineEllipsis = false, onKeyDown, onFocus, onBlur }: HighlightedInputProps) {
   const environments = useStore(state => state.environments);
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const activeEnv = environments.find(e => e.id === activeEnvironmentId);
@@ -390,9 +391,9 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         padding={isTextArea ? 16 : 8}
         onKeyUp={getCaretCoordinates}
         onClick={getCaretCoordinates}
-        className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${isTextArea ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'}`}
-        textareaClassName={`outline-none focus:outline-none ${isTextArea ? '' : `!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar`}`}
-        preClassName={`!bg-transparent ${isTextArea ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis && !isFocused ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
+        className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${(isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'} ${className}`}
+        textareaClassName={`outline-none focus:outline-none ${(isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? '' : '!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar'}`}
+        preClassName={`!bg-transparent ${(isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis && !isFocused ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
         placeholder={placeholder}
         onFocus={() => {
           setIsFocused(true);
@@ -407,7 +408,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
         onKeyDown={handleKeyDown}
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          minHeight: isTextArea ? '100%' : 'auto',
+          minHeight: (isTextArea || (autoExpand && isFocused && (value.includes('\n') || value.length > 40))) ? (isTextArea ? '100%' : '80px') : 'auto',
           backgroundColor: 'transparent'
         }}
       />

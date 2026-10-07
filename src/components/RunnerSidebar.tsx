@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Play, ChevronRight, ChevronDown, CheckSquare, Square, MinusSquare, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../store';
-
+import { Panel } from 'react-resizable-panels';
 export function RunnerSidebar() {
   const collections = useStore(state => state.collections);
   const selectedRequestIds = useStore(state => state.selectedRunnerRequestIds);
@@ -116,7 +116,7 @@ export function RunnerSidebar() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-panel-bg border-r border-border-strong w-[250px] shrink-0 text-text-primary text-[11px] overflow-hidden">
+    <Panel defaultSize={30} minSize={15} maxSize={60} className="h-full flex flex-col bg-panel-bg border-r border-border-strong text-text-primary text-[11px] overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="p-3 border-b border-border-subtle shrink-0">
           <div className="flex items-center space-x-2 font-bold mb-3 text-text-primary">
@@ -306,6 +306,6 @@ export function RunnerSidebar() {
           })}
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }

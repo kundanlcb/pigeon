@@ -139,7 +139,7 @@ export function KeyValPairEditor({
   if (isBulk) {
     return (
       <div className="flex flex-col h-full w-full relative p-2">
-        <HighlightedInput 
+        <HighlightedInput autoExpand={true} 
           isTextArea={true}
           className="flex-1 text-text-primary font-mono text-[13px] leading-relaxed"
           value={bulkText}
@@ -199,16 +199,16 @@ export function KeyValPairEditor({
                   />
                 )}
               </div>
-              <div className="bg-app-bg relative h-[34px]">
-                <HighlightedInput 
+              <div className="bg-app-bg relative h-auto min-h-[34px]">
+                <HighlightedInput autoExpand={true} 
                   className={`w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent ${!pair.enabled ? 'opacity-50 line-through' : ''}`}
                   value={pair.key}
                   placeholder="Key"
                   onChange={(e: any) => handleKeyChange(pair.id, e.target.value)}
                 />
               </div>
-              <div className="bg-app-bg relative h-[34px]">
-                <HighlightedInput
+              <div className="bg-app-bg relative h-auto min-h-[34px]">
+                <HighlightedInput autoExpand={true}
                   className={`w-full h-full py-1 px-3 bg-transparent text-[13px] font-mono outline-none placeholder-text-muted focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent ${!pair.enabled ? 'opacity-50 line-through' : ''}`}
                   value={pair.value}
                   placeholder="Value"

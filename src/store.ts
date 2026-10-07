@@ -237,7 +237,15 @@ interface AppState {
   environments: Environment[];
   activeEnvironmentId: string | null;
   collapsedFolderIds: string[];
+  runnerExpandedColIds: string[];
+  securityExpandedColIds: string[];
+  performanceExpandedColIds: string[];
+  historyCollapsedGroups: Record<string, boolean>;
   toggleFolderCollapse: (id: string) => void;
+  toggleRunnerCollectionCollapse: (id: string) => void;
+  toggleSecurityCollectionCollapse: (id: string) => void;
+  togglePerformanceCollectionCollapse: (id: string) => void;
+  toggleHistoryGroupCollapse: (label: string) => void;
   toggleCollection: (id: string) => void;
   setActiveRequest: (id: string) => void;
   closeRequest: (id: string) => void;
@@ -398,6 +406,10 @@ export const useStore = create<AppState>()(
         }
       ] as Collection[],
       collapsedFolderIds: [],
+      runnerExpandedColIds: [],
+      securityExpandedColIds: [],
+      performanceExpandedColIds: [],
+      historyCollapsedGroups: {},
 
       toggleCollection: (id) => set((state) => {
         const col = state.collections.find(c => c.id === id);
@@ -438,6 +450,103 @@ export const useStore = create<AppState>()(
         }
         return { collapsedFolderIds: Array.from(nextCollapsed) };
       }),
+
+      toggleRunnerCollectionCollapse: (id) => set((state) => {
+        const next = new Set(state.runnerExpandedColIds);
+        const col = state.collections.find(c => c.id === id);
+        if (col) {
+          if (next.has(id)) {
+            next.delete(id);
+            if (col.folders) col.folders.forEach(f => next.add(f.id));
+          } else next.add(id);
+        } else {
+          if (next.has(id)) next.delete(id);
+          else {
+            next.add(id);
+            const parentCol = state.collections.find(c => c.folders?.some(f => f.id === id));
+            if (parentCol && parentCol.folders) {
+              const getDescendants = (folders: any[], pId: string): string[] => {
+                const children = folders.filter(f => f.parentId === pId);
+                let desc = children.map(c => c.id);
+                for (const child of children) {
+                  desc = desc.concat(getDescendants(folders, child.id));
+                }
+                return desc;
+              };
+              const descendants = getDescendants(parentCol.folders, id);
+              descendants.forEach(d => next.add(d));
+            }
+          }
+        }
+        return { runnerExpandedColIds: Array.from(next) };
+      }),
+
+      toggleSecurityCollectionCollapse: (id) => set((state) => {
+        const next = new Set(state.securityExpandedColIds);
+        const col = state.collections.find(c => c.id === id);
+        if (col) {
+          if (next.has(id)) {
+            next.delete(id);
+            if (col.folders) col.folders.forEach(f => next.add(f.id));
+          } else next.add(id);
+        } else {
+          if (next.has(id)) next.delete(id);
+          else {
+            next.add(id);
+            const parentCol = state.collections.find(c => c.folders?.some(f => f.id === id));
+            if (parentCol && parentCol.folders) {
+              const getDescendants = (folders: any[], pId: string): string[] => {
+                const children = folders.filter(f => f.parentId === pId);
+                let desc = children.map(c => c.id);
+                for (const child of children) {
+                  desc = desc.concat(getDescendants(folders, child.id));
+                }
+                return desc;
+              };
+              const descendants = getDescendants(parentCol.folders, id);
+              descendants.forEach(d => next.add(d));
+            }
+          }
+        }
+        return { securityExpandedColIds: Array.from(next) };
+      }),
+
+      togglePerformanceCollectionCollapse: (id) => set((state) => {
+        const next = new Set(state.performanceExpandedColIds);
+        const col = state.collections.find(c => c.id === id);
+        if (col) {
+          if (next.has(id)) {
+            next.delete(id);
+            if (col.folders) col.folders.forEach(f => next.add(f.id));
+          } else next.add(id);
+        } else {
+          if (next.has(id)) next.delete(id);
+          else {
+            next.add(id);
+            const parentCol = state.collections.find(c => c.folders?.some(f => f.id === id));
+            if (parentCol && parentCol.folders) {
+              const getDescendants = (folders: any[], pId: string): string[] => {
+                const children = folders.filter(f => f.parentId === pId);
+                let desc = children.map(c => c.id);
+                for (const child of children) {
+                  desc = desc.concat(getDescendants(folders, child.id));
+                }
+                return desc;
+              };
+              const descendants = getDescendants(parentCol.folders, id);
+              descendants.forEach(d => next.add(d));
+            }
+          }
+        }
+        return { performanceExpandedColIds: Array.from(next) };
+      }),
+
+      toggleHistoryGroupCollapse: (label) => set((state) => ({
+        historyCollapsedGroups: {
+          ...state.historyCollapsedGroups,
+          [label]: !state.historyCollapsedGroups[label]
+        }
+      })),
 
       setActiveRequest: (id) => set((state) => {
         const openRequestIds = state.openRequestIds.includes(id) 

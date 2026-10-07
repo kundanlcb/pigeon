@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Panel, Group } from 'react-resizable-panels';
 import { Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useStore, type HistoryItem } from '../store';
@@ -29,11 +29,10 @@ export function HistoryPanel() {
   const setActiveRequest = useStore(state => state.setActiveRequest);
   const activeRequestId = useStore(state => state.activeRequestId);
 
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const collapsedGroups = useStore(state => state.historyCollapsedGroups);
+  const toggleGroup = useStore(state => state.toggleHistoryGroupCollapse);
 
-  const toggleGroup = (label: string) => {
-    setCollapsedGroups(prev => ({ ...prev, [label]: !prev[label] }));
-  };
+
 
   const groupedHistory = useMemo(() => {
     const today: HistoryItem[] = [];
@@ -87,8 +86,8 @@ export function HistoryPanel() {
                       onClick={() => toggleGroup(group.label)}
                       className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
                     >
-                      <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
-                        {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                      <span className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
+                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                       </span>
                       <span className="text-[12.5px] font-semibold tracking-[-0.01em] select-none truncate flex-1 text-text-secondary group-hover:text-text-primary">
                         {group.label}

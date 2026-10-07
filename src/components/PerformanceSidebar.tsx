@@ -13,39 +13,11 @@ export function PerformanceSidebar() {
   const setActivePerformanceTestId = useStore(state => state.setActivePerformanceTestId);
   const deletePerformanceTest = useStore(state => state.deletePerformanceTest);
 
-  const [expandedColIds, setExpandedColIds] = useState<Set<string>>(() => new Set(collections.map(c => c.id)));
+  const expandedColIds = useStore(state => state.performanceExpandedColIds);
+  const toggleCollectionExpand = useStore(state => state.togglePerformanceCollectionCollapse);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
-  const toggleCollectionExpand = (id: string) => {
-    const next = new Set(expandedColIds);
-    const col = collections.find(c => c.id === id);
-    if (col) {
-      if (next.has(id)) {
-        next.delete(id);
-        if (col.folders) col.folders.forEach(f => next.add(f.id));
-      } else next.add(id);
-    } else {
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-        const parentCol = collections.find(c => c.folders?.some(f => f.id === id));
-        if (parentCol && parentCol.folders) {
-          const getDescendants = (folders: any[], pId: string): string[] => {
-            const children = folders.filter(f => f.parentId === pId);
-            let desc = children.map(c => c.id);
-            for (const child of children) {
-              desc = desc.concat(getDescendants(folders, child.id));
-            }
-            return desc;
-          };
-          const descendants = getDescendants(parentCol.folders, id);
-          descendants.forEach(d => next.add(d));
-        }
-      }
-    }
-    setExpandedColIds(next);
-  };
+
 
 
 
@@ -146,26 +118,23 @@ export function PerformanceSidebar() {
       
       <Group autoSave="pigeon-performance-sidebar" orientation="vertical">
         <Panel defaultSize={65} minSize={20} className="flex flex-col">
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-2">
             {collections.map(col => {
-              const isExpanded = expandedColIds.has(col.id);
+              const isExpanded = expandedColIds.includes(col.id);
               
               return (
-                <div key={col.id} className="space-y-0.5">
+                <div key={col.id} className="relative w-full">
                   <div
-                    className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group relative"
+                    className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
                   >
                     <div 
-                      className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                      className="flex-1 flex items-center overflow-hidden cursor-pointer h-full"
                       onClick={() => toggleCollectionExpand(col.id)}
                     >
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </div>
-                    <div 
-                      className="flex-1 flex items-center justify-between cursor-pointer overflow-hidden"
-                      onClick={() => toggleCollectionExpand(col.id)}
-                    >
-                      <span className="font-medium text-text-primary truncate">{col.name}</span>
+                      <span className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-muted group-hover:text-text-primary">
+                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </span>
+                      <span className="text-[12.5px] font-semibold tracking-[-0.01em] truncate text-text-secondary group-hover:text-text-primary flex-1">{col.name}</span>
                       <div className="flex items-center space-x-2">
                         <span className="text-[10px] text-text-muted bg-surface-bg px-1.5 py-0.5 rounded-md">
                           {col.requests.length}
@@ -214,7 +183,7 @@ export function PerformanceSidebar() {
                   </div>
 
                   {isExpanded && (
-                    <div className="space-y-0.5 mt-1">
+                    <div className="w-full">
                       {(() => {
                         const rootFolders = col.folders ? [...col.folders].filter(f => !f.parentId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
                         const rootRequests = [...col.requests].filter(r => !r.folderId || !(col.folders || []).some(f => f.id === r.folderId)).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -230,21 +199,21 @@ export function PerformanceSidebar() {
                         );
 
                         const renderFolder = (folder: any, depth: number): React.ReactNode => {
-                          const isCollapsed = expandedColIds.has(folder.id);
+                          const isCollapsed = expandedColIds.includes(folder.id);
                           const children = col.folders ? [...col.folders].filter(f => f.parentId === folder.id).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
                           const requests = [...col.requests].filter(r => r.folderId === folder.id).sort((a, b) => (a.order || 0) - (b.order || 0));
                           
                           return (
                             <div key={folder.id} className="w-full">
                               <div 
-                                className="flex items-center px-1 py-1 rounded-md text-[12px] hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
+                                className="w-full flex items-center h-[24px] pr-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
                                 style={{ paddingLeft: `${(depth + 1) * 16}px` }}
                               >
-                                <div className="flex flex-1 items-center overflow-hidden" onClick={() => toggleCollectionExpand(folder.id)}>
-                                  <span className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-text-muted group-hover:text-text-primary">
-                                    {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                                <div className="flex flex-1 items-center overflow-hidden h-full" onClick={() => toggleCollectionExpand(folder.id)}>
+                                  <span className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-muted group-hover:text-text-primary">
+                                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                                   </span>
-                                  <span className="truncate flex-1 font-medium">{folder.name}</span>
+                                  <span className="text-[12.5px] tracking-[-0.01em] truncate flex-1 font-medium">{folder.name}</span>
                                 </div>
                                 <button
                                   className="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-text-primary hover:bg-border-subtle rounded flex-shrink-0"
@@ -287,7 +256,7 @@ export function PerformanceSidebar() {
                                 )}
                               </div>
                               {!isCollapsed && (
-                                <div className="w-full space-y-0.5 mt-0.5">
+                                <div className="w-full">
                                   {children.map(child => renderFolder(child, depth + 1))}
                                   {requests.map(r => renderRequest(r, depth + 1))}
                                 </div>
@@ -332,7 +301,7 @@ export function PerformanceSidebar() {
           </div>
 
           {isHistoryExpanded && (
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-2">
               {performanceHistory.length === 0 ? (
                 <div className="text-[11px] text-text-muted text-center py-4 px-2 leading-relaxed">
                   No past tests. Run a load test to see history.

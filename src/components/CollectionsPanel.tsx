@@ -424,8 +424,8 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
                   }}
                   className={`w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none ${openColMenuId === col.id ? 'bg-surface-hover text-text-primary' : ''}`}
                 >
-                  <span className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
-                    {col.isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  <span className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
+                    {col.isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </span>
 
                   {confirmDeleteColId === col.id ? (

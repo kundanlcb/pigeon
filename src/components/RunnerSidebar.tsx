@@ -8,7 +8,8 @@ export function RunnerSidebar() {
   const selectedRequestIds = useStore(state => state.selectedRunnerRequestIds);
   const setSelectedRequestIds = useStore(state => state.setSelectedRunnerRequestIds);
 
-  const [expandedColIds, setExpandedColIds] = useState<Set<string>>(new Set());
+  const expandedColIds = useStore(state => state.runnerExpandedColIds);
+  const toggleCollectionExpand = useStore(state => state.toggleRunnerCollectionCollapse);
   const [activeMenuColId, setActiveMenuColId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -22,36 +23,7 @@ export function RunnerSidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleCollectionExpand = (id: string) => {
-    const next = new Set(expandedColIds);
-    const col = collections.find(c => c.id === id);
-    if (col) {
-      if (next.has(id)) {
-        next.delete(id);
-        if (col.folders) col.folders.forEach(f => next.add(f.id));
-      } else next.add(id);
-    } else {
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-        const parentCol = collections.find(c => c.folders?.some(f => f.id === id));
-        if (parentCol && parentCol.folders) {
-          const getDescendants = (folders: any[], pId: string): string[] => {
-            const children = folders.filter(f => f.parentId === pId);
-            let desc = children.map(c => c.id);
-            for (const child of children) {
-              desc = desc.concat(getDescendants(folders, child.id));
-            }
-            return desc;
-          };
-          const descendants = getDescendants(parentCol.folders, id);
-          descendants.forEach(d => next.add(d));
-        }
-      }
-    }
-    setExpandedColIds(next);
-  };
+
 
 
 
@@ -131,23 +103,23 @@ export function RunnerSidebar() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-2">
         {collections.map(col => {
-          const isExpanded = expandedColIds.has(col.id);
+          const isExpanded = expandedColIds.includes(col.id);
           
           return (
-            <div key={col.id} className="space-y-0.5 relative">
+            <div key={col.id} className="relative w-full">
               <div
-                className="flex items-center space-x-1 px-1 py-1.5 rounded-md text-[13px] hover:bg-surface-hover group relative"
+                className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
               >
                 <div 
                   onClick={() => toggleCollectionExpand(col.id)}
-                  className="w-4 h-4 flex items-center justify-center cursor-pointer text-text-muted hover:text-text-primary shrink-0"
+                  className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 cursor-pointer text-text-muted hover:text-text-primary"
                 >
-                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </div>
-                <div className="flex items-center space-x-1.5 flex-1 min-w-0 px-1 cursor-pointer" onClick={() => toggleCollectionExpand(col.id)}>
-                  <span className="font-semibold truncate text-text-primary">
+                <div className="flex-1 min-w-0 flex items-center overflow-hidden cursor-pointer h-full" onClick={() => toggleCollectionExpand(col.id)}>
+                  <span className="text-[12.5px] font-semibold tracking-[-0.01em] truncate text-text-secondary group-hover:text-text-primary">
                     {col.name}
                   </span>
                 </div>
@@ -178,7 +150,7 @@ export function RunnerSidebar() {
                 </div>
 
                 {isExpanded && (
-                  <div className="space-y-0.5 mt-1">
+                  <div className="w-full">
                     {(() => {
                       const rootFolders = col.folders ? [...col.folders].filter(f => !f.parentId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
                       const rootRequests = [...col.requests].filter(r => !r.folderId).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -194,21 +166,21 @@ export function RunnerSidebar() {
                       );
 
                       const renderFolder = (folder: any, depth: number): React.ReactNode => {
-                        const isCollapsed = expandedColIds.has(folder.id);
+                        const isCollapsed = expandedColIds.includes(folder.id);
                         const children = col.folders ? [...col.folders].filter(f => f.parentId === folder.id).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
                         const requests = [...col.requests].filter(r => r.folderId === folder.id).sort((a, b) => (a.order || 0) - (b.order || 0));
                         
                         return (
                           <div key={folder.id} className="w-full">
                             <div 
-                              className="flex items-center px-1 py-1 rounded-md text-[12px] hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
+                              className="w-full flex items-center h-[24px] pr-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
                               style={{ paddingLeft: `${(depth + 1) * 16}px` }}
                             >
-                              <div className="flex flex-1 items-center overflow-hidden" onClick={() => toggleCollectionExpand(folder.id)}>
-                                <span className="w-4 h-4 flex items-center justify-center mr-1 flex-shrink-0 text-text-muted group-hover:text-text-primary">
-                                  {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                              <div className="flex flex-1 items-center overflow-hidden h-full" onClick={() => toggleCollectionExpand(folder.id)}>
+                                <span className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-muted group-hover:text-text-primary">
+                                  {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                                 </span>
-                                <span className="truncate flex-1 font-medium">{folder.name}</span>
+                                <span className="text-[12.5px] tracking-[-0.01em] truncate flex-1 font-medium">{folder.name}</span>
                               </div>
                               <button
                                 className="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-text-primary hover:bg-border-subtle rounded flex-shrink-0"
@@ -236,7 +208,7 @@ export function RunnerSidebar() {
                               )}
                             </div>
                             {!isCollapsed && (
-                              <div className="w-full space-y-0.5 mt-0.5">
+                              <div className="w-full">
                                 {children.map(child => renderFolder(child, depth + 1))}
                                 {requests.map(r => renderRequest(r, depth + 1))}
                               </div>

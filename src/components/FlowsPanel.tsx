@@ -71,7 +71,9 @@ export function FlowsPanel() {
                 onClick={() => setActiveFlow(flow.id)}
                 className="w-full flex items-center h-[24px] px-2 cursor-pointer text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors group relative select-none"
               >
-                <Workflow size={13} className="mr-2 text-text-secondary group-hover:text-text-primary flex-shrink-0" />
+                <div className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary">
+                  <Workflow size={13} />
+                </div>
 
                 {confirmDeleteFlowId === flow.id ? (
                   <div className="flex items-center space-x-2 flex-1 mr-2" onClick={e => e.stopPropagation()}>

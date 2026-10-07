@@ -154,10 +154,10 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
           style={{ paddingLeft: `${getPaddingLeft(depth)}px` }}
         >
           <span
-            className="w-4 h-4 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary"
+            className="w-5 h-5 flex items-center justify-center mr-1.5 flex-shrink-0 text-text-secondary group-hover:text-text-primary"
             title={isCollapsed ? 'Expand folder' : 'Collapse folder'}
           >
-            {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           </span>
           {editingFolderId === folder.id ? (
             <input

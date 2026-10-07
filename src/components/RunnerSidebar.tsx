@@ -288,7 +288,6 @@ export function RunnerSidebar() {
             );
           })}
         </div>
-      </div>
     </Panel>
   );
 }

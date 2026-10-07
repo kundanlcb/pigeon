@@ -74,31 +74,43 @@ export function RunnerSidebar() {
     }
   };
 
-  const handleSelectColMethod = (colId: string, method: string) => {
+  const getRequestsForNode = (colId: string, folderId?: string | null) => {
     const col = collections.find(c => c.id === colId);
-    if (!col) return;
-    const methodIds = col.requests.filter(r => r.method === method).map(r => r.id);
+    if (!col) return [];
+    if (!folderId) return col.requests;
+    
+    const getAllFolderIds = (fid: string): string[] => {
+      if (!col.folders) return [];
+      const children = col.folders.filter(f => f.parentId === fid).map(f => f.id);
+      return [fid, ...children.flatMap(getAllFolderIds)];
+    };
+    
+    const targetFolderIds = getAllFolderIds(folderId);
+    return col.requests.filter(r => r.folderId && targetFolderIds.includes(r.folderId));
+  };
+
+  const handleSelectNodeMethod = (colId: string, folderId: string | null, method: string) => {
+    const reqs = getRequestsForNode(colId, folderId);
+    const methodIds = reqs.filter(r => r.method === method).map(r => r.id);
     const newSelected = new Set([...selectedRequestIds]);
     methodIds.forEach(id => newSelected.add(id));
     setSelectedRequestIds(Array.from(newSelected));
     setActiveMenuColId(null);
   };
 
-  const handleSelectColAll = (colId: string) => {
-    const col = collections.find(c => c.id === colId);
-    if (!col) return;
-    const methodIds = col.requests.map(r => r.id);
+  const handleSelectNodeAll = (colId: string, folderId: string | null) => {
+    const reqs = getRequestsForNode(colId, folderId);
+    const reqIds = reqs.map(r => r.id);
     const newSelected = new Set([...selectedRequestIds]);
-    methodIds.forEach(id => newSelected.add(id));
+    reqIds.forEach(id => newSelected.add(id));
     setSelectedRequestIds(Array.from(newSelected));
     setActiveMenuColId(null);
   };
   
-  const handleDeselectColAll = (colId: string) => {
-    const col = collections.find(c => c.id === colId);
-    if (!col) return;
-    const methodIds = col.requests.map(r => r.id);
-    const newSelected = selectedRequestIds.filter(id => !methodIds.includes(id));
+  const handleDeselectNodeAll = (colId: string, folderId: string | null) => {
+    const reqs = getRequestsForNode(colId, folderId);
+    const reqIds = reqs.map(r => r.id);
+    const newSelected = selectedRequestIds.filter(id => !reqIds.includes(id));
     setSelectedRequestIds(newSelected);
     setActiveMenuColId(null);
   };
@@ -180,48 +192,113 @@ export function RunnerSidebar() {
                       ref={menuRef}
                       className="absolute top-6 right-0 w-36 bg-surface-bg border border-border-strong rounded-md shadow-lg z-50 py-1 text-[11px]"
                     >
-                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-blue-400 font-medium" onClick={() => handleSelectColMethod(col.id, 'GET')}>Select GET</button>
-                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-green-400 font-medium" onClick={() => handleSelectColMethod(col.id, 'POST')}>Select POST</button>
-                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-yellow-400 font-medium" onClick={() => handleSelectColMethod(col.id, 'PUT')}>Select PUT</button>
-                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-red-400 font-medium" onClick={() => handleSelectColMethod(col.id, 'DELETE')}>Select DELETE</button>
+                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-blue-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, null, 'GET')}>Select GET</button>
+                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-green-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, null, 'POST')}>Select POST</button>
+                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-yellow-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, null, 'PUT')}>Select PUT</button>
+                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-red-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, null, 'DELETE')}>Select DELETE</button>
                       <div className="h-px bg-border-subtle my-1"></div>
-                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover" onClick={() => handleSelectColAll(col.id)}>Select All</button>
-                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover" onClick={() => handleDeselectColAll(col.id)}>Deselect All</button>
+                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover" onClick={() => handleSelectNodeAll(col.id, null)}>Select All</button>
+                      <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover" onClick={() => handleDeselectNodeAll(col.id, null)}>Deselect All</button>
                     </div>
                   )}
                 </div>
 
                 {isExpanded && (
-                  <div className="pl-6 space-y-0.5">
-                    {col.requests.map(req => {
-                      const isSelected = selectedRequestIds.includes(req.id);
-                      return (
-                        <div 
-                          key={req.id} 
-                          className="flex items-center p-1 rounded hover:bg-surface-hover cursor-pointer group"
-                          onClick={() => toggleRequestSelection(req.id)}
-                        >
-                          <div className="mr-2 text-text-muted group-hover:text-text-primary transition-colors">
-                            {isSelected ? (
-                              <CheckSquare size={12} className="text-accent" />
-                            ) : (
-                              <Square size={12} />
+                  <div className="pl-2 space-y-0.5 mt-1">
+                    {(() => {
+                      const rootFolders = col.folders ? [...col.folders].filter(f => !f.parentId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
+                      const rootRequests = [...col.requests].filter(r => !r.folderId).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+                      const renderRequest = (req: any, depth: number) => {
+                        const isSelected = selectedRequestIds.includes(req.id);
+                        return (
+                          <div 
+                            key={req.id} 
+                            className="flex items-center p-1 rounded hover:bg-surface-hover cursor-pointer group"
+                            style={{ paddingLeft: `${depth * 14}px` }}
+                            onClick={() => toggleRequestSelection(req.id)}
+                          >
+                            <div className="mr-2 text-text-muted group-hover:text-text-primary transition-colors">
+                              {isSelected ? (
+                                <CheckSquare size={12} className="text-accent" />
+                              ) : (
+                                <Square size={12} />
+                              )}
+                            </div>
+                            <span className={`text-[9px] font-bold w-10 shrink-0 ${
+                              req.method === 'GET' ? 'text-blue-400' :
+                              req.method === 'POST' ? 'text-green-400' :
+                              req.method === 'PUT' ? 'text-yellow-400' :
+                              req.method === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                            }`}>
+                              {req.method}
+                            </span>
+                            <span className={`truncate ${isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
+                              {req.name}
+                            </span>
+                          </div>
+                        );
+                      };
+
+                      const renderFolder = (folder: any, depth: number): React.ReactNode => {
+                        const isCollapsed = expandedColIds.has(folder.id);
+                        const children = col.folders ? [...col.folders].filter(f => f.parentId === folder.id).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
+                        const requests = [...col.requests].filter(r => r.folderId === folder.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+                        
+                        return (
+                          <div key={folder.id} className="w-full">
+                            <div 
+                              className="flex items-center space-x-1 p-1 rounded hover:bg-surface-hover cursor-pointer group text-text-secondary hover:text-text-primary relative"
+                              style={{ paddingLeft: `${depth * 14}px` }}
+                            >
+                              <div className="flex flex-1 items-center overflow-hidden" onClick={() => toggleCollectionExpand(folder.id)}>
+                                <span className="w-4 h-4 flex items-center justify-center text-text-muted group-hover:text-text-primary">
+                                  {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                                </span>
+                                <span className="truncate text-[11px] font-medium">{folder.name}</span>
+                              </div>
+                              <button
+                                className="p-1 hover:bg-white/10 rounded text-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuColId(activeMenuColId === folder.id ? null : folder.id);
+                                }}
+                              >
+                                <MoreHorizontal size={12} />
+                              </button>
+                              
+                              {activeMenuColId === folder.id && (
+                                <div 
+                                  ref={menuRef}
+                                  className="absolute top-6 right-0 w-36 bg-surface-bg border border-border-strong rounded-md shadow-lg z-50 py-1 text-[11px]"
+                                >
+                                  <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-blue-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, folder.id, 'GET')}>Select GET</button>
+                                  <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-green-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, folder.id, 'POST')}>Select POST</button>
+                                  <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-yellow-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, folder.id, 'PUT')}>Select PUT</button>
+                                  <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover text-red-400 font-medium" onClick={() => handleSelectNodeMethod(col.id, folder.id, 'DELETE')}>Select DELETE</button>
+                                  <div className="h-px bg-border-subtle my-1"></div>
+                                  <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover" onClick={() => handleSelectNodeAll(col.id, folder.id)}>Select All</button>
+                                  <button className="w-full text-left px-3 py-1.5 hover:bg-surface-hover" onClick={() => handleDeselectNodeAll(col.id, folder.id)}>Deselect All</button>
+                                </div>
+                              )}
+                            </div>
+                            {!isCollapsed && (
+                              <div className="w-full space-y-0.5 mt-0.5">
+                                {children.map(child => renderFolder(child, depth + 1))}
+                                {requests.map(r => renderRequest(r, depth + 1))}
+                              </div>
                             )}
                           </div>
-                          <span className={`text-[9px] font-bold w-10 shrink-0 ${
-                            req.method === 'GET' ? 'text-blue-400' :
-                            req.method === 'POST' ? 'text-green-400' :
-                            req.method === 'PUT' ? 'text-yellow-400' :
-                            req.method === 'DELETE' ? 'text-red-400' : 'text-purple-400'
-                          }`}>
-                            {req.method}
-                          </span>
-                          <span className={`truncate ${isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
-                            {req.name}
-                          </span>
-                        </div>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {rootFolders.map(f => renderFolder(f, 0))}
+                          {rootRequests.map(r => renderRequest(r, 0))}
+                        </>
                       );
-                    })}
+                    })()}
                   </div>
                 )}
               </div>

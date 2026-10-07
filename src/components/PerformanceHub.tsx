@@ -256,7 +256,7 @@ export function PerformanceHub() {
           <div className="w-[1px] h-4 bg-border-strong shrink-0" />
           <div className="flex items-center space-x-2 text-sm text-text-muted shrink-0">
             <span className="font-medium text-text-primary whitespace-nowrap">
-              {selectedRequests.length > 0 ? (selectedRequests.length === 1 ? selectedRequests[0].name : `${selectedRequests.length} selected`) : 'No target selected'}
+              {selectedRequests.length}/{collections.reduce((sum, col) => sum + col.requests.length, 0)} APIs selected
             </span>
           </div>
 

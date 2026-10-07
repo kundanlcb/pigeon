@@ -22,7 +22,9 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
   const addSecurityScan = useStore(state => state.addSecurityScan);
   const setActiveSecurityScanId = useStore(state => state.setActiveSecurityScanId);
 
-  const totalRequests = collections.reduce((sum, col) => sum + col.requests.length, 0);
+  const allValidRequestIds = new Set(collections.flatMap(c => c.requests.map(r => r.id)));
+  const validSelectedIds = selectedRequestIds.filter(id => allValidRequestIds.has(id));
+  const totalRequests = allValidRequestIds.size;
   
   const [config, setConfig] = useState<SecurityAuditConfig>({
     testBrokenAuth: true,
@@ -248,7 +250,7 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
 
           <div className="w-[1px] h-4 bg-border-strong shrink-0" />
           <div className="flex items-center space-x-2 text-sm text-text-muted shrink-0">
-            <span className="font-medium text-text-primary whitespace-nowrap">{selectedRequestIds.length}/{totalRequests} APIs selected</span>
+            <span className="font-medium text-text-primary whitespace-nowrap">{validSelectedIds.length}/{totalRequests} APIs selected</span>
           </div>
 
           <div className="w-[1px] h-4 bg-border-strong" />

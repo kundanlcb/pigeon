@@ -119,9 +119,15 @@ export function RunnerView() {
           const isSuccess = response.status >= 200 && response.status < 300 && (response.testResults.length === 0 || allTestsPassed);
           
           if (isSuccess) {
-            setRunLogs(prev => [...prev, `[✓] Request successful (${Math.round(endTime - startTime)}ms)`]);
+            setRunLogs(prev => [
+              ...prev, 
+              `[✓] Request successful (${Math.round(endTime - startTime)}ms)\n  URL: ${req.url}\n  Status: ${response.status}\n  Response: ${typeof response.data === 'string' ? response.data.substring(0, 500) : JSON.stringify(response.data).substring(0, 500)}...`
+            ]);
           } else {
-            setRunLogs(prev => [...prev, `[!] Request failed with status ${response.status}`]);
+            setRunLogs(prev => [
+              ...prev, 
+              `[!] Request failed with status ${response.status}\n  URL: ${req.url}\n  Response: ${typeof response.data === 'string' ? response.data.substring(0, 500) : JSON.stringify(response.data).substring(0, 500)}...`
+            ]);
           }
           
           const resultItem = {
@@ -169,6 +175,7 @@ export function RunnerView() {
     setRunLogs(prev => [...prev, '__SECTION__COMPLETED__Collection Run Completed.']);
     useStore.getState().setRunnerState({ isRunning: false });
     setCurrentIteration(0);
+    setIsLogsExpanded(false); // Switch back to outcomes
   };
 
   const requestsToDisplay = targetRequests;
@@ -188,7 +195,7 @@ export function RunnerView() {
               Runner Hub
             </h1>
             <p className="text-xs text-text-muted">
-              {requestsToDisplay.length} requests in sequence
+              {requestsToDisplay.length}/{allRequests.length} APIs selected
               {parsedDataset && parsedDataset.length > 0 && ` × ${parsedDataset.length} iterations = ${requestsToDisplay.length * parsedDataset.length} total`}
             </p>
           </div>
@@ -291,7 +298,6 @@ export function RunnerView() {
                 )}
               </div>
             </div>
-          </div>
 
           {/* Outcomes Panel */}
           {(!isLogsExpanded || runnerState.isRunning || runnerState.results.length === 0) && (
@@ -300,28 +306,31 @@ export function RunnerView() {
                 <span>Execution Outcomes</span>
               </div>
               
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 bg-app-bg">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
               {requestsToDisplay.length === 0 ? (
-                <div className="text-center text-text-muted py-12">
+                <div className="text-[12px] text-text-muted text-center py-10">
                   No requests selected. Please select requests from the sidebar.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <>
                   {runnerState.results.length === 0 ? requestsToDisplay.map((req, idx) => (
                     <div 
                       key={req.id} 
-                      className="rounded-lg border p-4 bg-surface-bg border-border-subtle opacity-70"
+                      className="flex flex-col border-b border-border-subtle last:border-b-0 opacity-70"
                     >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-6 flex justify-center">
-                      <span className="text-text-muted text-xs">{idx + 1}</span>
+                <div className="flex items-center justify-between p-3 rounded-md text-[13px]">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                    <div className="w-4 h-4 flex items-center justify-center text-text-muted shrink-0">
+                      <span className="text-[10px]">{idx + 1}</span>
                     </div>
-                    <span className={`text-[11px] font-bold w-12 ${getMethodColor(req.method)}`}>
+                    <span className={`text-[10px] font-bold w-12 shrink-0 ${getMethodColor(req.method)}`}>
                       {req.method}
                     </span>
-                    <span className="font-medium text-text-muted">
+                    <span className="font-medium text-text-muted truncate shrink-0 max-w-[200px]">
                       {req.name}
+                    </span>
+                    <span className="text-[11px] text-text-muted truncate ml-2 font-mono">
+                      {req.url}
                     </span>
                   </div>
                 </div>
@@ -441,7 +450,7 @@ export function RunnerView() {
                 </div>
               );
                   })}
-                </div>
+                </>
               )}
             </div>
             
@@ -460,5 +469,6 @@ export function RunnerView() {
           )}
         </div>
       </div>
+    </div>
   );
 }

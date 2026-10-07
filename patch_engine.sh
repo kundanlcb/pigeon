@@ -1,0 +1,1 @@
+sed -i '' 's/export interface AuditFinding {/export interface AuditFinding {\n  requestHeaders?: Record<string, string>;\n  requestBody?: string;\n  responseHeaders?: Record<string, string>;\n  responseBody?: string;\n  statusCode?: number;\n  responseTime?: number;/g' src/utils/security/engine.ts

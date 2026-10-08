@@ -264,7 +264,7 @@ export function RunnerView() {
           ) : (
             <div className="flex-1 flex flex-col gap-6 min-h-0 w-full h-full">
               {/* Logs Panel */}
-              <div className={`flex flex-col ${(!runnerState.isRunning && runnerState.results.length > 0 && !isLogsExpanded) ? 'hidden' : 'flex-1'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
+              <div className={`flex flex-col ${!(runnerState.isRunning || isLogsExpanded) ? 'hidden' : 'flex-1'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
               <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                 <span>Execution Log</span>
                 <div className="flex items-center space-x-3">
@@ -318,7 +318,7 @@ export function RunnerView() {
             </div>
 
           {/* Outcomes Panel */}
-          {(!isLogsExpanded || runnerState.isRunning || runnerState.results.length === 0) && (
+          {!(runnerState.isRunning || isLogsExpanded) && (
             <div className="flex flex-col flex-1 min-h-0 w-full bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm">
               <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                 <span>Execution Outcomes</span>
@@ -472,7 +472,7 @@ export function RunnerView() {
               )}
             </div>
             
-            {!runnerState.isRunning && runnerState.results.length > 0 && !isLogsExpanded && (
+            {runnerState.results.length > 0 && (
               <div className="p-2 border-t border-border-strong bg-app-bg shrink-0 flex justify-center">
                 <button
                   onClick={() => setIsLogsExpanded(true)}

@@ -16,6 +16,7 @@ export function RunnerView() {
   const [parsedDataset, setParsedDataset] = useState<Record<string, string>[] | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [currentIteration, setCurrentIteration] = useState<number>(0);
+  const [progress, setProgress] = useState({ current: 0, total: 0, currentName: '', currentMethod: '', currentUrl: '' });
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
   const [runLogs, setRunLogs] = useState<string[]>([]);
   const [isLogsExpanded, setIsLogsExpanded] = useState<boolean>(false);
@@ -97,6 +98,10 @@ export function RunnerView() {
     setIsLogsExpanded(true);
     
     const dataset = parsedDataset && parsedDataset.length > 0 ? parsedDataset : [{}];
+    const totalRequestsToRun = dataset.length * targetRequests.length;
+    setProgress({ current: 0, total: totalRequestsToRun, currentName: '', currentMethod: '', currentUrl: '' });
+    
+    let currentOverallIndex = 0;
     
     for (let iter = 0; iter < dataset.length; iter++) {
       setCurrentIteration(iter + 1);
@@ -107,6 +112,8 @@ export function RunnerView() {
       for (let i = 0; i < requestsToRun.length; i++) {
         const req = requestsToRun[i];
         setRunnerState({ currentIndex: i });
+        currentOverallIndex++;
+        setProgress(p => ({ ...p, current: currentOverallIndex, currentName: req.name, currentMethod: req.method, currentUrl: req.url }));
         
         const startTime = performance.now();
         setRunLogs(prev => [...prev, `__SECTION__STARTING_AUDIT_FOR__${req.name}`]);
@@ -263,6 +270,48 @@ export function RunnerView() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col gap-6 min-h-0 w-full h-full">
+              {/* Progress Summary Header */}
+              {runnerState.isRunning && (
+                <div className="flex flex-col space-y-3 bg-panel-bg border border-border-strong rounded-md p-4 shrink-0 shadow-sm">
+                  <div className="flex items-center justify-between text-[12px] font-medium">
+                    <div className="flex items-center flex-1 min-w-0 mr-4">
+                      <span className="text-text-secondary mr-2 shrink-0">Running:</span>
+                      {progress.currentMethod && (
+                        <span className={`font-bold text-[10px] mr-1.5 w-12 text-left shrink-0 ${
+                          progress.currentMethod === 'GET' ? 'text-blue-400' :
+                          progress.currentMethod === 'POST' ? 'text-green-400' :
+                          progress.currentMethod === 'PUT' ? 'text-yellow-400' :
+                          progress.currentMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                        }`}>{progress.currentMethod}</span>
+                      )}
+                      <span className="truncate font-semibold">{progress.currentName || 'Initializing...'}</span>
+                      {progress.currentUrl && (
+                        <span className="ml-1.5 text-[11px] text-text-secondary font-mono truncate max-w-[250px] shrink-0">
+                          ({progress.currentUrl})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-4 shrink-0">
+                      <div className="flex items-center space-x-3 text-text-secondary">
+                        <span>{progress.current} of {progress.total}</span>
+                        <span className="text-accent font-bold w-8 text-right">{progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}%</span>
+                      </div>
+                      <div className="w-px h-3.5 bg-border-strong" />
+                      <div className="flex items-center text-accent font-semibold animate-pulse">
+                        <Play size={13} className="mr-1.5" />
+                        Run in progress...
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full bg-app-bg rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-accent transition-all duration-300"
+                      style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Logs Panel */}
               <div className={`flex flex-col ${!(runnerState.isRunning || isLogsExpanded) ? 'hidden' : 'flex-1'} bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm min-h-0`}>
               <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">

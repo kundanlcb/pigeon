@@ -980,9 +980,13 @@ export const useStore = create<AppState>()(
       name: 'pigeon-store',
       version: 2,
       partialize: (state) => {
-        const { performanceHistory, securityHistory, runnerState, toast, ...rest } = state;
+        const { toast, ...rest } = state;
         return {
           ...rest,
+          runnerState: {
+            ...rest.runnerState,
+            isRunning: false
+          },
           collections: rest.collections.map(collection => collection.storageMode === 'folder'
             ? { ...collection, requests: [] }
             : collection)

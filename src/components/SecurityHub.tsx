@@ -208,12 +208,13 @@ export function SecurityHub({ onManageEnvClick }: SecurityHubProps) {
     }
   };
 
-  const exportReport = () => {
-    if (!groupedFindings) return;
+  const exportReport = (filteredFindings?: any[]) => {
+    const findingsToExport = filteredFindings || groupedFindings;
+    if (!findingsToExport) return;
     const report = {
       generatedAt: new Date().toISOString(),
-      targetCount: groupedFindings.length,
-      findings: groupedFindings
+      targetCount: findingsToExport.length,
+      findings: findingsToExport
     };
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

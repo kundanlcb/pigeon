@@ -19,7 +19,7 @@ interface SecurityOutcomeUIProps {
   setIsLogsExpanded: (val: boolean) => void;
   expandedFindingIds: Set<string>;
   toggleFindingExpand: (reqId: string) => void;
-  exportReport?: () => void;
+  exportReport?: (filteredFindings: RequestFindings[]) => void;
 }
 
 const renderLogWithHighlightedPaths = (log: string) => {
@@ -32,6 +32,19 @@ const renderLogWithHighlightedPaths = (log: string) => {
     }
     return <span key={i}>{part}</span>;
   });
+};
+
+const getRoute = (urlStr: string) => {
+  try {
+    if (urlStr.startsWith('http')) {
+      const url = new URL(urlStr);
+      return url.pathname;
+    }
+    const match = urlStr.match(/(\/[^?#]*)/);
+    return match ? match[1] : urlStr;
+  } catch {
+    return urlStr;
+  }
 };
 
 export function SecurityOutcomeUI({
@@ -140,7 +153,18 @@ export function SecurityOutcomeUI({
                       <>
                         <div className="w-px h-3 bg-border-strong mx-1" />
                         <button
-                          onClick={exportReport}
+                          onClick={() => {
+                            if (!exportReport) return;
+                            const filtered = groupedFindings.map(group => {
+                              const vulns = group.findings.filter(f => {
+                                if (f.risk === 'PASS') return false;
+                                if (filterIssueType !== 'ALL' && f.risk !== filterIssueType) return false;
+                                return true;
+                              });
+                              return { ...group, findings: vulns };
+                            }).filter(group => group.findings.length > 0);
+                            exportReport(filtered);
+                          }}
                           className="flex items-center space-x-1.5 px-2 py-1 rounded text-[11px] font-medium transition-all bg-surface-bg text-text-secondary border border-border-strong hover:bg-surface-hover hover:text-text-primary normal-case"
                         >
                           <Download size={12} />
@@ -215,12 +239,14 @@ export function SecurityOutcomeUI({
                         group.requestMethod === 'PUT' ? 'text-yellow-400' :
                         group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
                       }`}>{group.requestMethod}</span>
-                      <span className={`font-medium truncate shrink-0 max-w-[200px] ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
-                      {group.requestUrl && (
-                        <span className="text-[11px] text-text-muted truncate ml-2 font-mono">
-                          {group.requestUrl}
-                        </span>
-                      )}
+                      <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                        <span className={`font-medium truncate ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
+                        {group.requestUrl && (
+                          <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
+                            {getRoute(group.requestUrl)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       {hasVulns ? (

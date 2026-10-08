@@ -5,6 +5,19 @@ import { getMethodColor } from '../utils/styles';
 import { parseDataset } from '../utils/engine';
 import { RequestResponseDetails } from './RequestResponseDetails';
 
+const getRoute = (urlStr: string) => {
+  try {
+    if (urlStr.startsWith('http')) {
+      const url = new URL(urlStr);
+      return url.pathname;
+    }
+    const match = urlStr.match(/(\/[^?#]*)/);
+    return match ? match[1] : urlStr;
+  } catch {
+    return urlStr;
+  }
+};
+
 export function RunnerView() {
   const runnerState = useStore(state => state.runnerState);
   const setRunnerState = useStore(state => state.setRunnerState);
@@ -393,12 +406,14 @@ export function RunnerView() {
                     <span className={`text-[10px] font-bold w-12 shrink-0 ${getMethodColor(req.method)}`}>
                       {req.method}
                     </span>
-                    <span className="font-medium text-text-muted truncate shrink-0 max-w-[200px]">
-                      {req.name}
-                    </span>
-                    <span className="text-[11px] text-text-muted truncate ml-2 font-mono">
-                      {req.url}
-                    </span>
+                    <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                      <span className="font-medium text-text-muted truncate">
+                        {req.name}
+                      </span>
+                      <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
+                        {getRoute(req.url)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -439,15 +454,16 @@ export function RunnerView() {
                         {req.method}
                       </span>
                       
-                      <span className="font-medium text-text-primary truncate shrink-0 max-w-[200px]">
-                        {req.name}
-                      </span>
-
-                      {result.requestUrl && (
-                        <span className="text-[11px] text-text-muted truncate ml-2 font-mono">
-                          {result.requestUrl}
+                      <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                        <span className="font-medium text-text-primary truncate">
+                          {req.name}
                         </span>
-                      )}
+                        {result.requestUrl && (
+                          <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
+                            {getRoute(result.requestUrl)}
+                          </span>
+                        )}
+                      </div>
                       
                       {result.iteration && parsedDataset && (
                         <span className="px-1.5 py-0.5 rounded bg-surface-hover text-[10px] text-text-muted border border-border-subtle font-mono">

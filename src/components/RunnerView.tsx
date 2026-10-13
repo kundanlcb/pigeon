@@ -406,7 +406,7 @@ export function RunnerView() {
                     <span className={`text-[10px] font-bold w-12 shrink-0 ${getMethodColor(req.method)}`}>
                       {req.method}
                     </span>
-                    <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                    <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-medium text-text-muted truncate">
                         {req.name}
                       </span>
@@ -454,7 +454,7 @@ export function RunnerView() {
                         {req.method}
                       </span>
                       
-                      <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                      <div className="flex flex-col min-w-0 flex-1">
                         <span className="font-medium text-text-primary truncate">
                           {req.name}
                         </span>
@@ -466,7 +466,7 @@ export function RunnerView() {
                       </div>
                       
                       {result.iteration && parsedDataset && (
-                        <span className="px-1.5 py-0.5 rounded bg-surface-hover text-[10px] text-text-muted border border-border-subtle font-mono">
+                        <span className="px-1.5 py-0.5 rounded bg-surface-hover text-[10px] text-text-muted border border-border-subtle font-mono shrink-0">
                           iter {result.iteration}
                         </span>
                       )}

@@ -294,7 +294,7 @@ export function SecurityOutcomeUI({
                           group.requestMethod === 'PUT' ? 'text-yellow-400' :
                           group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
                         }`}>{group.requestMethod}</span>
-                        <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                        <div className="flex flex-col min-w-0 flex-1">
                           <span className={`font-medium truncate ${hasMatchingVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
                           {group.requestUrl && (
                             <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
@@ -303,7 +303,7 @@ export function SecurityOutcomeUI({
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 shrink-0">
                         {hasMatchingVulns ? (
                           <span className="text-[11px] font-bold text-red-400 flex items-center">
                             <AlertTriangle size={12} className="mr-1.5" />

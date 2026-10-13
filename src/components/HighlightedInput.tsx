@@ -15,12 +15,25 @@ interface HighlightedInputProps {
   isTextArea?: boolean;
   autoExpand?: boolean;
   singleLineEllipsis?: boolean;
+  padding?: number | string;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
 
-export function HighlightedInput({ value, onChange, className = '', placeholder, isTextArea = false, autoExpand = false, singleLineEllipsis = false, onKeyDown, onFocus, onBlur }: HighlightedInputProps) {
+export function HighlightedInput({
+  value,
+  onChange,
+  className = '',
+  placeholder,
+  isTextArea = false,
+  autoExpand = false,
+  singleLineEllipsis = false,
+  padding,
+  onKeyDown,
+  onFocus,
+  onBlur
+}: HighlightedInputProps) {
   const environments = useStore(state => state.environments);
   const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
   const activeEnv = environments.find(e => e.id === activeEnvironmentId);
@@ -357,9 +370,9 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
   }, []);
 
   // Sync textarea horizontal scroll → pre so arrow-key navigation
-  // actually reveals the full URL in the highlighted display layer.
+  // actually reveals the full text in the highlighted display layer.
   useEffect(() => {
-    if (!singleLineEllipsis) return;
+    if (isTextArea) return;
     const container = containerRef.current;
     if (!container) return;
     const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
@@ -368,7 +381,7 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     const onScroll = () => { pre.scrollLeft = textarea.scrollLeft; };
     textarea.addEventListener('scroll', onScroll);
     return () => textarea.removeEventListener('scroll', onScroll);
-  }, [singleLineEllipsis]);
+  }, [isTextArea]);
 
   return (
     <div 
@@ -386,35 +399,44 @@ export function HighlightedInput({ value, onChange, className = '', placeholder,
     >
       {(() => {
         const shouldExpand = isTextArea || (autoExpand && value.includes('\n'));
+        const hasExplicitPadding = /\b(p[xytb]?-|p-)\S+/.test(className);
+        const resolvedPadding = padding !== undefined
+          ? padding
+          : isTextArea
+            ? 16
+            : hasExplicitPadding
+              ? 0
+              : 8;
+
         return (
           <Editor
             value={value}
             onValueChange={handleValueChange}
             highlight={highlightText}
-            padding={isTextArea ? 16 : 8}
+            padding={resolvedPadding}
             onKeyUp={getCaretCoordinates}
             onClick={getCaretCoordinates}
-            className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${shouldExpand ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'} ${className}`}
+            className={`w-full min-w-0 font-mono text-[13px] outline-none !bg-transparent ${shouldExpand ? 'min-h-full leading-[1.6]' : 'leading-none whitespace-nowrap overflow-x-hidden no-scrollbar'}`}
             textareaClassName={`outline-none focus:outline-none ${shouldExpand ? '' : '!whitespace-pre !overflow-x-auto !overflow-y-hidden no-scrollbar'}`}
             preClassName={`!bg-transparent ${shouldExpand ? '' : `!whitespace-pre !overflow-y-hidden no-scrollbar ${singleLineEllipsis && !isFocused ? '!overflow-x-hidden !text-ellipsis' : '!overflow-x-auto'}`}`}
-        placeholder={placeholder}
-        onFocus={() => {
-          setIsFocused(true);
-          onFocus?.();
-        }}
-        onBlur={() => {
-          setIsFocused(false);
-          // Delay hiding suggestions to allow clicks
-          setTimeout(() => setShowSuggestions(false), 200);
-          onBlur?.();
-        }}
-        onKeyDown={handleKeyDown}
-        style={{
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          minHeight: shouldExpand ? (isTextArea ? '100%' : '80px') : 'auto',
-          backgroundColor: 'transparent'
-        }}
-      />
+            placeholder={placeholder}
+            onFocus={() => {
+              setIsFocused(true);
+              onFocus?.();
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              // Delay hiding suggestions to allow clicks
+              setTimeout(() => setShowSuggestions(false), 200);
+              onBlur?.();
+            }}
+            onKeyDown={handleKeyDown}
+            style={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              minHeight: shouldExpand ? (isTextArea ? '100%' : '80px') : 'auto',
+              backgroundColor: 'transparent'
+            }}
+          />
         );
       })()}
       

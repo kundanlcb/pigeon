@@ -47,6 +47,23 @@ const getRoute = (urlStr: string) => {
   }
 };
 
+const SECURITY_CHECK_OPTIONS = [
+  { id: 'ALL', label: 'All Checks' },
+  { id: 'BROKEN_AUTH', label: 'Broken Authentication' },
+  { id: 'BOLA', label: 'Broken Object Level Auth (BOLA)' },
+  { id: 'MASS_ASSIGNMENT', label: 'Mass Assignment' },
+  { id: 'VERB_TAMPERING', label: 'Verb Tampering' },
+  { id: 'FUZZING', label: '1-Click Fuzzer' },
+];
+
+const CATEGORY_LABEL_MAP: Record<string, string> = {
+  BROKEN_AUTH: 'Broken Authentication',
+  BOLA: 'BOLA / IDOR',
+  MASS_ASSIGNMENT: 'Mass Assignment',
+  VERB_TAMPERING: 'Verb Tampering',
+  FUZZING: '1-Click Fuzzer',
+};
+
 export function SecurityOutcomeUI({
   isRunning,
   logs,
@@ -58,7 +75,22 @@ export function SecurityOutcomeUI({
   exportReport
 }: SecurityOutcomeUIProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const [filterIssueType, setFilterIssueType] = useState<string>('ALL');
+  const [filterCheckType, setFilterCheckType] = useState<string>('ALL');
+
+  const availableCheckOptions = (() => {
+    if (!groupedFindings) return SECURITY_CHECK_OPTIONS;
+    const existingIds = new Set(SECURITY_CHECK_OPTIONS.map(o => o.id));
+    const extraOptions: { id: string; label: string }[] = [];
+    groupedFindings.forEach(g => {
+      g.findings.forEach(f => {
+        if (f.category && !existingIds.has(f.category)) {
+          existingIds.add(f.category);
+          extraOptions.push({ id: f.category, label: CATEGORY_LABEL_MAP[f.category] || f.category });
+        }
+      });
+    });
+    return [...SECURITY_CHECK_OPTIONS, ...extraOptions];
+  })();
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -131,7 +163,11 @@ export function SecurityOutcomeUI({
               {(() => {
                 let critical = 0, high = 0, medium = 0, low = 0, affected = 0;
                 groupedFindings.forEach(g => {
-                  const vulns = g.findings.filter(f => f.risk !== 'PASS');
+                  const vulns = g.findings.filter(f => {
+                    if (f.risk === 'PASS') return false;
+                    if (filterCheckType !== 'ALL' && f.category !== filterCheckType) return false;
+                    return true;
+                  });
                   if (vulns.length > 0) affected++;
                   vulns.forEach(v => {
                     if (v.risk === 'CRITICAL') critical++;
@@ -158,7 +194,7 @@ export function SecurityOutcomeUI({
                             const filtered = groupedFindings.map(group => {
                               const vulns = group.findings.filter(f => {
                                 if (f.risk === 'PASS') return false;
-                                if (filterIssueType !== 'ALL' && f.risk !== filterIssueType) return false;
+                                if (filterCheckType !== 'ALL' && f.category !== filterCheckType) return false;
                                 return true;
                               });
                               return { ...group, findings: vulns };
@@ -176,15 +212,16 @@ export function SecurityOutcomeUI({
                     <div className="flex items-center space-x-2 relative group">
                       <Filter size={12} className="text-text-muted" />
                       <select 
-                        className="bg-transparent text-[11px] font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary transition-colors appearance-none pr-3"
-                        value={filterIssueType}
-                        onChange={(e) => setFilterIssueType(e.target.value)}
+                        title="Filter by Security Check"
+                        className="bg-transparent text-[11px] font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary transition-colors appearance-none pr-3.5"
+                        value={filterCheckType}
+                        onChange={(e) => setFilterCheckType(e.target.value)}
                       >
-                        <option value="ALL">All Issues</option>
-                        <option value="CRITICAL">Critical</option>
-                        <option value="HIGH">High</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="LOW">Low</option>
+                        {availableCheckOptions.map(opt => (
+                          <option key={opt.id} value={opt.id} className="bg-panel-bg text-text-primary">
+                            {opt.label}
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
                     </div>
@@ -195,126 +232,147 @@ export function SecurityOutcomeUI({
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-            {groupedFindings.length === 0 && (
-              <div className="text-[12px] text-text-muted text-center py-10">No findings to display.</div>
-            )}
-            {[...groupedFindings].sort((a, b) => {
-              const riskWeights: Record<string, number> = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'PASS': 0 };
-              const maxRiskA = Math.max(0, ...a.findings.map(f => riskWeights[f.risk] || 0));
-              const maxRiskB = Math.max(0, ...b.findings.map(f => riskWeights[f.risk] || 0));
-              return maxRiskB - maxRiskA;
-            }).map((group) => {
+            {(() => {
               const riskWeights: Record<string, number> = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
-              const vulns = group.findings.filter(f => {
-                if (f.risk === 'PASS') return false;
-                if (filterIssueType !== 'ALL' && f.risk !== filterIssueType) return false;
-                return true;
-              }).sort((a, b) => (riskWeights[b.risk] || 0) - (riskWeights[a.risk] || 0));
-              const hasVulns = vulns.length > 0;
-              const isExpanded = expandedFindingIds.has(group.requestId);
+              const processedGroups = groupedFindings.map(group => {
+                const vulns = group.findings.filter(f => {
+                  if (f.risk === 'PASS') return false;
+                  if (filterCheckType !== 'ALL' && f.category !== filterCheckType) return false;
+                  return true;
+                }).sort((a, b) => (riskWeights[b.risk] || 0) - (riskWeights[a.risk] || 0));
 
-              // Don't render the request row at all if they are filtering and there are no matching vulns for this request
-              if (filterIssueType !== 'ALL' && !hasVulns) return null;
+                return {
+                  group,
+                  vulns,
+                  hasMatchingVulns: vulns.length > 0
+                };
+              });
 
-              return (
-                <div key={group.requestId} className="flex flex-col border-b border-border-subtle last:border-b-0">
-                  {/* Request Row Header */}
-                  <div 
-                    onClick={() => hasVulns && toggleFindingExpand(group.requestId)}
-                    className={`flex items-center justify-between p-3 rounded-md text-[13px] ${
-                      hasVulns ? 'cursor-pointer hover:bg-surface-hover/50' : 'opacity-70'
-                    } transition-colors`}
-                  >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
-                      <div className="w-4 h-4 flex items-center justify-center text-text-muted shrink-0">
-                        {hasVulns ? (
-                          isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-                        ) : (
-                          <Check size={14} className="text-green-500" />
-                        )}
-                      </div>
-                      <span className={`font-bold text-[10px] w-12 text-left shrink-0 ${
-                        group.requestMethod === 'GET' ? 'text-blue-400' :
-                        group.requestMethod === 'POST' ? 'text-green-400' :
-                        group.requestMethod === 'PUT' ? 'text-yellow-400' :
-                        group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
-                      }`}>{group.requestMethod}</span>
-                      <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
-                        <span className={`font-medium truncate ${hasVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
-                        {group.requestUrl && (
-                          <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
-                            {getRoute(group.requestUrl)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {hasVulns ? (
-                        <span className="text-[11px] font-bold text-red-400 flex items-center">
-                          <AlertTriangle size={12} className="mr-1.5" />
-                          {vulns.length} Issues
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-medium text-green-500">Passed</span>
-                      )}
-                    </div>
+              const visibleItems = processedGroups.filter(item => {
+                if (filterCheckType === 'ALL') return true;
+                return item.hasMatchingVulns;
+              }).sort((a, b) => {
+                const maxRiskA = a.vulns.length > 0 ? (riskWeights[a.vulns[0].risk] || 0) : 0;
+                const maxRiskB = b.vulns.length > 0 ? (riskWeights[b.vulns[0].risk] || 0) : 0;
+                return maxRiskB - maxRiskA;
+              });
+
+              if (visibleItems.length === 0) {
+                const selectedLabel = availableCheckOptions.find(o => o.id === filterCheckType)?.label || filterCheckType;
+                return (
+                  <div className="text-[12px] text-text-muted text-center py-10">
+                    {filterCheckType === 'ALL'
+                      ? 'No findings to display.'
+                      : `No vulnerabilities found for ${selectedLabel}.`}
                   </div>
+                );
+              }
 
-                  {/* Collapsed Details Rows */}
-                  {isExpanded && hasVulns && (
-                    <div className="pl-12 py-2 space-y-4 bg-surface-bg/30 rounded-b-md">
-                      {vulns.map((vuln, i) => (
-                        <div key={i} className="py-2 border-b border-border-subtle last:border-0 pr-4">
-                          <div className="flex items-center space-x-3 mb-1">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                              vuln.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
-                              vuln.risk === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
-                              'bg-yellow-500/10 text-yellow-500'
-                            }`}>
-                              {vuln.risk}
-                            </span>
-                            <span className="text-[12px] font-semibold text-text-primary">{vuln.title}</span>
-                            <span className="text-[10px] text-text-muted font-mono bg-surface-hover px-1.5 py-0.5 rounded">{vuln.category}</span>
-                          </div>
-                          <div className="text-[12px] text-text-secondary leading-relaxed pl-[1px] mt-2 mb-3">
-                            {vuln.description}
-                          </div>
-                          {vuln.remediation && (
-                            <div className="text-[11px] pl-[1px] mt-1.5 text-text-secondary flex items-start">
-                              <Shield size={12} className="mr-1.5 mt-0.5 text-accent shrink-0" />
-                              <span><strong className="text-text-primary font-medium">Remediation:</strong> {vuln.remediation}</span>
-                            </div>
-                          )}
-                          {vuln.payloadSent && (
-                            <div className="mt-3">
-                              <span className="text-[9px] uppercase tracking-wider font-bold block mb-1.5 text-text-muted">Payload / Target Sent:</span>
-                              <div className="bg-app-bg border border-border-strong rounded p-3 text-[10.5px] font-mono text-text-secondary whitespace-pre-wrap overflow-x-auto shadow-inner">
-                                {vuln.payloadSent}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {(vuln.requestHeaders || vuln.requestBody || vuln.responseHeaders || vuln.responseBody) && (
-                            <div className="mt-4 pt-3 border-t border-border-subtle/50">
-                              <RequestResponseDetails 
-                                method={group.requestMethod}
-                                url={group.requestUrl}
-                                requestHeaders={vuln.requestHeaders}
-                                requestBody={vuln.requestBody}
-                                responseHeaders={vuln.responseHeaders}
-                                responseBody={vuln.responseBody}
-                                statusCode={vuln.statusCode}
-                                responseTime={vuln.responseTime}
-                              />
-                            </div>
+              return visibleItems.map(({ group, vulns, hasMatchingVulns }) => {
+                const isExpanded = expandedFindingIds.has(group.requestId);
+
+                return (
+                  <div key={group.requestId} className="flex flex-col border-b border-border-subtle last:border-b-0">
+                    {/* Request Row Header */}
+                    <div 
+                      onClick={() => hasMatchingVulns && toggleFindingExpand(group.requestId)}
+                      className={`flex items-center justify-between p-3 rounded-md text-[13px] ${
+                        hasMatchingVulns ? 'cursor-pointer hover:bg-surface-hover/50' : 'opacity-70'
+                      } transition-colors`}
+                    >
+                      <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                        <div className="w-4 h-4 flex items-center justify-center text-text-muted shrink-0">
+                          {hasMatchingVulns ? (
+                            isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+                          ) : (
+                            <Check size={14} className="text-green-500" />
                           )}
                         </div>
-                      ))}
+                        <span className={`font-bold text-[10px] w-12 text-left shrink-0 ${
+                          group.requestMethod === 'GET' ? 'text-blue-400' :
+                          group.requestMethod === 'POST' ? 'text-green-400' :
+                          group.requestMethod === 'PUT' ? 'text-yellow-400' :
+                          group.requestMethod === 'DELETE' ? 'text-red-400' : 'text-purple-400'
+                        }`}>{group.requestMethod}</span>
+                        <div className="flex flex-col min-w-0 mr-2 max-w-[250px]">
+                          <span className={`font-medium truncate ${hasMatchingVulns ? 'text-text-primary' : 'text-text-muted'}`}>{group.requestName}</span>
+                          {group.requestUrl && (
+                            <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
+                              {getRoute(group.requestUrl)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {hasMatchingVulns ? (
+                          <span className="text-[11px] font-bold text-red-400 flex items-center">
+                            <AlertTriangle size={12} className="mr-1.5" />
+                            {vulns.length} {vulns.length === 1 ? 'Issue' : 'Issues'}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-green-500">Passed</span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {/* Collapsed Details Rows */}
+                    {isExpanded && hasMatchingVulns && (
+                      <div className="pl-12 py-2 space-y-4 bg-surface-bg/30 rounded-b-md">
+                        {vulns.map((vuln, i) => (
+                          <div key={i} className="py-2 border-b border-border-subtle last:border-0 pr-4">
+                            <div className="flex items-center space-x-3 mb-1">
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                vuln.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
+                                vuln.risk === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
+                                'bg-yellow-500/10 text-yellow-500'
+                              }`}>
+                                {vuln.risk}
+                              </span>
+                              <span className="text-[12px] font-semibold text-text-primary">{vuln.title}</span>
+                              <span className="text-[10px] text-text-muted font-mono bg-surface-hover px-1.5 py-0.5 rounded">
+                                {CATEGORY_LABEL_MAP[vuln.category] || vuln.category}
+                              </span>
+                            </div>
+                            <div className="text-[12px] text-text-secondary leading-relaxed pl-[1px] mt-2 mb-3">
+                              {vuln.description}
+                            </div>
+                            {vuln.remediation && (
+                              <div className="text-[11px] pl-[1px] mt-1.5 text-text-secondary flex items-start">
+                                <Shield size={12} className="mr-1.5 mt-0.5 text-accent shrink-0" />
+                                <span><strong className="text-text-primary font-medium">Remediation:</strong> {vuln.remediation}</span>
+                              </div>
+                            )}
+                            {vuln.payloadSent && (
+                              <div className="mt-3">
+                                <span className="text-[9px] uppercase tracking-wider font-bold block mb-1.5 text-text-muted">Payload / Target Sent:</span>
+                                <div className="bg-app-bg border border-border-strong rounded p-3 text-[10.5px] font-mono text-text-secondary whitespace-pre-wrap overflow-x-auto shadow-inner">
+                                  {vuln.payloadSent}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {(vuln.requestHeaders || vuln.requestBody || vuln.responseHeaders || vuln.responseBody) && (
+                              <div className="mt-4 pt-3 border-t border-border-subtle/50">
+                                <RequestResponseDetails 
+                                  method={group.requestMethod}
+                                  url={group.requestUrl}
+                                  requestHeaders={vuln.requestHeaders}
+                                  requestBody={vuln.requestBody}
+                                  responseHeaders={vuln.responseHeaders}
+                                  responseBody={vuln.responseBody}
+                                  statusCode={vuln.statusCode}
+                                  responseTime={vuln.responseTime}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
           
           {!isRunning && groupedFindings && !isLogsExpanded && (

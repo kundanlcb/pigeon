@@ -267,6 +267,7 @@ interface AppState {
   addCollectionFolder: (collectionId: string, name: string, parentId?: string | null) => void;
   renameCollectionFolder: (collectionId: string, folderId: string, name: string) => void;
   deleteCollectionFolder: (collectionId: string, folderId: string) => void;
+  duplicateCollectionFolder: (collectionId: string, folderId: string) => void;
   moveRequestToFolder: (requestId: string, folderId: string | null) => void;
   addEnvironment: (name: string) => void;
   updateEnvironment: (id: string, updates: Partial<Environment>) => void;
@@ -719,7 +720,11 @@ export const useStore = create<AppState>()(
         return {
           collections: state.collections.map(col => 
             col.id === targetColId ? { ...col, requests: [...col.requests, duplicatedReq!] } : col
-          )
+          ),
+          activeRequestId: duplicatedReq.id,
+          openRequestIds: state.openRequestIds.includes(duplicatedReq.id)
+            ? state.openRequestIds
+            : [...state.openRequestIds, duplicatedReq.id]
         };
       }),
       addCollection: (name) => set((state) => ({
@@ -837,6 +842,83 @@ export const useStore = create<AppState>()(
           get().showToast(`Could not remove unused request credentials: ${String(error)}`, 'error')
         );
       },
+      duplicateCollectionFolder: (collectionId, folderId) => set((state) => {
+        const collection = state.collections.find(col => col.id === collectionId);
+        if (!collection || !collection.folders) return state;
+
+        const targetFolder = collection.folders.find(f => f.id === folderId);
+        if (!targetFolder) return state;
+
+        const folderIdMap = new Map<string, string>();
+        const duplicatedFolders: CollectionFolder[] = [];
+
+        // 1. Gather target folder and all its descendant subfolders
+        const getDescendants = (parentId: string): CollectionFolder[] => {
+          const directChildren = (collection.folders || []).filter(f => f.parentId === parentId);
+          let allDesc: CollectionFolder[] = [...directChildren];
+          for (const child of directChildren) {
+            allDesc = allDesc.concat(getDescendants(child.id));
+          }
+          return allDesc;
+        };
+
+        const targetAndDescendants = [targetFolder, ...getDescendants(folderId)];
+
+        // 2. Generate new IDs and mappings
+        const rootSiblingOrders = collection.folders
+          .filter(f => (f.parentId || null) === (targetFolder.parentId || null))
+          .map(f => f.order ?? 0);
+        const rootNewOrder = rootSiblingOrders.length ? Math.max(...rootSiblingOrders) + 1 : 0;
+
+        for (const f of targetAndDescendants) {
+          const newId = `folder-${crypto.randomUUID()}`;
+          folderIdMap.set(f.id, newId);
+        }
+
+        // 3. Build duplicated folder objects
+        for (const f of targetAndDescendants) {
+          const newId = folderIdMap.get(f.id)!;
+          const isRoot = f.id === targetFolder.id;
+          const newParentId = isRoot ? f.parentId : (f.parentId ? folderIdMap.get(f.parentId) || f.parentId : null);
+          const newName = isRoot ? `${f.name} Copy` : f.name;
+          const order = isRoot ? rootNewOrder : f.order;
+
+          duplicatedFolders.push({
+            ...f,
+            id: newId,
+            name: newName,
+            parentId: newParentId,
+            order
+          });
+        }
+
+        // 4. Duplicate all requests belonging to any of these folders
+        const duplicatedRequests: RequestItem[] = [];
+        for (const req of collection.requests) {
+          if (req.folderId && folderIdMap.has(req.folderId)) {
+            const newReqId = `req-${crypto.randomUUID()}`;
+            duplicatedRequests.push({
+              ...req,
+              id: newReqId,
+              name: req.name,
+              folderId: folderIdMap.get(req.folderId)!
+            });
+          }
+        }
+
+        return {
+          collections: state.collections.map(col =>
+            col.id === collectionId
+              ? {
+                  ...col,
+                  folders: [...(col.folders || []), ...duplicatedFolders],
+                  requests: [...col.requests, ...duplicatedRequests],
+                  isOpen: true
+                }
+              : col
+          )
+        };
+      }),
       moveRequestToFolder: (requestId, folderId) => set((state) => ({
         collections: state.collections.map(collection => {
           const request = collection.requests.find(item => item.id === requestId);

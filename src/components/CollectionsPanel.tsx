@@ -238,7 +238,7 @@ export function CollectionsPanel({ onImportClick, onAddEnvironmentClick, onExpor
     const deletedSecrets: Array<{ key: string; value: string | null }> = [];
     try {
       for (const variable of environment.variables) {
-        if (!variable.secret) continue;
+        if (!variable.secret || !variable.secretStored) continue;
         const value = await getSecret(environment.id, variable.key);
         await deleteSecret(environment.id, variable.key);
         deletedSecrets.push({ key: variable.key, value });

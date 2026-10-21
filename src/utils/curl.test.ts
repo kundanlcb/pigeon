@@ -65,4 +65,45 @@ describe('parseCurl', () => {
 
     expect(curlCmd).toContain("-H 'Authorization: Bearer test-access-token-999'");
   });
+
+  it('exports cURL and fills environment variables when resolveEnv is enabled', async () => {
+    const { exportCurl } = await import('./curl');
+    const req = {
+      id: 'req-2',
+      name: 'Get User',
+      method: 'POST' as const,
+      url: '{{baseUrl}}/users/{{userId}}',
+      headers: {
+        'X-Api-Key': '{{apiKey}}',
+        'Content-Type': 'application/json'
+      },
+      auth: {
+        type: 'bearer' as const,
+        bearerToken: '{{token}}'
+      },
+      body: '{"owner": "{{userId}}"}'
+    };
+
+    // Without resolution
+    const unresolved = exportCurl(req);
+    expect(unresolved).toContain("'{{baseUrl}}/users/{{userId}}'");
+    expect(unresolved).toContain("-H 'X-Api-Key: {{apiKey}}'");
+    expect(unresolved).toContain("-H 'Authorization: Bearer {{token}}'");
+    expect(unresolved).toContain("-d '{\"owner\": \"{{userId}}\"}'");
+
+    // With resolution
+    const resolved = exportCurl(req, {
+      resolveEnv: true,
+      resolvedVariables: {
+        baseUrl: 'https://api.pigeon.test',
+        userId: 'u_123',
+        apiKey: 'secret_key_456',
+        token: 'jwt_token_789'
+      }
+    });
+    expect(resolved).toContain("'https://api.pigeon.test/users/u_123'");
+    expect(resolved).toContain("-H 'X-Api-Key: secret_key_456'");
+    expect(resolved).toContain("-H 'Authorization: Bearer jwt_token_789'");
+    expect(resolved).toContain("-d '{\"owner\": \"u_123\"}'");
+  });
 });

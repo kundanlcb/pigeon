@@ -221,15 +221,14 @@ export function HighlightedInput({
         }
       } else {
         const secret = /token|secret/i.test(hoveredVar.name);
-        if (secret) await setSecret(activeEnvironmentId, hoveredVar.name, editVarValue);
         updateEnvironment(activeEnvironmentId, {
           variables: [...activeEnv.variables, {
             id: `var-${crypto.randomUUID()}`,
             key: hoveredVar.name,
-            value: secret ? '' : editVarValue,
+            value: editVarValue,
             enabled: true,
             secret,
-            secretStored: secret ? true : undefined
+            secretStored: false
           }]
         });
       }

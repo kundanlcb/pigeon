@@ -44,7 +44,10 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
       env: {
         get: (key: string) => {
           const v = environment?.variables.find(variable => variable.key === key);
-          if (v && v.secret) return localVars[key];
+          if (v && v.secret) {
+            if (localVars[key] !== undefined) return localVars[key];
+            return v.secretStored ? undefined : v.value;
+          }
           return v ? v.value : localVars[key];
         },
         set: (key: string, value: string) => {
@@ -52,7 +55,7 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
           if (!environment) return;
           const existing = environment.variables.find(variable => variable.key === key);
           if (existing) {
-            if (existing.secret) {
+            if (existing.secret && existing.secretStored) {
               pendingSecretWrites.set(key, value);
             } else if (saveSecretsToEnvironment) {
               const newVars = environment.variables.map(variable => variable.key === key ? { ...variable, value } : variable);
@@ -63,14 +66,11 @@ export async function executeRequest(options: RequestExecutionOptions): Promise<
             const newVars = [...environment.variables, {
               id: `var-${Date.now()}-${Math.random()}`,
               key,
-              value: secret ? '' : value,
+              value,
               enabled: true,
               secret,
-              secretStored: secret ? false : undefined
+              secretStored: false
             }];
-            if (secret) {
-              pendingSecretWrites.set(key, value);
-            }
             useStore.getState().updateEnvironment(environment.id, { variables: newVars });
           }
         }

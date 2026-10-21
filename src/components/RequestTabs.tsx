@@ -20,6 +20,7 @@ export function RequestTabs() {
   const closeAllRequests = useStore(state => state.closeAllRequests);
   const closeRequestsToTheRight = useStore(state => state.closeRequestsToTheRight);
   const addRequest = useStore(state => state.addRequest);
+  const duplicateRequest = useStore(state => state.duplicateRequest);
   const showToast = useStore(state => state.showToast);
 
   const collections = useStore(state => state.collections);
@@ -193,6 +194,19 @@ export function RequestTabs() {
               <span>Close</span>
               <span className="text-[10px] opacity-60">⌘W</span>
             </button>
+
+            {contextMenu.tabId.startsWith('req-') && (
+              <button
+                type="button"
+                onClick={() => {
+                  duplicateRequest(contextMenu.tabId);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-text-primary flex items-center justify-between transition-colors"
+              >
+                <span>Duplicate</span>
+              </button>
+            )}
 
             <button
               type="button"

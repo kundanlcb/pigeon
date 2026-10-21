@@ -40,6 +40,7 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
   const addFolder = useStore(state => state.addCollectionFolder);
   const renameFolder = useStore(state => state.renameCollectionFolder);
   const deleteFolder = useStore(state => state.deleteCollectionFolder);
+  const duplicateFolder = useStore(state => state.duplicateCollectionFolder);
 
   const allFolders = (parentId: string | null = null, depth = 0): Array<{ folder: CollectionFolder; depth: number }> =>
     sortByOrder(folders.filter(folder => folder.parentId === parentId)).flatMap(folder => [
@@ -198,6 +199,9 @@ export function CollectionTree({ collection, onExportRequest, onImportRequest }:
                 </button>
                 <button onClick={() => { setNewFolderParentId(folder.id); setNewFolderName(''); setMenuId(null); if (collapsedFolders.includes(folder.id)) toggleFolderCollapse(folder.id); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <FolderPlus size={12} className="mr-2" /> Add Subfolder
+                </button>
+                <button onClick={() => { duplicateFolder(collection.id, folder.id); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
+                  <Copy size={12} className="mr-2" /> Duplicate
                 </button>
                 <button onClick={() => { setEditingFolderId(folder.id); setEditingFolderName(folder.name); setMenuId(null); }} className="w-full flex items-center px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover">
                   <Edit2 size={12} className="mr-2" /> Rename

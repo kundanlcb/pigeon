@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore, type RequestItem } from '../store';
-import { Play, Loader2, Check, X, Upload, FileText, ChevronRight, ChevronDown } from 'lucide-react';
+import { Play, Loader2, Check, X, Upload, FileText, ChevronRight, ChevronDown, Filter, Download } from 'lucide-react';
 import { getMethodColor } from '../utils/styles';
 import { parseDataset } from '../utils/engine';
 import { RequestResponseDetails } from './RequestResponseDetails';
@@ -33,8 +33,48 @@ export function RunnerView() {
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
   const [runLogs, setRunLogs] = useState<string[]>([]);
   const [isLogsExpanded, setIsLogsExpanded] = useState<boolean>(false);
+  const [filterOutcome, setFilterOutcome] = useState<'ALL' | 'SUCCESS' | 'ERROR'>('ALL');
   
   const terminalRef = React.useRef<HTMLDivElement>(null);
+
+  const totalResultsCount = runnerState.results.length;
+  const succeededCount = runnerState.results.filter(r => r.status === 'success').length;
+  const failedCount = runnerState.results.filter(r => r.status === 'error').length;
+  const totalDuration = runnerState.results.reduce((acc, r) => acc + (r.responseTime || 0), 0);
+  const avgDuration = totalResultsCount > 0 ? Math.round(totalDuration / totalResultsCount) : 0;
+  const totalTests = runnerState.results.reduce((acc, r) => acc + (r.testResults?.length || 0), 0);
+  const passedTests = runnerState.results.reduce((acc, r) => acc + (r.testResults?.filter((t: any) => t.passed)?.length || 0), 0);
+  const failedTests = totalTests - passedTests;
+
+  const exportRunnerReport = () => {
+    if (runnerState.results.length === 0) return;
+    const report = {
+      generatedAt: new Date().toISOString(),
+      totalExecuted: totalResultsCount,
+      succeeded: succeededCount,
+      failed: failedCount,
+      avgResponseTimeMs: avgDuration,
+      tests: {
+        total: totalTests,
+        passed: passedTests,
+        failed: failedTests
+      },
+      results: runnerState.results
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pigeon-runner-report-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const displayedResults = runnerState.results.filter(r => {
+    if (filterOutcome === 'SUCCESS') return r.status === 'success';
+    if (filterOutcome === 'ERROR') return r.status === 'error';
+    return true;
+  });
 
   React.useEffect(() => {
     if (terminalRef.current) {
@@ -215,6 +255,17 @@ export function RunnerView() {
               {parsedDataset && parsedDataset.length > 0 && <span className="text-text-muted ml-1 font-normal">× {parsedDataset.length} iterations = {requestsToDisplay.length * parsedDataset.length} total</span>}
             </span>
           </div>
+
+          {totalResultsCount > 0 && (
+            <>
+              <div className="w-[1px] h-4 bg-border-strong shrink-0" />
+              <div className="flex items-center space-x-2 text-[11px] font-medium shrink-0">
+                <span className="text-green-400">{succeededCount} Passed</span>
+                <span className="text-border-strong">/</span>
+                <span className={failedCount > 0 ? "text-red-400" : "text-text-muted"}>{failedCount} Failed</span>
+              </div>
+            </>
+          )}
         </div>
         
         <div className="flex items-center space-x-3">
@@ -305,7 +356,12 @@ export function RunnerView() {
                       )}
                     </div>
                     <div className="flex items-center space-x-4 shrink-0">
-                      <div className="flex items-center space-x-3 text-text-secondary">
+                      <div className="flex items-center space-x-3 text-text-secondary text-[11px]">
+                        <span className="text-green-400 font-medium">{runnerState.results.filter(r => r.status === 'success').length} passed</span>
+                        {runnerState.results.filter(r => r.status === 'error').length > 0 && (
+                          <span className="text-red-400 font-medium">{runnerState.results.filter(r => r.status === 'error').length} failed</span>
+                        )}
+                        <span className="opacity-40">|</span>
                         <span>{progress.current} of {progress.total}</span>
                         <span className="text-accent font-bold w-8 text-right">{progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}%</span>
                       </div>
@@ -384,6 +440,56 @@ export function RunnerView() {
             <div className="flex flex-col flex-1 min-h-0 w-full bg-panel-bg border border-border-strong rounded-md overflow-hidden shadow-sm">
               <div className="bg-app-bg px-4 py-2 border-b border-border-strong text-[11px] font-bold text-text-muted uppercase tracking-wider flex justify-between items-center shrink-0">
                 <span>Execution Outcomes</span>
+                {totalResultsCount > 0 && (
+                  <div className="flex items-center space-x-3 text-[11px] font-medium text-text-secondary normal-case tracking-normal">
+                    <span className="text-green-400 flex items-center gap-1">
+                      <Check size={12} className="stroke-[2.5]" />
+                      {succeededCount} {succeededCount === 1 ? 'passed' : 'passed'}
+                    </span>
+                    {failedCount > 0 && (
+                      <span className="text-red-400 flex items-center gap-1">
+                        <X size={12} className="stroke-[2.5]" />
+                        {failedCount} {failedCount === 1 ? 'failed' : 'failed'}
+                      </span>
+                    )}
+                    {totalTests > 0 && (
+                      <>
+                        <span className="opacity-40">|</span>
+                        <span className="text-text-secondary">
+                          Tests: <span className="text-green-400">{passedTests} passed</span>
+                          {failedTests > 0 && <span className="text-red-400 ml-1">, {failedTests} failed</span>}
+                        </span>
+                      </>
+                    )}
+                    <span className="opacity-40">|</span>
+                    <span>{totalResultsCount} total ({avgDuration}ms avg)</span>
+                    
+                    <div className="w-px h-3 bg-border-strong mx-1" />
+                    <button
+                      onClick={exportRunnerReport}
+                      className="flex items-center space-x-1.5 px-2 py-1 rounded text-[11px] font-medium transition-all bg-surface-bg text-text-secondary border border-border-strong hover:bg-surface-hover hover:text-text-primary normal-case"
+                      title="Export Results as JSON"
+                    >
+                      <Download size={12} />
+                      <span>Export</span>
+                    </button>
+
+                    <div className="w-px h-3 bg-border-strong mx-1" />
+                    <div className="flex items-center space-x-2 relative group">
+                      <Filter size={12} className="text-text-muted" />
+                      <select 
+                        title="Filter by Outcome"
+                        className="bg-transparent text-[11px] font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary transition-colors appearance-none pr-3.5"
+                        value={filterOutcome}
+                        onChange={(e) => setFilterOutcome(e.target.value as any)}
+                      >
+                        <option value="ALL" className="bg-panel-bg text-text-primary">All ({totalResultsCount})</option>
+                        <option value="SUCCESS" className="bg-panel-bg text-text-primary">Passed ({succeededCount})</option>
+                        <option value="ERROR" className="bg-panel-bg text-text-primary">Failed ({failedCount})</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -391,33 +497,38 @@ export function RunnerView() {
                 <div className="text-[12px] text-text-muted text-center py-10">
                   No requests selected. Please select requests from the sidebar.
                 </div>
-              ) : (
-                <>
-                  {runnerState.results.length === 0 ? requestsToDisplay.map((req, idx) => (
-                    <div 
-                      key={req.id} 
-                      className="flex flex-col border-b border-border-subtle last:border-b-0 opacity-70"
-                    >
-                <div className="flex items-center justify-between p-3 rounded-md text-[13px]">
-                  <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
-                    <div className="w-4 h-4 flex items-center justify-center text-text-muted shrink-0">
-                      <span className="text-[10px]">{idx + 1}</span>
-                    </div>
-                    <span className={`text-[10px] font-bold w-12 shrink-0 ${getMethodColor(req.method)}`}>
-                      {req.method}
-                    </span>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-medium text-text-muted truncate">
-                        {req.name}
-                      </span>
-                      <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
-                        {getRoute(req.url)}
-                      </span>
+              ) : runnerState.results.length === 0 ? (
+                requestsToDisplay.map((req, idx) => (
+                  <div 
+                    key={req.id} 
+                    className="flex flex-col border-b border-border-subtle last:border-b-0 opacity-70"
+                  >
+                    <div className="flex items-center justify-between p-3 rounded-md text-[13px]">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                        <div className="w-4 h-4 flex items-center justify-center text-text-muted shrink-0">
+                          <span className="text-[10px]">{idx + 1}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold w-12 shrink-0 ${getMethodColor(req.method)}`}>
+                          {req.method}
+                        </span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="font-medium text-text-muted truncate">
+                            {req.name}
+                          </span>
+                          <span className="text-[10px] text-text-muted truncate font-mono mt-0.5">
+                            {getRoute(req.url)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : displayedResults.length === 0 ? (
+                <div className="text-[12px] text-text-muted text-center py-10">
+                  No requests match the selected outcome filter ({filterOutcome === 'SUCCESS' ? 'Passed' : 'Failed'}).
                 </div>
-              </div>
-            )) : runnerState.results.map((result, idx) => {
+              ) : (
+                displayedResults.map((result, idx) => {
               const req = allRequests.find(r => r.id === result.requestId);
               if (!req) return null;
               
@@ -530,12 +641,11 @@ export function RunnerView() {
                       )}
                     </div>
                   )}
-                </div>
-              );
-                  })}
-                </>
-              )}
-            </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
             
             {runnerState.results.length > 0 && (
               <div className="p-2 border-t border-border-strong bg-app-bg shrink-0 flex justify-center">

@@ -45,3 +45,70 @@ describe('Tab management store actions', () => {
     expect(state.activeRequestId).toBe('req-2');
   });
 });
+
+describe('Duplication store actions', () => {
+  it('duplicates a request and makes it active in tabs', () => {
+    useStore.setState({
+      collections: [{
+        id: 'col-1',
+        name: 'Test Collection',
+        isOpen: true,
+        requests: [
+          { id: 'req-original', name: 'My Request', method: 'GET', url: 'https://example.com', headers: {} }
+        ],
+        folders: []
+      }],
+      openRequestIds: ['req-original'],
+      activeRequestId: 'req-original'
+    });
+
+    useStore.getState().duplicateRequest('req-original');
+    const state = useStore.getState();
+    const col = state.collections[0];
+    expect(col.requests).toHaveLength(2);
+    const duplicated = col.requests.find(r => r.id !== 'req-original');
+    expect(duplicated).toBeDefined();
+    expect(duplicated?.name).toBe('My Request Copy');
+    expect(state.activeRequestId).toBe(duplicated?.id);
+    expect(state.openRequestIds).toContain(duplicated?.id);
+  });
+
+  it('duplicates a folder along with its subfolders and requests', () => {
+    useStore.setState({
+      collections: [{
+        id: 'col-1',
+        name: 'Test Collection',
+        isOpen: true,
+        folders: [
+          { id: 'folder-root', name: 'Parent Folder', parentId: null, order: 0 },
+          { id: 'folder-child', name: 'Child Folder', parentId: 'folder-root', order: 0 }
+        ],
+        requests: [
+          { id: 'req-1', name: 'Req in root folder', method: 'GET', url: '', headers: {}, folderId: 'folder-root' },
+          { id: 'req-2', name: 'Req in child folder', method: 'POST', url: '', headers: {}, folderId: 'folder-child' }
+        ]
+      }]
+    });
+
+    useStore.getState().duplicateCollectionFolder('col-1', 'folder-root');
+    const state = useStore.getState();
+    const col = state.collections[0];
+    expect(col.folders).toHaveLength(4);
+    expect(col.requests).toHaveLength(4);
+
+    const dupParent = col.folders?.find(f => f.name === 'Parent Folder Copy');
+    expect(dupParent).toBeDefined();
+
+    const dupChild = col.folders?.find(f => f.parentId === dupParent?.id);
+    expect(dupChild).toBeDefined();
+    expect(dupChild?.name).toBe('Child Folder');
+
+    const dupReq1 = col.requests.find(r => r.folderId === dupParent?.id);
+    expect(dupReq1).toBeDefined();
+    expect(dupReq1?.name).toBe('Req in root folder');
+
+    const dupReq2 = col.requests.find(r => r.folderId === dupChild?.id);
+    expect(dupReq2).toBeDefined();
+    expect(dupReq2?.name).toBe('Req in child folder');
+  });
+});

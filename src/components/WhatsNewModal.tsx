@@ -1,9 +1,35 @@
 import { useEffect, useState } from 'react';
-import { X, Sparkles, Shield, Zap, CheckCircle2 } from 'lucide-react';
+import { X, Sparkles, Shield, Zap, CheckCircle2, Copy, KeyRound, Terminal, BarChart2 } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
 import { createPortal } from 'react-dom';
 
 const RELEASE_NOTES: Record<string, { title: string; date: string; features: { icon: any; title: string; desc: string }[] }> = {
+  '2.0.53': {
+    title: 'Runner Analytics, Variable Export & Duplication',
+    date: 'October 2026',
+    features: [
+      {
+        icon: BarChart2,
+        title: 'Runner Analytics & Filtering',
+        desc: 'Comprehensive execution metadata with passed/failed counts, test assertions, avg response times, live progress counters, and report JSON export.'
+      },
+      {
+        icon: Copy,
+        title: 'Request & Folder Duplication',
+        desc: 'Duplicate any request or complete folder hierarchy with all nested subfolders and endpoints preserved in one click.'
+      },
+      {
+        icon: KeyRound,
+        title: 'Flexible Environment Secrets',
+        desc: 'Environment secrets are now masked locally by default without enforcing system keychain storage unless explicitly chosen.'
+      },
+      {
+        icon: Terminal,
+        title: 'Environment Resolution in cURL Export',
+        desc: 'Optionally substitute active environment variables into generated cURL commands when exporting requests.'
+      }
+    ]
+  },
   '2.0.12': {
     title: 'DevSecOps Suite & UI Polish',
     date: 'October 2026',
@@ -44,7 +70,7 @@ export function WhatsNewModal() {
         }
       } catch (err) {
         // Fallback for web mode
-        const fallbackVersion = '2.0.12';
+        const fallbackVersion = '2.0.53';
         setCurrentVersion(fallbackVersion);
         const lastSeen = localStorage.getItem('pigeon_last_seen_version');
         if (lastSeen !== fallbackVersion) {
@@ -59,7 +85,7 @@ export function WhatsNewModal() {
 
   if (!isOpen) return null;
 
-  const notes = RELEASE_NOTES[currentVersion] || RELEASE_NOTES['2.0.12'];
+  const notes = RELEASE_NOTES[currentVersion] || RELEASE_NOTES['2.0.53'];
 
   return createPortal(
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">

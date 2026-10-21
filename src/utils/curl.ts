@@ -97,24 +97,49 @@ export function parseCurl(curlCommand: string): Partial<RequestItem> {
   return result;
 }
 
-export function exportCurl(req: RequestItem): string {
-  const url = removeDisabledQueryParams(req.url, req.disabledParams);
+export interface ExportCurlOptions {
+  resolveEnv?: boolean;
+  resolvedVariables?: Record<string, string>;
+}
+
+export function exportCurl(req: RequestItem, options?: ExportCurlOptions): string {
+  let url = removeDisabledQueryParams(req.url, req.disabledParams);
+  
+  if (req.pathParams) {
+    for (const [key, val] of Object.entries(req.pathParams)) {
+      if (key && val !== undefined) {
+        url = url.replace(`:${key}`, val);
+      }
+    }
+  }
+
+  const resolve = (text: string): string => {
+    if (!options?.resolveEnv || !options?.resolvedVariables || !text) return text;
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+      const trimmed = key.trim();
+      return trimmed in options.resolvedVariables! ? options.resolvedVariables![trimmed] : match;
+    });
+  };
+
+  url = resolve(url);
   let cmd = `curl -X ${req.method} '${url}'`;
   
   if (req.headers) {
     for (const [k, v] of Object.entries(getEnabledRequestHeaders(req))) {
-      cmd += ` \\\n  -H '${k}: ${v}'`;
+      cmd += ` \\\n  -H '${resolve(k)}: ${resolve(v)}'`;
     }
   }
 
   if (req.auth) {
     if (req.auth.type === 'bearer' && req.auth.bearerToken) {
-      cmd += ` \\\n  -H 'Authorization: Bearer ${req.auth.bearerToken}'`;
+      cmd += ` \\\n  -H 'Authorization: Bearer ${resolve(req.auth.bearerToken)}'`;
     } else if (req.auth.type === 'basic' && (req.auth.basicUsername || req.auth.basicPassword)) {
-      const creds = btoa(`${req.auth.basicUsername || ''}:${req.auth.basicPassword || ''}`);
+      const user = resolve(req.auth.basicUsername || '');
+      const pass = resolve(req.auth.basicPassword || '');
+      const creds = btoa(`${user}:${pass}`);
       cmd += ` \\\n  -H 'Authorization: Basic ${creds}'`;
     } else if (req.auth.type === 'api_key' && req.auth.apiKeyKey && req.auth.apiKeyIn === 'header') {
-      cmd += ` \\\n  -H '${req.auth.apiKeyKey}: ${req.auth.apiKeyValue}'`;
+      cmd += ` \\\n  -H '${resolve(req.auth.apiKeyKey)}: ${resolve(req.auth.apiKeyValue || '')}'`;
     } else if (req.auth.type === 'oauth2_client_credentials') {
       if (req.auth.tokenUrl && req.auth.clientId) {
         const cacheKey = getOAuthCacheKey(req.auth.tokenUrl, req.auth.clientId, req.auth.scope);
@@ -138,11 +163,16 @@ export function exportCurl(req: RequestItem): string {
       bodyStr = JSON.stringify({ query: req.body.graphql?.query, variables: vars });
     } else if (req.body.type === 'x-www-form-urlencoded') {
       const p = new URLSearchParams();
-      req.body.urlencoded?.forEach(k => { if (k.enabled) p.append(k.key, k.value); });
+      req.body.urlencoded?.forEach(k => { 
+        if (k.enabled) {
+          p.append(resolve(k.key), resolve(k.value));
+        }
+      });
       bodyStr = p.toString();
     }
     
     if (bodyStr) {
+      bodyStr = resolve(bodyStr);
       const safeBody = bodyStr.replace(/'/g, "'\\''");
       cmd += ` \\\n  -d '${safeBody}'`;
     }

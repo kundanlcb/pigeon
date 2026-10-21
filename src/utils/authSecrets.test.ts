@@ -80,20 +80,24 @@ describe('Keychain secret boundaries', () => {
       id: 'source',
       name: 'Development',
       variables: [
-        { id: 'var-1', key: 'api_token', value: 'token-value', enabled: true },
-        { id: 'var-2', key: 'base_url', value: 'https://example.test', enabled: true }
+        { id: 'var-1', key: 'api_token', value: 'token-value', secretStored: true, enabled: true },
+        { id: 'var-2', key: 'base_url', value: 'https://example.test', enabled: true },
+        { id: 'var-3', key: 'local_secret', value: 'my-secret', secret: true, enabled: true }
       ]
     };
     const secured = await secureImportedEnvironment(imported);
     expect(secured.id).not.toBe(imported.id);
-    expect(secured.variables[0]).toMatchObject({ secret: true, value: '' });
+    expect(secured.variables[0]).toMatchObject({ secret: true, secretStored: true, value: '' });
     expect(secured.variables[1].value).toBe('https://example.test');
+    expect(secured.variables[2]).toMatchObject({ secret: true, secretStored: false, value: 'my-secret' });
 
     const secretKey = `${secured.id}:api_token`;
     expect(keychain.values.get(secretKey)).toBe('token-value');
+    expect(keychain.values.get(`${secured.id}:local_secret`)).toBeUndefined();
     const duplicate = await duplicateEnvironmentWithSecrets(secured);
     expect(duplicate.id).not.toBe(secured.id);
     expect(keychain.values.get(`${duplicate.id}:api_token`)).toBe('token-value');
+    expect(duplicate.variables[2].value).toBe('my-secret');
   });
 
   it('removes a deleted request credential only when no remaining request shares it', async () => {

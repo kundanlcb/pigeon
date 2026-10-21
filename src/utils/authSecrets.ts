@@ -53,11 +53,13 @@ export async function secureImportedEnvironment(environment: Environment): Promi
         variables.push(variable);
         continue;
       }
-      if (variable.value) {
+      if (variable.secretStored && variable.value) {
         await setSecret(id, variable.key, variable.value);
         migratedKeys.push(variable.key);
+        variables.push({ ...variable, secret: true, secretStored: true, value: '' });
+      } else {
+        variables.push({ ...variable, secret: true, secretStored: variable.secretStored ?? false });
       }
-      variables.push({ ...variable, secret: true, secretStored: !!variable.value, value: '' });
     }
     return { ...environment, id, variables };
   } catch (error) {
@@ -72,7 +74,7 @@ export async function duplicateEnvironmentWithSecrets(environment: Environment):
   try {
     const variables = [];
     for (const variable of environment.variables) {
-      if (!variable.secret) {
+      if (!variable.secret || !variable.secretStored) {
         variables.push({ ...variable, id: `var-${crypto.randomUUID()}` });
         continue;
       }

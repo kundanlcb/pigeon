@@ -147,42 +147,81 @@ export function JsonEditor({ value, onChange, readOnly = false, bgType = 'app', 
     }
   };
   
+/**
+ * Normalizes CSS colors (including 3-digit hex like #fff, rgb, rgba) to strict 6-digit hex
+ * required by Monaco Editor's token color validator (/^#?([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})?$/).
+ */
+function normalizeHexColor(colorStr: string, fallback: string): string {
+  if (!colorStr) return fallback.replace('#', '');
+  const trimmed = colorStr.trim();
+  
+  // Handle rgb / rgba e.g. rgb(255, 255, 255)
+  const rgbMatch = trimmed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (rgbMatch) {
+    const r = Math.min(255, Math.max(0, parseInt(rgbMatch[1], 10))).toString(16).padStart(2, '0');
+    const g = Math.min(255, Math.max(0, parseInt(rgbMatch[2], 10))).toString(16).padStart(2, '0');
+    const b = Math.min(255, Math.max(0, parseInt(rgbMatch[3], 10))).toString(16).padStart(2, '0');
+    return `${r}${g}${b}`;
+  }
+
+  const hex = trimmed.replace('#', '');
+  // Shorthand 3-digit hex: #fff -> #ffffff
+  if (hex.length === 3 && /^[0-9A-Fa-f]{3}$/.test(hex)) {
+    return hex.split('').map(ch => ch + ch).join('');
+  }
+  // Shorthand 4-digit hex: #ffff -> #ffffffff
+  if (hex.length === 4 && /^[0-9A-Fa-f]{4}$/.test(hex)) {
+    return hex.split('').map(ch => ch + ch).join('');
+  }
+  // Standard 6 or 8-digit hex
+  if ((hex.length === 6 || hex.length === 8) && /^[0-9A-Fa-f]+$/.test(hex)) {
+    return hex;
+  }
+
+  return fallback.replace('#', '');
+}
+
   useEffect(() => {
     if (monaco) {
       registerProviders(monaco);
       // Small timeout ensures CSS variables are updated in the DOM after theme toggle
       setTimeout(() => {
-        const rootStyle = getComputedStyle(document.documentElement);
-        const getVar = (name: string, fallback: string) => rootStyle.getPropertyValue(name).trim() || fallback;
-        
-        const keyColor = getVar('--color-syntax-key', '#60a5fa');
-        const stringColor = getVar('--color-syntax-string', '#fb923c');
-        const numberColor = getVar('--color-syntax-number', '#4ade80');
-        const booleanColor = getVar('--color-syntax-boolean', '#c084fc');
-        
-        const background = bgType === 'panel' ? getVar('--color-panel-bg', '#121214') : getVar('--color-app-bg', '#09090b');
-        const lineHighlight = getVar('--color-surface-bg', '#18181b');
-        const lineNumber = getVar('--color-text-muted', '#52525b');
-        
-        const baseTheme = theme === 'light' ? 'vs' : 'vs-dark';
-        const themeName = `pigeon-${theme}-${bgType}`;
+        try {
+          const rootStyle = getComputedStyle(document.documentElement);
+          const getVar = (name: string, fallback: string) => rootStyle.getPropertyValue(name).trim() || fallback;
+          
+          const keyColor = getVar('--color-syntax-key', '#60a5fa');
+          const stringColor = getVar('--color-syntax-string', '#fb923c');
+          const numberColor = getVar('--color-syntax-number', '#4ade80');
+          const booleanColor = getVar('--color-syntax-boolean', '#c084fc');
+          
+          const background = bgType === 'panel' ? getVar('--color-panel-bg', '#121214') : getVar('--color-app-bg', '#09090b');
+          const lineHighlight = getVar('--color-surface-bg', '#18181b');
+          const lineNumber = getVar('--color-text-muted', '#52525b');
+          
+          const baseTheme = theme === 'light' ? 'vs' : 'vs-dark';
+          const themeName = `pigeon-${theme}-${bgType}`;
 
-        monaco.editor.defineTheme(themeName, {
-          base: baseTheme,
-          inherit: true,
-          rules: [
-            { token: 'string.key.json', foreground: keyColor.replace('#', '') },
-            { token: 'string.value.json', foreground: stringColor.replace('#', '') },
-            { token: 'number', foreground: numberColor.replace('#', '') },
-            { token: 'keyword.json', foreground: booleanColor.replace('#', '') },
-          ],
-          colors: {
-            'editor.background': background, 
-            'editor.lineHighlightBackground': lineHighlight,
-            'editorLineNumber.foreground': lineNumber,
-          }
-        });
-        monaco.editor.setTheme(themeName);
+          monaco.editor.defineTheme(themeName, {
+            base: baseTheme,
+            inherit: true,
+            rules: [
+              { token: 'string.key.json', foreground: normalizeHexColor(keyColor, '60a5fa') },
+              { token: 'string.value.json', foreground: normalizeHexColor(stringColor, 'fb923c') },
+              { token: 'number', foreground: normalizeHexColor(numberColor, '4ade80') },
+              { token: 'keyword.json', foreground: normalizeHexColor(booleanColor, 'c084fc') },
+            ],
+            colors: {
+              'editor.background': '#' + normalizeHexColor(background, '09090b'), 
+              'editor.lineHighlightBackground': '#' + normalizeHexColor(lineHighlight, '18181b'),
+              'editorLineNumber.foreground': '#' + normalizeHexColor(lineNumber, '52525b'),
+            }
+          });
+          monaco.editor.setTheme(themeName);
+        } catch (themeError) {
+          console.error('Failed to configure custom Monaco theme:', themeError);
+          monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
+        }
       }, 0);
     }
   }, [monaco, theme, bgType]);

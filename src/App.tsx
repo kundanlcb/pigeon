@@ -86,7 +86,7 @@ export default function App() {
         let migrationFailed = false;
         const newVars = [];
         for (const v of env.variables) {
-          if ((v.secret || authVars.has(v.key) || v.key.toLowerCase().includes('token') || v.key.toLowerCase().includes('secret')) && v.value !== '') {
+          if (v.secret && v.secretStored && v.value !== '') {
             try {
               await setSecret(env.id, v.key, v.value);
               newVars.push({ ...v, secret: true, secretStored: true, value: '' });

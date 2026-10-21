@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, AlertTriangle, Terminal } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { parseCurl, exportCurl } from '../utils/curl';
 import { useStore } from '../store';
 import type { RequestItem } from '../store';
 import { MethodIcon } from './MethodIcon';
+import { getSecret } from '../utils/secrets';
 
 interface CurlModalProps {
   isOpen: boolean;
@@ -20,15 +21,51 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId, 
   const [copied, setCopied] = useState(false);
   const collections = useStore(state => state.collections);
   const addRequest = useStore(state => state.addRequest);
+  const environments = useStore(state => state.environments);
+  const activeEnvironmentId = useStore(state => state.activeEnvironmentId);
+  const activeEnv = environments.find(e => e.id === activeEnvironmentId);
 
+  const [resolveEnv, setResolveEnv] = useState(false);
+  const [resolvedVars, setResolvedVars] = useState<Record<string, string>>({});
   const [format, setFormat] = useState<'curl' | 'postman' | 'bruno'>('curl');
   const [parsedPreview, setParsedPreview] = useState<{ method?: string, url?: string, headersCount?: number, hasBody?: boolean } | null>(null);
 
+  useEffect(() => {
+    let isCancelled = false;
+    const loadVariables = async () => {
+      if (!activeEnv) {
+        setResolvedVars({});
+        return;
+      }
+      const vars: Record<string, string> = {};
+      for (const v of activeEnv.variables) {
+        if (!v.enabled || !v.key.trim()) continue;
+        if (v.secret && v.secretStored) {
+          try {
+            const secretVal = await getSecret(activeEnv.id, v.key);
+            vars[v.key] = secretVal ?? '';
+          } catch {
+            vars[v.key] = v.value || '';
+          }
+        } else {
+          vars[v.key] = v.value || '';
+        }
+      }
+      if (!isCancelled) {
+        setResolvedVars(vars);
+      }
+    };
+    if (isOpen && mode === 'export') {
+      void loadVariables();
+    }
+    return () => { isCancelled = true; };
+  }, [isOpen, mode, activeEnv]);
+
   // When modal opens in export mode, generate the curl string
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen && mode === 'export' && request) {
       if (format === 'curl') {
-        setCurlText(exportCurl(request));
+        setCurlText(exportCurl(request, { resolveEnv, resolvedVariables: resolvedVars }));
       } else if (format === 'postman') {
         setCurlText('{\n  "info": { "name": "Postman Export (Coming soon)" }\n}');
       } else {
@@ -39,7 +76,7 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId, 
       setCurlText('');
       setParsedPreview(null);
     }
-  }, [isOpen, mode, request, format]);
+  }, [isOpen, mode, request, format, resolveEnv, resolvedVars]);
 
   React.useEffect(() => {
     if (mode === 'import' && curlText.trim()) {
@@ -138,6 +175,29 @@ export function CurlModal({ isOpen, onClose, mode, request, targetCollectionId, 
 
         {/* Body */}
         <div className="p-4 flex-1 bg-app-bg">
+          {mode === 'export' && (
+            <div className="flex items-center justify-between px-1 pb-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-text-secondary hover:text-text-primary">
+                <input
+                  type="checkbox"
+                  checked={resolveEnv}
+                  onChange={(e) => setResolveEnv(e.target.checked)}
+                  className="accent-accent w-3.5 h-3.5 cursor-pointer rounded-sm"
+                />
+                <span>Fill environment variables with values</span>
+              </label>
+              {activeEnv ? (
+                <span className="text-[10px] font-mono text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
+                  {activeEnv.name}
+                </span>
+              ) : (
+                <span className="text-[10px] text-text-muted italic">
+                  (No active environment)
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="relative group">
             <textarea 
               value={curlText}
